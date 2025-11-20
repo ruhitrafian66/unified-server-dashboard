@@ -1,0 +1,19 @@
+[Unit]
+Description=Unified Server Dashboard Backend
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/server-dashboard/backend
+Environment=NODE_ENV=production
+Environment=PORT=3001
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=server-dashboard
+
+[Install]
+WantedBy=multi-user.target
