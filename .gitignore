@@ -9,3 +9,38 @@ yarn-debug.log*
 yarn-error.log*
 .vscode/
 .idea/
+
+# Build artifacts
+*.tar.gz
+*.tgz
+*.zip
+
+# macOS
+._*
+.AppleDouble
+.LSOverride
+
+# Deployment specific
+frontend-dist/
+DEPLOYED.md
+
+# IDE
+*.swp
+*.swo
+*~
+.project
+.settings/
+.classpath
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
