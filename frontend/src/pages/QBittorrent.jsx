@@ -114,35 +114,77 @@ function QBittorrent({ serverUrl }) {
               padding: '1rem', 
               borderBottom: '1px solid #2a2a3e',
               display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
+              gap: '1rem',
+              alignItems: 'flex-start',
               background: 'rgba(255,255,255,0.02)',
               borderRadius: '6px',
               marginBottom: '0.5rem'
             }}>
-              <div style={{ flex: 1 }}>
-                <strong style={{ color: '#e0e0e0' }}>{torrent.name}</strong>
-                <p style={{ fontSize: '0.875rem', color: '#b0b0c0', marginTop: '0.25rem' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong style={{ 
+                  color: '#e0e0e0',
+                  display: 'block',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                  lineHeight: '1.4'
+                }}>
+                  {torrent.name}
+                </strong>
+                <p style={{ 
+                  fontSize: '0.875rem', 
+                  color: '#b0b0c0', 
+                  marginTop: '0.5rem',
+                  wordBreak: 'break-word'
+                }}>
                   {formatBytes(torrent.size)} GB • {(torrent.progress * 100).toFixed(1)}% • {torrent.state}
                 </p>
                 {torrent.dlspeed > 0 && (
-                  <p style={{ fontSize: '0.75rem', color: '#667eea', marginTop: '0.25rem' }}>
+                  <p style={{ 
+                    fontSize: '0.75rem', 
+                    color: '#667eea', 
+                    marginTop: '0.25rem',
+                    wordBreak: 'break-word'
+                  }}>
                     ↓ {formatSpeed(torrent.dlspeed)} MB/s
                     {torrent.upspeed > 0 && ` • ↑ ${formatSpeed(torrent.upspeed)} MB/s`}
                   </p>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column',
+                gap: '0.5rem',
+                flexShrink: 0,
+                minWidth: '100px'
+              }}>
                 {torrent.state === 'pausedDL' || torrent.state === 'pausedUP' ? (
-                  <button className="button" onClick={() => controlTorrent('resume', torrent.hash)}>Resume</button>
+                  <button 
+                    className="button" 
+                    onClick={() => controlTorrent('resume', torrent.hash)}
+                    style={{ width: '100%', whiteSpace: 'nowrap' }}
+                  >
+                    Resume
+                  </button>
                 ) : (
-                  <button className="button" onClick={() => controlTorrent('pause', torrent.hash)}>Pause</button>
+                  <button 
+                    className="button" 
+                    onClick={() => controlTorrent('pause', torrent.hash)}
+                    style={{ width: '100%', whiteSpace: 'nowrap' }}
+                  >
+                    Pause
+                  </button>
                 )}
-                <button className="button button-danger" onClick={() => {
-                  if (confirm(`Delete "${torrent.name}"?`)) {
-                    controlTorrent('delete', torrent.hash);
-                  }
-                }}>Delete</button>
+                <button 
+                  className="button button-danger" 
+                  onClick={() => {
+                    if (confirm(`Delete "${torrent.name}"?`)) {
+                      controlTorrent('delete', torrent.hash);
+                    }
+                  }}
+                  style={{ width: '100%', whiteSpace: 'nowrap' }}
+                >
+                  Delete
+                </button>
               </div>
             </div>
           ))
