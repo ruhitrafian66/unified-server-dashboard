@@ -86,7 +86,7 @@ function WireGuard({ serverUrl }) {
 
           <div className="card">
             <h2>Status</h2>
-            <pre style={{ background: '#f5f5f5', padding: '1rem', borderRadius: '4px', overflow: 'auto' }}>
+            <pre style={{ background: '#0a0a14', padding: '1rem', borderRadius: '6px', overflow: 'auto', color: '#4caf50', border: '1px solid #2a2a3e' }}>
               {status || 'No status available'}
             </pre>
           </div>
@@ -94,7 +94,7 @@ function WireGuard({ serverUrl }) {
           <div className="card">
             <h2>Peers ({peers.length})</h2>
             {peers.map((peer, index) => (
-              <div key={index} style={{ padding: '0.5rem', borderBottom: '1px solid #eee' }}>
+              <div key={index} style={{ padding: '0.75rem', borderBottom: '1px solid #2a2a3e', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', marginBottom: '0.5rem', color: '#e0e0e0' }}>
                 {peer}
               </div>
             ))}

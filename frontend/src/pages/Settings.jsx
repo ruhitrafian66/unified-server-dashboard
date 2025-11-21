@@ -16,7 +16,7 @@ function Settings({ serverUrl, setServerUrl }) {
       <div className="card">
         <h2>Server Configuration</h2>
         <label>
-          <strong>Backend Server URL</strong>
+          <strong style={{ color: '#667eea', display: 'block', marginBottom: '0.5rem' }}>Backend Server URL</strong>
           <input
             className="input"
             type="text"
@@ -30,12 +30,12 @@ function Settings({ serverUrl, setServerUrl }) {
 
       <div className="card">
         <h2>About</h2>
-        <p><strong>Version:</strong> 1.0.0</p>
-        <p><strong>Features:</strong></p>
-        <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem' }}>
-          <li>qBittorrent torrent management</li>
-          <li>WireGuard VPN configuration</li>
-          <li>OpenMediaVault server monitoring</li>
+        <p style={{ marginBottom: '0.5rem', color: '#e0e0e0' }}><strong style={{ color: '#667eea' }}>Version:</strong> 1.0.0</p>
+        <p style={{ marginBottom: '0.5rem', color: '#e0e0e0' }}><strong style={{ color: '#667eea' }}>Features:</strong></p>
+        <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem', color: '#b0b0c0' }}>
+          <li style={{ marginBottom: '0.25rem' }}>qBittorrent torrent management</li>
+          <li style={{ marginBottom: '0.25rem' }}>WireGuard VPN configuration</li>
+          <li style={{ marginBottom: '0.25rem' }}>OpenMediaVault server monitoring</li>
           <li>Progressive Web App support</li>
         </ul>
       </div>

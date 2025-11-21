@@ -108,14 +108,17 @@ function QBittorrent({ serverUrl }) {
         {torrents.map((torrent) => (
           <div key={torrent.hash} style={{ 
             padding: '1rem', 
-            borderBottom: '1px solid #eee',
+            borderBottom: '1px solid #2a2a3e',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'center',
+            background: 'rgba(255,255,255,0.02)',
+            borderRadius: '6px',
+            marginBottom: '0.5rem'
           }}>
             <div>
-              <strong>{torrent.name}</strong>
-              <p style={{ fontSize: '0.875rem', color: '#666' }}>
+              <strong style={{ color: '#e0e0e0' }}>{torrent.name}</strong>
+              <p style={{ fontSize: '0.875rem', color: '#b0b0c0' }}>
                 {(torrent.size / 1024 / 1024 / 1024).toFixed(2)} GB - 
                 {(torrent.progress * 100).toFixed(1)}% - 
                 {torrent.state}

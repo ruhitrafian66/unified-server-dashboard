@@ -4,8 +4,8 @@
   "description": "Manage qBittorrent, WireGuard, and OMV servers",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1976d2",
+  "background_color": "#0f0f0f",
+  "theme_color": "#1a1a2e",
   "orientation": "portrait-primary",
   "icons": [
     {

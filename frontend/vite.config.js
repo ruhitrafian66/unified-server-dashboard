@@ -12,8 +12,8 @@ export default defineConfig({
         name: 'Unified Server Dashboard',
         short_name: 'Server Dashboard',
         description: 'Manage qBittorrent, WireGuard, and OMV servers',
-        theme_color: '#1976d2',
-        background_color: '#ffffff',
+        theme_color: '#1a1a2e',
+        background_color: '#0f0f0f',
         display: 'standalone',
         icons: [
           {

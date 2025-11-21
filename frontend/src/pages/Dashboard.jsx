@@ -33,13 +33,13 @@ function Dashboard({ serverUrl }) {
           <h2>System Status</h2>
           {systemInfo ? (
             <>
-              <p><strong>CPU:</strong> {systemInfo.cpu}</p>
-              <p><strong>Memory:</strong> {systemInfo.memory}</p>
-              <p><strong>Disk:</strong> {systemInfo.disk}</p>
-              <p><strong>Uptime:</strong> {systemInfo.uptime}</p>
+              <p style={{ marginBottom: '0.5rem', color: '#e0e0e0' }}><strong style={{ color: '#667eea' }}>CPU:</strong> {systemInfo.cpu}</p>
+              <p style={{ marginBottom: '0.5rem', color: '#e0e0e0' }}><strong style={{ color: '#667eea' }}>Memory:</strong> {systemInfo.memory}</p>
+              <p style={{ marginBottom: '0.5rem', color: '#e0e0e0' }}><strong style={{ color: '#667eea' }}>Disk:</strong> {systemInfo.disk}</p>
+              <p style={{ color: '#e0e0e0' }}><strong style={{ color: '#667eea' }}>Uptime:</strong> {systemInfo.uptime}</p>
             </>
           ) : (
-            <p>Unable to fetch system info</p>
+            <p style={{ color: '#b0b0c0' }}>Unable to fetch system info</p>
           )}
         </div>
 

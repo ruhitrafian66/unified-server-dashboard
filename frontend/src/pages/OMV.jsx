@@ -59,9 +59,12 @@ function OMV({ serverUrl }) {
             display: 'flex', 
             justifyContent: 'space-between',
             padding: '0.75rem',
-            borderBottom: '1px solid #eee'
+            borderBottom: '1px solid #2a2a3e',
+            background: 'rgba(255,255,255,0.02)',
+            borderRadius: '6px',
+            marginBottom: '0.5rem'
           }}>
-            <span>{service.service}</span>
+            <span style={{ color: '#e0e0e0' }}>{service.service}</span>
             <span className={`status-badge ${service.status === 'active' ? 'status-active' : 'status-inactive'}`}>
               {service.status}
             </span>
@@ -72,22 +75,22 @@ function OMV({ serverUrl }) {
       <div className="card">
         <h2>Disk Usage</h2>
         {disks.map((disk) => (
-          <div key={disk.device} style={{ marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-              <span><strong>{disk.device}</strong> - {disk.mountPoint}</span>
-              <span>{disk.used} / {disk.size} ({disk.usePercent})</span>
+          <div key={disk.device} style={{ marginBottom: '1rem', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <span style={{ color: '#e0e0e0' }}><strong>{disk.device}</strong> - {disk.mountPoint}</span>
+              <span style={{ color: '#b0b0c0' }}>{disk.used} / {disk.size} ({disk.usePercent})</span>
             </div>
             <div style={{ 
               width: '100%', 
               height: '8px', 
-              background: '#e0e0e0', 
+              background: '#2a2a3e', 
               borderRadius: '4px',
               overflow: 'hidden'
             }}>
               <div style={{ 
                 width: disk.usePercent, 
                 height: '100%', 
-                background: parseInt(disk.usePercent) > 80 ? '#f44336' : '#4caf50',
+                background: parseInt(disk.usePercent) > 80 ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
                 transition: 'width 0.3s'
               }} />
             </div>
