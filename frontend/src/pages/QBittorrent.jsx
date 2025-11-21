@@ -73,36 +73,56 @@ function QBittorrent({ serverUrl }) {
       setSearchId(searchJobId);
       
       let pollCount = 0;
-      const maxPolls = 30; // Poll for 30 seconds (30 * 1s)
-      let hasResults = false;
+      const maxPolls = 15; // Poll for 15 seconds
+      let lastTotal = 0;
+      let stableCount = 0;
       
-      // Poll aggressively to keep job alive
+      // Poll for status and results
       const pollResults = setInterval(async () => {
         try {
           pollCount++;
           
-          // Get results - this keeps the job alive
-          const results = await axios.get(`/api/qbittorrent/search/results/${searchJobId}?limit=100`);
+          // Check status first
+          const status = await axios.get(`/api/qbittorrent/search/status/${searchJobId}`);
           
-          if (results.data && results.data.results && results.data.results.length > 0) {
-            setSearchResults(results.data.results);
-            hasResults = true;
-          }
-          
-          // Check status
-          try {
-            const status = await axios.get(`/api/qbittorrent/search/status/${searchJobId}`);
-            if (status.data && status.data.length > 0 && status.data[0].status === 'Stopped') {
+          if (status.data && status.data.length > 0) {
+            const searchStatus = status.data[0];
+            const statusStr = searchStatus.status;
+            const total = searchStatus.total || 0;
+            
+            console.log(`Search status: ${statusStr}, Total: ${total}`);
+            
+            // Check if results are stable (not increasing)
+            if (total > 0 && total === lastTotal) {
+              stableCount++;
+            } else {
+              stableCount = 0;
+            }
+            lastTotal = total;
+            
+            // Get results if stopped OR if we have results and they're stable for 2 checks
+            if ((statusStr === 'Stopped' && total > 0) || (total > 0 && stableCount >= 2)) {
+              // Get results
+              const results = await axios.get(`/api/qbittorrent/search/results/${searchJobId}?limit=200`);
+              
+              if (results.data && results.data.results && results.data.results.length > 0) {
+                setSearchResults(results.data.results);
+                clearInterval(pollResults);
+                setSearching(false);
+                
+                // Stop search
+                try {
+                  await axios.post('/api/qbittorrent/search/stop', { id: searchJobId });
+                } catch (e) {}
+                
+                return;
+              }
+            } else if (statusStr === 'Stopped' && total === 0) {
               clearInterval(pollResults);
               setSearching(false);
-              
-              if (!hasResults) {
-                alert('No results found. Try a different search term.');
-              }
+              alert('No results found. Try a different search term.');
               return;
             }
-          } catch (statusErr) {
-            // Status endpoint might fail, continue with results
           }
           
           // Stop after max polls
@@ -110,24 +130,30 @@ function QBittorrent({ serverUrl }) {
             clearInterval(pollResults);
             setSearching(false);
             
+            // Try to get any results we have
+            try {
+              const results = await axios.get(`/api/qbittorrent/search/results/${searchJobId}?limit=200`);
+              if (results.data && results.data.results && results.data.results.length > 0) {
+                setSearchResults(results.data.results);
+              } else {
+                alert('Search timed out. No results found.');
+              }
+            } catch (e) {
+              alert('Search timed out.');
+            }
+            
             // Stop the search job
             try {
               await axios.post('/api/qbittorrent/search/stop', { id: searchJobId });
             } catch (e) {}
-            
-            if (!hasResults) {
-              alert('Search completed. No results found.');
-            }
           }
         } catch (err) {
-          console.error('Error fetching results:', err);
+          console.error('Error during search:', err);
           clearInterval(pollResults);
           setSearching(false);
-          if (!hasResults) {
-            alert('Search failed. The search service may not be working properly.');
-          }
+          alert('Search failed: ' + (err.response?.data?.error || err.message));
         }
-      }, 1000); // Poll every 1 second to keep job alive
+      }, 1000); // Poll every 1 second
     } catch (error) {
       alert('Error starting search: ' + (error.response?.data?.error || error.message));
       setSearching(false);
