@@ -17,9 +17,9 @@ function App() {
           <h1>Server Dashboard</h1>
           <div className="nav-links">
             <Link to="/">Dashboard</Link>
-            <Link to="/qbittorrent">qBittorrent</Link>
-            <Link to="/wireguard">WireGuard</Link>
-            <Link to="/omv">OMV</Link>
+            <Link to="/downloads">Downloads</Link>
+            <Link to="/vpn">VPN</Link>
+            <Link to="/server">Server</Link>
             <Link to="/settings">Settings</Link>
           </div>
         </nav>
@@ -27,9 +27,12 @@ function App() {
         <main className="main-content">
           <Routes>
             <Route path="/" element={<Dashboard serverUrl={serverUrl} />} />
+            <Route path="/downloads" element={<QBittorrent serverUrl={serverUrl} />} />
             <Route path="/qbittorrent" element={<QBittorrent serverUrl={serverUrl} />} />
             <Route path="/wireguard" element={<WireGuard serverUrl={serverUrl} />} />
+            <Route path="/vpn" element={<WireGuard serverUrl={serverUrl} />} />
             <Route path="/omv" element={<OMV serverUrl={serverUrl} />} />
+            <Route path="/server" element={<OMV serverUrl={serverUrl} />} />
             <Route path="/settings" element={<Settings serverUrl={serverUrl} setServerUrl={setServerUrl} />} />
           </Routes>
         </main>

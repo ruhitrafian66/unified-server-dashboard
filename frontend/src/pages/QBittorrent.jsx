@@ -174,7 +174,7 @@ function QBittorrent({ serverUrl }) {
 
   return (
     <div>
-      <h1>qBittorrent</h1>
+      <h1>Downloads</h1>
       
       {error && (
         <div className="card" style={{ background: 'rgba(244, 67, 54, 0.1)', borderColor: '#f44336' }}>
@@ -182,18 +182,21 @@ function QBittorrent({ serverUrl }) {
             <strong>Connection Error:</strong> {error}
           </p>
           <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-            Make sure qBittorrent is running on port 8080
+            The download service isn't responding. Please check if it's running.
           </p>
         </div>
       )}
 
       <div className="card">
-        <h2>🔍 Search for TV or Movies</h2>
+        <h2>🔍 Find Movies & TV Shows</h2>
+        <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Search for any movie or TV show to download
+        </p>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
           <input
             className="input"
             type="text"
-            placeholder="Search for TV shows or movies..."
+            placeholder="e.g., Breaking Bad, The Matrix, Game of Thrones..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && searchTorrents()}
@@ -203,16 +206,16 @@ function QBittorrent({ serverUrl }) {
             className="button" 
             onClick={searchTorrents}
             disabled={searching}
-            style={{ minWidth: '100px' }}
+            style={{ minWidth: '120px' }}
           >
-            {searching ? 'Searching...' : 'Search'}
+            {searching ? 'Searching...' : '🔍 Search'}
           </button>
         </div>
 
         {searchResults.length > 0 && (
           <div style={{ maxHeight: '400px', overflowY: 'auto', marginTop: '1rem' }}>
             <p style={{ color: '#667eea', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-              Found {searchResults.length} results
+              ✓ Found {searchResults.length} results - Click any to download
             </p>
             {searchResults.map((result, index) => (
               <div 
@@ -236,14 +239,14 @@ function QBittorrent({ serverUrl }) {
                       {result.fileName}
                     </strong>
                     <p style={{ fontSize: '0.75rem', color: '#b0b0c0', marginTop: '0.25rem' }}>
-                      {(result.fileSize / 1024 / 1024 / 1024).toFixed(2)} GB • Seeds: {result.nbSeeders} • Peers: {result.nbLeechers}
+                      Size: {(result.fileSize / 1024 / 1024 / 1024).toFixed(2)} GB • Quality: {result.nbSeeders > 10 ? 'Good' : 'Fair'} ({result.nbSeeders} sources)
                     </p>
                   </div>
                   <button 
                     className="button"
                     style={{ flexShrink: 0, fontSize: '0.875rem', padding: '0.5rem 1rem' }}
                   >
-                    Add
+                    ⬇ Download
                   </button>
                 </div>
               </div>
@@ -254,15 +257,18 @@ function QBittorrent({ serverUrl }) {
 
       {showAdvanced && selectedTorrent && (
         <div className="card" style={{ background: 'rgba(102, 126, 234, 0.1)', borderColor: '#667eea' }}>
-          <h2>Advanced Download Options</h2>
+          <h2>⚙️ Download Settings</h2>
           <p style={{ color: '#e0e0e0', marginBottom: '1rem', wordBreak: 'break-word' }}>
-            <strong>Selected:</strong> {selectedTorrent.fileName}
+            <strong>Ready to download:</strong> {selectedTorrent.fileName}
           </p>
           
           <label style={{ display: 'block', marginBottom: '1rem' }}>
             <strong style={{ color: '#667eea', display: 'block', marginBottom: '0.5rem' }}>
-              Download Location
+              📁 Save to Folder
             </strong>
+            <p style={{ color: '#b0b0c0', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
+              Where should we save this file?
+            </p>
             <input
               className="input"
               type="text"
@@ -272,19 +278,24 @@ function QBittorrent({ serverUrl }) {
             />
           </label>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '1.5rem', cursor: 'pointer' }}>
             <input
               type="checkbox"
               checked={advancedOptions.sequentialDownload}
               onChange={(e) => setAdvancedOptions({ ...advancedOptions, sequentialDownload: e.target.checked })}
-              style={{ width: 'auto', margin: 0 }}
+              style={{ width: 'auto', margin: '0.25rem 0 0 0', flexShrink: 0 }}
             />
-            <span style={{ color: '#e0e0e0' }}>Enable Sequential Download (for streaming)</span>
+            <div>
+              <span style={{ color: '#e0e0e0', display: 'block' }}>▶️ Download in order (recommended for videos)</span>
+              <span style={{ color: '#b0b0c0', fontSize: '0.75rem', display: 'block', marginTop: '0.25rem' }}>
+                Allows you to start watching while downloading
+              </span>
+            </div>
           </label>
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="button" onClick={addSearchedTorrent}>
-              Add Torrent
+              ✓ Start Download
             </button>
             <button 
               className="button" 
@@ -298,104 +309,132 @@ function QBittorrent({ serverUrl }) {
       )}
 
       <div className="card">
-        <h2>Add Torrent Manually</h2>
+        <h2>🔗 Add from Link</h2>
+        <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Have a magnet link or torrent URL? Paste it here
+        </p>
         <input
           className="input"
           type="text"
-          placeholder="Magnet link or torrent URL"
+          placeholder="Paste magnet link or .torrent URL here..."
           value={newTorrent}
           onChange={(e) => setNewTorrent(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && addTorrent()}
         />
-        <button className="button" onClick={addTorrent}>Add Torrent</button>
+        <button className="button" onClick={addTorrent}>+ Add Download</button>
       </div>
 
       <div className="card">
-        <h2>Torrents ({torrents.length})</h2>
+        <h2>📥 My Downloads ({torrents.length})</h2>
+        <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Active downloads appear at the top
+        </p>
         {torrents.length === 0 ? (
           <p style={{ color: '#b0b0c0', textAlign: 'center', padding: '2rem' }}>
-            No torrents found. Add a torrent to get started.
+            No downloads yet. Search for movies or TV shows above to get started!
           </p>
         ) : (
-          sortedTorrents.map((torrent) => (
-            <div key={torrent.hash} style={{ 
-              padding: '1rem', 
-              borderBottom: '1px solid #2a2a3e',
-              display: 'flex',
-              gap: '1rem',
-              alignItems: 'flex-start',
-              background: 'rgba(255,255,255,0.02)',
-              borderRadius: '6px',
-              marginBottom: '0.5rem'
-            }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <strong style={{ 
-                  color: '#e0e0e0',
-                  display: 'block',
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
-                  lineHeight: '1.4'
-                }}>
-                  {torrent.name}
-                </strong>
-                <p style={{ 
-                  fontSize: '0.875rem', 
-                  color: '#b0b0c0', 
-                  marginTop: '0.5rem',
-                  wordBreak: 'break-word'
-                }}>
-                  {formatBytes(torrent.size)} GB • {(torrent.progress * 100).toFixed(1)}% • {torrent.state}
-                </p>
-                {torrent.dlspeed > 0 && (
+          sortedTorrents.map((torrent) => {
+            const isActive = ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(torrent.state);
+            const getStatusText = (state) => {
+              const statusMap = {
+                'downloading': '⬇️ Downloading',
+                'stalledDL': '⏸️ Waiting',
+                'pausedDL': '⏸️ Paused',
+                'pausedUP': '⏸️ Paused',
+                'uploading': '⬆️ Sharing',
+                'stalledUP': '✓ Complete',
+                'queuedDL': '⏳ Queued',
+                'queuedUP': '⏳ Queued',
+                'checkingDL': '🔍 Checking',
+                'checkingUP': '🔍 Checking',
+                'metaDL': '📋 Getting info',
+                'forcedDL': '⬇️ Downloading'
+              };
+              return statusMap[state] || state;
+            };
+
+            return (
+              <div key={torrent.hash} style={{ 
+                padding: '1rem', 
+                borderBottom: '1px solid #2a2a3e',
+                display: 'flex',
+                gap: '1rem',
+                alignItems: 'flex-start',
+                background: isActive ? 'rgba(102, 126, 234, 0.05)' : 'rgba(255,255,255,0.02)',
+                borderRadius: '6px',
+                marginBottom: '0.5rem',
+                borderLeft: isActive ? '3px solid #667eea' : 'none'
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong style={{ 
+                    color: '#e0e0e0',
+                    display: 'block',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
+                    lineHeight: '1.4'
+                  }}>
+                    {torrent.name}
+                  </strong>
                   <p style={{ 
-                    fontSize: '0.75rem', 
-                    color: '#667eea', 
-                    marginTop: '0.25rem',
+                    fontSize: '0.875rem', 
+                    color: '#b0b0c0', 
+                    marginTop: '0.5rem',
                     wordBreak: 'break-word'
                   }}>
-                    ↓ {formatSpeed(torrent.dlspeed)} MB/s
-                    {torrent.upspeed > 0 && ` • ↑ ${formatSpeed(torrent.upspeed)} MB/s`}
+                    {formatBytes(torrent.size)} GB • {(torrent.progress * 100).toFixed(1)}% complete • {getStatusText(torrent.state)}
                   </p>
-                )}
-              </div>
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column',
-                gap: '0.5rem',
-                flexShrink: 0,
-                minWidth: '100px'
-              }}>
-                {torrent.state === 'pausedDL' || torrent.state === 'pausedUP' ? (
+                  {torrent.dlspeed > 0 && (
+                    <p style={{ 
+                      fontSize: '0.75rem', 
+                      color: '#4caf50', 
+                      marginTop: '0.25rem',
+                      wordBreak: 'break-word'
+                    }}>
+                      ⬇ Downloading at {formatSpeed(torrent.dlspeed)} MB/s
+                      {torrent.upspeed > 0 && ` • ⬆ Sharing at ${formatSpeed(torrent.upspeed)} MB/s`}
+                    </p>
+                  )}
+                </div>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  flexShrink: 0,
+                  minWidth: '100px'
+                }}>
+                  {torrent.state === 'pausedDL' || torrent.state === 'pausedUP' ? (
+                    <button 
+                      className="button" 
+                      onClick={() => controlTorrent('resume', torrent.hash)}
+                      style={{ width: '100%', whiteSpace: 'nowrap' }}
+                    >
+                      ▶️ Resume
+                    </button>
+                  ) : (
+                    <button 
+                      className="button" 
+                      onClick={() => controlTorrent('pause', torrent.hash)}
+                      style={{ width: '100%', whiteSpace: 'nowrap' }}
+                    >
+                      ⏸️ Pause
+                    </button>
+                  )}
                   <button 
-                    className="button" 
-                    onClick={() => controlTorrent('resume', torrent.hash)}
+                    className="button button-danger" 
+                    onClick={() => {
+                      if (confirm(`Remove "${torrent.name}" from downloads?`)) {
+                        controlTorrent('delete', torrent.hash);
+                      }
+                    }}
                     style={{ width: '100%', whiteSpace: 'nowrap' }}
                   >
-                    Resume
+                    🗑️ Remove
                   </button>
-                ) : (
-                  <button 
-                    className="button" 
-                    onClick={() => controlTorrent('pause', torrent.hash)}
-                    style={{ width: '100%', whiteSpace: 'nowrap' }}
-                  >
-                    Pause
-                  </button>
-                )}
-                <button 
-                  className="button button-danger" 
-                  onClick={() => {
-                    if (confirm(`Delete "${torrent.name}"?`)) {
-                      controlTorrent('delete', torrent.hash);
-                    }
-                  }}
-                  style={{ width: '100%', whiteSpace: 'nowrap' }}
-                >
-                  Delete
-                </button>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
