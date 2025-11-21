@@ -103,12 +103,32 @@ router.post('/search/start', async (req, res) => {
   }
 });
 
+// Get search status
+router.get('/search/status/:id', async (req, res) => {
+  try {
+    const serverUrl = getServerUrl();
+    const { id } = req.params;
+    const response = await axios.get(`${serverUrl}/api/v2/search/status?id=${id}`, {
+      timeout: 5000
+    });
+    res.json(response.data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get search results
 router.get('/search/results/:id', async (req, res) => {
   try {
     const serverUrl = getServerUrl();
     const { id } = req.params;
-    const response = await axios.get(`${serverUrl}/api/v2/search/results?id=${id}`, {
+    const { limit, offset } = req.query;
+    
+    let url = `${serverUrl}/api/v2/search/results?id=${id}`;
+    if (limit) url += `&limit=${limit}`;
+    if (offset) url += `&offset=${offset}`;
+    
+    const response = await axios.get(url, {
       timeout: 5000
     });
     res.json(response.data);

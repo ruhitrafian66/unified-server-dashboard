@@ -69,34 +69,49 @@ function QBittorrent({ serverUrl }) {
         category: 'all'
       });
       
-      setSearchId(response.data.id);
+      const searchJobId = response.data.id;
+      setSearchId(searchJobId);
       
-      // Poll for results
+      let pollCount = 0;
+      const maxPolls = 20; // Poll for 40 seconds (20 * 2s)
+      
+      // Poll for status and results
       const pollResults = setInterval(async () => {
         try {
-          const results = await axios.get(`/api/qbittorrent/search/results/${response.data.id}`);
-          if (results.data.results) {
+          pollCount++;
+          
+          // Check status first
+          const status = await axios.get(`/api/qbittorrent/search/status/${searchJobId}`);
+          
+          // Get results
+          const results = await axios.get(`/api/qbittorrent/search/results/${searchJobId}?limit=50`);
+          
+          if (results.data && results.data.results && results.data.results.length > 0) {
             setSearchResults(results.data.results);
           }
-          if (results.data.status === 'Stopped') {
+          
+          // Stop if search is complete or max polls reached
+          if (status.data[0]?.status === 'Stopped' || pollCount >= maxPolls) {
             clearInterval(pollResults);
             setSearching(false);
+            
+            if (!results.data.results || results.data.results.length === 0) {
+              alert('No results found. Try a different search term or check if search plugins are working.');
+            }
           }
         } catch (err) {
           console.error('Error fetching results:', err);
+          if (pollCount >= maxPolls) {
+            clearInterval(pollResults);
+            setSearching(false);
+            if (searchResults.length === 0) {
+              alert('Search timed out or failed. Please try again.');
+            }
+          }
         }
       }, 2000);
-
-      // Stop polling after 30 seconds
-      setTimeout(() => {
-        clearInterval(pollResults);
-        setSearching(false);
-        if (searchId) {
-          axios.post('/api/qbittorrent/search/stop', { id: searchId }).catch(() => {});
-        }
-      }, 30000);
     } catch (error) {
-      alert('Error searching: ' + (error.response?.data?.error || error.message));
+      alert('Error starting search: ' + (error.response?.data?.error || error.message));
       setSearching(false);
     }
   };
