@@ -170,7 +170,7 @@ function QBittorrent({ serverUrl }) {
 
     try {
       await axios.post('/api/qbittorrent/torrents/add-advanced', {
-        urls: selectedTorrent.descrLink,
+        urls: selectedTorrent.fileUrl, // Use fileUrl which contains the magnet link
         savepath: advancedOptions.savepath,
         sequentialDownload: advancedOptions.sequentialDownload
       });
