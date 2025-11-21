@@ -45,10 +45,18 @@ router.post('/torrents/add', async (req, res) => {
 router.post('/torrents/:action', async (req, res) => {
   try {
     const serverUrl = getServerUrl();
-    const { hashes } = req.body;
+    const { hashes, deleteFiles } = req.body;
     const { action } = req.params;
+    
+    let params = `hashes=${hashes}`;
+    
+    // For delete action, add deleteFiles parameter
+    if (action === 'delete') {
+      params += `&deleteFiles=${deleteFiles !== false ? 'true' : 'false'}`;
+    }
+    
     const response = await axios.post(`${serverUrl}/api/v2/torrents/${action}`,
-      `hashes=${hashes}`,
+      params,
       { 
         headers: { 
           'Content-Type': 'application/x-www-form-urlencoded'

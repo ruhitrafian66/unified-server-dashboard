@@ -141,10 +141,11 @@ function QBittorrent({ serverUrl }) {
     return 0;
   });
 
-  const controlTorrent = async (action, hash) => {
+  const controlTorrent = async (action, hash, deleteFiles = true) => {
     try {
       await axios.post(`/api/qbittorrent/torrents/${action}`, {
-        hashes: hash
+        hashes: hash,
+        deleteFiles: deleteFiles
       });
       setTimeout(fetchTorrents, 500); // Refresh after 0.5 seconds
     } catch (error) {
