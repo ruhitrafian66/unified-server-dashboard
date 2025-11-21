@@ -53,7 +53,10 @@ const getHeaders = async () => {
 router.get('/torrents', async (req, res) => {
   try {
     const serverUrl = getServerUrl();
+    const cookie = await authenticate();
+    
     const response = await axios.get(`${serverUrl}/api/v2/torrents/info`, {
+      headers: cookie ? { 'Cookie': cookie } : {},
       timeout: 5000
     });
     res.json(response.data);
@@ -67,12 +70,12 @@ router.post('/torrents/add', async (req, res) => {
   try {
     const serverUrl = getServerUrl();
     const { urls } = req.body;
+    const headers = await getHeaders();
+    
     const response = await axios.post(`${serverUrl}/api/v2/torrents/add`,
       `urls=${encodeURIComponent(urls)}`,
       { 
-        headers: { 
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
+        headers,
         timeout: 5000
       }
     );
@@ -88,6 +91,7 @@ router.post('/torrents/:action', async (req, res) => {
     const serverUrl = getServerUrl();
     const { hashes, deleteFiles } = req.body;
     const { action } = req.params;
+    const headers = await getHeaders();
     
     let params = `hashes=${hashes}`;
     
@@ -99,9 +103,7 @@ router.post('/torrents/:action', async (req, res) => {
     const response = await axios.post(`${serverUrl}/api/v2/torrents/${action}`,
       params,
       { 
-        headers: { 
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
+        headers,
         timeout: 5000
       }
     );
@@ -208,6 +210,7 @@ router.post('/torrents/add-advanced', async (req, res) => {
   try {
     const serverUrl = getServerUrl();
     const { urls, savepath, sequentialDownload } = req.body;
+    const headers = await getHeaders();
     
     const params = new URLSearchParams();
     params.append('urls', urls);
@@ -217,9 +220,7 @@ router.post('/torrents/add-advanced', async (req, res) => {
     const response = await axios.post(`${serverUrl}/api/v2/torrents/add`,
       params.toString(),
       { 
-        headers: { 
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
+        headers,
         timeout: 5000
       }
     );
