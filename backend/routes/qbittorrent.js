@@ -8,6 +8,47 @@ const getServerUrl = () => {
   return process.env.QBITTORRENT_URL || 'http://localhost:8080';
 };
 
+// Session cookie storage
+let sessionCookie = null;
+
+// Authenticate with qBittorrent
+const authenticate = async () => {
+  if (sessionCookie) return sessionCookie;
+  
+  try {
+    const serverUrl = getServerUrl();
+    const username = process.env.QBITTORRENT_USERNAME || 'admin';
+    const password = process.env.QBITTORRENT_PASSWORD || 'adminadmin';
+    
+    const response = await axios.post(
+      `${serverUrl}/api/v2/auth/login`,
+      `username=${username}&password=${password}`,
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 5000
+      }
+    );
+    
+    if (response.headers['set-cookie']) {
+      sessionCookie = response.headers['set-cookie'][0];
+      return sessionCookie;
+    }
+  } catch (error) {
+    console.error('Authentication error:', error.message);
+  }
+  
+  return null;
+};
+
+// Get headers with authentication
+const getHeaders = async () => {
+  const cookie = await authenticate();
+  return {
+    'Content-Type': 'application/x-www-form-urlencoded',
+    ...(cookie && { 'Cookie': cookie })
+  };
+};
+
 // Get torrent list
 router.get('/torrents', async (req, res) => {
   try {
@@ -88,12 +129,12 @@ router.post('/search/start', async (req, res) => {
   try {
     const serverUrl = getServerUrl();
     const { pattern, plugins, category } = req.body;
+    const headers = await getHeaders();
+    
     const response = await axios.post(`${serverUrl}/api/v2/search/start`,
-      `pattern=${encodeURIComponent(pattern)}&plugins=${plugins || 'all'}&category=${category || 'all'}`,
+      `pattern=${encodeURIComponent(pattern)}&plugins=${plugins || 'enabled'}&category=${category || 'all'}`,
       { 
-        headers: { 
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
+        headers,
         timeout: 5000
       }
     );
@@ -108,7 +149,10 @@ router.get('/search/status/:id', async (req, res) => {
   try {
     const serverUrl = getServerUrl();
     const { id } = req.params;
+    const cookie = await authenticate();
+    
     const response = await axios.get(`${serverUrl}/api/v2/search/status?id=${id}`, {
+      headers: cookie ? { 'Cookie': cookie } : {},
       timeout: 5000
     });
     res.json(response.data);
@@ -123,12 +167,14 @@ router.get('/search/results/:id', async (req, res) => {
     const serverUrl = getServerUrl();
     const { id } = req.params;
     const { limit, offset } = req.query;
+    const cookie = await authenticate();
     
     let url = `${serverUrl}/api/v2/search/results?id=${id}`;
     if (limit) url += `&limit=${limit}`;
     if (offset) url += `&offset=${offset}`;
     
     const response = await axios.get(url, {
+      headers: cookie ? { 'Cookie': cookie } : {},
       timeout: 5000
     });
     res.json(response.data);
@@ -142,12 +188,12 @@ router.post('/search/stop', async (req, res) => {
   try {
     const serverUrl = getServerUrl();
     const { id } = req.body;
+    const headers = await getHeaders();
+    
     await axios.post(`${serverUrl}/api/v2/search/stop`,
       `id=${id}`,
       { 
-        headers: { 
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
+        headers,
         timeout: 5000
       }
     );
