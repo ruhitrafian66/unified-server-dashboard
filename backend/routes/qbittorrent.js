@@ -20,21 +20,32 @@ const authenticate = async () => {
     const username = process.env.QBITTORRENT_USERNAME || 'admin';
     const password = process.env.QBITTORRENT_PASSWORD || 'adminadmin';
     
+    console.log('Authenticating with qBittorrent...');
+    
     const response = await axios.post(
       `${serverUrl}/api/v2/auth/login`,
       `username=${username}&password=${password}`,
       {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        timeout: 5000
+        timeout: 5000,
+        maxRedirects: 0,
+        validateStatus: (status) => status >= 200 && status < 400
       }
     );
     
+    console.log('Auth response status:', response.status);
+    console.log('Auth response headers:', response.headers);
+    console.log('Auth response data:', response.data);
+    
     if (response.headers['set-cookie']) {
       sessionCookie = response.headers['set-cookie'][0];
+      console.log('Got session cookie:', sessionCookie);
       return sessionCookie;
     }
+    
+    console.log('No set-cookie header in response');
   } catch (error) {
-    console.error('Authentication error:', error.message);
+    console.error('Authentication error:', error.message, error.response?.status);
   }
   
   return null;
@@ -95,6 +106,69 @@ router.post('/torrents/add', async (req, res) => {
       return res.status(400).json({ 
         error: 'Invalid torrent link',
         details: 'The magnet link or torrent URL is not valid. Please check the link and try again.'
+      });
+    }
+    
+    res.json({ success: true, data: response.data });
+  } catch (error) {
+    console.error('Error adding torrent:', error.response?.status, error.response?.data, error.message);
+    res.status(error.response?.status || 500).json({ 
+      error: error.message,
+      details: error.response?.data,
+      status: error.response?.status
+    });
+  }
+});
+
+// Add torrent with advanced options (must come before /:action route)
+router.post('/torrents/add-advanced', async (req, res) => {
+  console.log('=== ADD-ADVANCED ENDPOINT HIT ===');
+  console.log('Request body:', req.body);
+  
+  try {
+    const serverUrl = getServerUrl();
+    console.log('Server URL:', serverUrl);
+    
+    const { urls, savepath, sequentialDownload } = req.body;
+    
+    // Validate that we have a URL
+    if (!urls || urls.trim() === '') {
+      console.log('ERROR: No torrent URL provided');
+      return res.status(400).json({ error: 'No torrent URL provided' });
+    }
+    
+    const headers = await getHeaders();
+    
+    // Build body components - don't encode the magnet URL itself
+    const bodyComponents = [`urls=${urls}`];
+    
+    if (savepath && savepath.trim() !== '') {
+      bodyComponents.push(`savepath=${encodeURIComponent(savepath)}`);
+    }
+    
+    if (sequentialDownload) {
+      bodyComponents.push('sequentialDownload=true');
+    }
+    
+    const body = bodyComponents.join('&');
+    
+    console.log('Adding torrent with body:', body.substring(0, 100) + '...');
+    
+    const response = await axios.post(`${serverUrl}/api/v2/torrents/add`,
+      body,
+      { 
+        headers,
+        timeout: 10000
+      }
+    );
+    
+    console.log('qBittorrent response:', response.status, response.data);
+    
+    // Check if qBittorrent returned "Fails." which means the torrent was rejected
+    if (response.data === 'Fails.') {
+      return res.status(400).json({ 
+        error: 'Invalid torrent link',
+        details: 'The download link is not valid or the torrent is unavailable. Try a different search result.'
       });
     }
     
@@ -226,63 +300,6 @@ router.post('/search/stop', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
-  }
-});
-
-// Add torrent with advanced options
-router.post('/torrents/add-advanced', async (req, res) => {
-  try {
-    const serverUrl = getServerUrl();
-    const { urls, savepath, sequentialDownload } = req.body;
-    
-    // Validate that we have a URL
-    if (!urls || urls.trim() === '') {
-      return res.status(400).json({ error: 'No torrent URL provided' });
-    }
-    
-    const headers = await getHeaders();
-    
-    // Build body components - don't encode the magnet URL itself
-    const bodyComponents = [`urls=${urls}`];
-    
-    if (savepath && savepath.trim() !== '') {
-      bodyComponents.push(`savepath=${encodeURIComponent(savepath)}`);
-    }
-    
-    if (sequentialDownload) {
-      bodyComponents.push('sequentialDownload=true');
-    }
-    
-    const body = bodyComponents.join('&');
-    
-    console.log('Adding torrent with body:', body.substring(0, 100) + '...');
-    
-    const response = await axios.post(`${serverUrl}/api/v2/torrents/add`,
-      body,
-      { 
-        headers,
-        timeout: 10000
-      }
-    );
-    
-    console.log('qBittorrent response:', response.status, response.data);
-    
-    // Check if qBittorrent returned "Fails." which means the torrent was rejected
-    if (response.data === 'Fails.') {
-      return res.status(400).json({ 
-        error: 'Invalid torrent link',
-        details: 'The download link is not valid or the torrent is unavailable. Try a different search result.'
-      });
-    }
-    
-    res.json({ success: true, data: response.data });
-  } catch (error) {
-    console.error('Error adding torrent:', error.response?.status, error.response?.data, error.message);
-    res.status(error.response?.status || 500).json({ 
-      error: error.message,
-      details: error.response?.data,
-      status: error.response?.status
-    });
   }
 });
 
