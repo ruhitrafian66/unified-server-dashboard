@@ -63,16 +63,24 @@ function App() {
           </main>
 
           {/* Toast notifications */}
-          <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 10000 }}>
-            {toasts.map((toast, index) => (
-              <div key={toast.id} style={{ marginBottom: index > 0 ? '10px' : 0 }}>
-                <Toast
-                  message={toast.message}
-                  type={toast.type}
-                  duration={toast.duration}
-                  onClose={() => removeToast(toast.id)}
-                />
-              </div>
+          <div style={{ 
+            position: 'fixed', 
+            top: '20px', 
+            right: '20px', 
+            zIndex: 10000,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            maxWidth: '500px'
+          }}>
+            {toasts.map((toast) => (
+              <Toast
+                key={toast.id}
+                message={toast.message}
+                type={toast.type}
+                duration={toast.duration}
+                onClose={() => removeToast(toast.id)}
+              />
             ))}
           </div>
         </div>

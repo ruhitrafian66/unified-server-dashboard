@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useToast } from '../App';
 import LoadingSkeleton from '../components/LoadingSkeleton';
+import ConfirmModal from '../components/ConfirmModal';
 
 function Dashboard({ serverUrl, setServerUrl }) {
   const navigate = useNavigate();
@@ -37,14 +39,22 @@ function Dashboard({ serverUrl, setServerUrl }) {
     }
   };
 
+  const { showToast } = useToast();
+  const [confirmPower, setConfirmPower] = useState(null);
+
   const powerAction = async (action) => {
-    if (!window.confirm(`Are you sure you want to ${action} the server?`)) return;
+    setConfirmPower(action);
+  };
+
+  const executePowerAction = async () => {
+    const action = confirmPower;
+    setConfirmPower(null);
     
     try {
       await axios.post(`/api/omv/power/${action}`);
-      alert(`Server ${action} initiated`);
+      showToast(`Server ${action} initiated`, 'success');
     } catch (error) {
-      alert('Error: ' + error.message);
+      showToast('Error: ' + error.message, 'error');
     }
   };
 
@@ -52,12 +62,14 @@ function Dashboard({ serverUrl, setServerUrl }) {
     localStorage.setItem('serverUrl', url);
     setServerUrl(url);
     setShowConfig(false);
-    alert('Settings saved!');
+    showToast('Settings saved!', 'success');
   };
 
   const parsePercentage = (str) => {
-    const match = str?.match(/(\d+)%/);
-    return match ? parseInt(match[1]) : 0;
+    if (!str) return 0;
+    // Handle both "36.4%" and "36.4" formats
+    const match = str.match(/(\d+\.?\d*)/);
+    return match ? parseFloat(match[1]) : 0;
   };
 
   if (loading) {
@@ -269,6 +281,19 @@ function Dashboard({ serverUrl, setServerUrl }) {
           </>
         )}
       </div>
+
+      {/* Power Action Confirmation Modal */}
+      {confirmPower && (
+        <ConfirmModal
+          title={`${confirmPower.charAt(0).toUpperCase() + confirmPower.slice(1)} Server`}
+          message={`Are you sure you want to ${confirmPower} the server? This action will affect all services.`}
+          confirmText={confirmPower.charAt(0).toUpperCase() + confirmPower.slice(1)}
+          cancelText="Cancel"
+          type="danger"
+          onConfirm={executePowerAction}
+          onCancel={() => setConfirmPower(null)}
+        />
+      )}
     </div>
   );
 }
