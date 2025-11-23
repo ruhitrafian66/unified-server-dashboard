@@ -78,46 +78,46 @@ function Dashboard({ serverUrl, setServerUrl }) {
     <div>
       <h1>Dashboard</h1>
       
-      {/* System Status with visual stats */}
+      {/* System Status - Condensed */}
       <div className="card">
         <h2>System Status</h2>
         {systemInfo ? (
-          <div className="grid">
-            <div className="stat-card">
-              <div className="stat-icon">💻</div>
-              <div className="stat-content">
-                <div className="stat-label">CPU Usage</div>
-                <div className="stat-value">{systemInfo.cpu}</div>
-                <div className="progress-bar">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>💻</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>CPU</div>
+                <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.cpu}</div>
+                <div className="progress-bar" style={{ height: '4px', marginTop: '0.25rem' }}>
                   <div className="progress-fill" style={{ width: `${cpuPercent}%` }} />
                 </div>
               </div>
             </div>
             
-            <div className="stat-card">
-              <div className="stat-icon">🧠</div>
-              <div className="stat-content">
-                <div className="stat-label">Memory Usage</div>
-                <div className="stat-value">{systemInfo.memory}</div>
-                <div className="progress-bar">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>🧠</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Memory</div>
+                <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.memory}</div>
+                <div className="progress-bar" style={{ height: '4px', marginTop: '0.25rem' }}>
                   <div className="progress-fill" style={{ width: `${memoryPercent}%` }} />
                 </div>
               </div>
             </div>
             
-            <div className="stat-card">
-              <div className="stat-icon">💾</div>
-              <div className="stat-content">
-                <div className="stat-label">Disk Usage</div>
-                <div className="stat-value">{systemInfo.disk}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>💾</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Disk</div>
+                <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.disk}</div>
               </div>
             </div>
             
-            <div className="stat-card">
-              <div className="stat-icon">⏱️</div>
-              <div className="stat-content">
-                <div className="stat-label">Uptime</div>
-                <div className="stat-value">{systemInfo.uptime}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>⏱️</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Uptime</div>
+                <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.uptime}</div>
               </div>
             </div>
           </div>

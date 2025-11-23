@@ -42,7 +42,7 @@ function App() {
                 Dashboard
               </NavLink>
               <NavLink to="/downloads" className={({ isActive }) => isActive ? 'active' : ''}>
-                My Downloads
+                Downloads
               </NavLink>
               <NavLink to="/add-torrent" className={({ isActive }) => isActive ? 'active' : ''}>
                 Add Torrent

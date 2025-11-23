@@ -201,8 +201,6 @@ function AddTorrent() {
     return sorted;
   };
 
-  const popularSearches = ['Breaking Bad', 'The Matrix', 'Game of Thrones', 'Inception', 'The Office'];
-
   return (
     <div>
       <h1>Add Torrent</h1>
@@ -247,27 +245,6 @@ function AddTorrent() {
             <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Recent searches:</p>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               {recentSearches.map((query, i) => (
-                <button
-                  key={i}
-                  className="filter-button"
-                  onClick={() => {
-                    setSearchQuery(query);
-                    searchTorrents(query);
-                  }}
-                >
-                  {query}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Popular Searches */}
-        {!searching && searchResults.length === 0 && (
-          <div>
-            <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Popular searches:</p>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {popularSearches.map((query, i) => (
                 <button
                   key={i}
                   className="filter-button"

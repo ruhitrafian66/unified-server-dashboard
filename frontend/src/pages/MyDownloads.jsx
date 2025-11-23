@@ -185,34 +185,11 @@ function MyDownloads() {
   const downloadingCount = torrents.filter(t => ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(t.state)).length;
   const completedCount = torrents.filter(t => t.progress >= 1).length;
 
+  const [showFilters, setShowFilters] = useState(false);
+
   return (
     <div>
-      <h1>My Downloads</h1>
-      
-      {/* Quick Stats */}
-      <div className="grid" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card">
-          <div className="stat-icon">📥</div>
-          <div className="stat-content">
-            <div className="stat-label">Total Downloads</div>
-            <div className="stat-value">{torrents.length}</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon">⬇️</div>
-          <div className="stat-content">
-            <div className="stat-label">Active</div>
-            <div className="stat-value">{downloadingCount}</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon">✓</div>
-          <div className="stat-content">
-            <div className="stat-label">Completed</div>
-            <div className="stat-value">{completedCount}</div>
-          </div>
-        </div>
-      </div>
+      <h1>Downloads</h1>
       
       {error && (
         <div className="card" style={{ background: 'rgba(244, 67, 54, 0.1)', borderColor: '#f44336' }}>
@@ -227,13 +204,13 @@ function MyDownloads() {
 
       <div className="card">
         {/* Controls Bar */}
-        <div className="controls-bar">
+        <div className="controls-bar" style={{ marginBottom: '1rem' }}>
           <button 
-            className="filter-button"
-            onClick={toggleSelectAll}
-            style={{ marginRight: 'auto' }}
+            className="button"
+            onClick={() => setShowFilters(true)}
+            style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
           >
-            {selectedTorrents.size === filteredTorrents.length && filteredTorrents.length > 0 ? '☑' : '☐'} Select All
+            🎛️ Filters & Sort
           </button>
           
           {selectedTorrents.size > 0 && (
@@ -250,78 +227,15 @@ function MyDownloads() {
             </>
           )}
           
-          <button className="button" onClick={fetchTorrents} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
-            🔄 Refresh
-          </button>
-        </div>
-
-        {/* Filter Buttons */}
-        <div className="controls-bar">
-          <button 
-            className={`filter-button ${filter === 'all' ? 'active' : ''}`}
-            onClick={() => setFilter('all')}
-          >
-            All ({torrents.length})
-          </button>
-          <button 
-            className={`filter-button ${filter === 'downloading' ? 'active' : ''}`}
-            onClick={() => setFilter('downloading')}
-          >
-            Downloading ({downloadingCount})
-          </button>
-          <button 
-            className={`filter-button ${filter === 'complete' ? 'active' : ''}`}
-            onClick={() => setFilter('complete')}
-          >
-            Complete ({completedCount})
-          </button>
-          <button 
-            className={`filter-button ${filter === 'paused' ? 'active' : ''}`}
-            onClick={() => setFilter('paused')}
-          >
-            Paused
-          </button>
-          <button 
-            className={`filter-button ${filter === 'seeding' ? 'active' : ''}`}
-            onClick={() => setFilter('seeding')}
-          >
-            Seeding
-          </button>
-        </div>
-
-        {/* Sort Buttons */}
-        <div className="controls-bar" style={{ marginBottom: '1.5rem' }}>
-          <span style={{ color: '#b0b0c0', fontSize: '0.875rem' }}>Sort by:</span>
-          <button 
-            className={`filter-button ${sortBy === 'status' ? 'active' : ''}`}
-            onClick={() => setSortBy('status')}
-          >
-            Status
-          </button>
-          <button 
-            className={`filter-button ${sortBy === 'name' ? 'active' : ''}`}
-            onClick={() => setSortBy('name')}
-          >
-            Name
-          </button>
-          <button 
-            className={`filter-button ${sortBy === 'size' ? 'active' : ''}`}
-            onClick={() => setSortBy('size')}
-          >
-            Size
-          </button>
-          <button 
-            className={`filter-button ${sortBy === 'progress' ? 'active' : ''}`}
-            onClick={() => setSortBy('progress')}
-          >
-            Progress
-          </button>
-          <button 
-            className={`filter-button ${sortBy === 'speed' ? 'active' : ''}`}
-            onClick={() => setSortBy('speed')}
-          >
-            Speed
-          </button>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {(filter !== 'all' || sortBy !== 'status') && (
+              <span style={{ fontSize: '0.75rem', color: '#667eea' }}>
+                {filter !== 'all' && `Filter: ${filter}`}
+                {filter !== 'all' && sortBy !== 'status' && ' • '}
+                {sortBy !== 'status' && `Sort: ${sortBy}`}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Torrents List */}
@@ -459,6 +373,147 @@ function MyDownloads() {
           })
         )}
       </div>
+
+      {/* Filters & Sort Modal */}
+      {showFilters && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+          onClick={() => setShowFilters(false)}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '100%',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+              border: '1px solid #2a2a3e'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ marginBottom: '1.5rem', color: '#e0e0e0' }}>🎛️ Filters & Sort</h2>
+            
+            {/* Filter Section */}
+            <div style={{ marginBottom: '2rem' }}>
+              <h3 style={{ fontSize: '1rem', color: '#667eea', marginBottom: '0.75rem' }}>Filter by Status</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
+                <button 
+                  className={`filter-button ${filter === 'all' ? 'active' : ''}`}
+                  onClick={() => setFilter('all')}
+                  style={{ width: '100%' }}
+                >
+                  All ({torrents.length})
+                </button>
+                <button 
+                  className={`filter-button ${filter === 'downloading' ? 'active' : ''}`}
+                  onClick={() => setFilter('downloading')}
+                  style={{ width: '100%' }}
+                >
+                  Downloading ({downloadingCount})
+                </button>
+                <button 
+                  className={`filter-button ${filter === 'complete' ? 'active' : ''}`}
+                  onClick={() => setFilter('complete')}
+                  style={{ width: '100%' }}
+                >
+                  Complete ({completedCount})
+                </button>
+                <button 
+                  className={`filter-button ${filter === 'paused' ? 'active' : ''}`}
+                  onClick={() => setFilter('paused')}
+                  style={{ width: '100%' }}
+                >
+                  Paused
+                </button>
+                <button 
+                  className={`filter-button ${filter === 'seeding' ? 'active' : ''}`}
+                  onClick={() => setFilter('seeding')}
+                  style={{ width: '100%', gridColumn: 'span 2' }}
+                >
+                  Seeding
+                </button>
+              </div>
+            </div>
+
+            {/* Sort Section */}
+            <div style={{ marginBottom: '2rem' }}>
+              <h3 style={{ fontSize: '1rem', color: '#667eea', marginBottom: '0.75rem' }}>Sort by</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
+                <button 
+                  className={`filter-button ${sortBy === 'status' ? 'active' : ''}`}
+                  onClick={() => setSortBy('status')}
+                  style={{ width: '100%' }}
+                >
+                  Status
+                </button>
+                <button 
+                  className={`filter-button ${sortBy === 'name' ? 'active' : ''}`}
+                  onClick={() => setSortBy('name')}
+                  style={{ width: '100%' }}
+                >
+                  Name
+                </button>
+                <button 
+                  className={`filter-button ${sortBy === 'size' ? 'active' : ''}`}
+                  onClick={() => setSortBy('size')}
+                  style={{ width: '100%' }}
+                >
+                  Size
+                </button>
+                <button 
+                  className={`filter-button ${sortBy === 'progress' ? 'active' : ''}`}
+                  onClick={() => setSortBy('progress')}
+                  style={{ width: '100%' }}
+                >
+                  Progress
+                </button>
+                <button 
+                  className={`filter-button ${sortBy === 'speed' ? 'active' : ''}`}
+                  onClick={() => setSortBy('speed')}
+                  style={{ width: '100%', gridColumn: 'span 2' }}
+                >
+                  Speed
+                </button>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                className="button"
+                onClick={() => {
+                  setFilter('all');
+                  setSortBy('status');
+                }}
+                style={{ flex: 1, background: '#6a6a7e' }}
+              >
+                Reset
+              </button>
+              <button
+                className="button"
+                onClick={() => setShowFilters(false)}
+                style={{ flex: 1 }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm Delete Modal */}
       {confirmDelete && (
