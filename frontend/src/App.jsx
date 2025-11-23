@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
-import QBittorrent from './pages/QBittorrent';
+import MyDownloads from './pages/MyDownloads';
+import AddTorrent from './pages/AddTorrent';
 import WireGuard from './pages/WireGuard';
-import OMV from './pages/OMV';
-import Settings from './pages/Settings';
 import './App.css';
 
 function App() {
@@ -17,23 +16,18 @@ function App() {
           <h1>Server Dashboard</h1>
           <div className="nav-links">
             <Link to="/">Dashboard</Link>
-            <Link to="/downloads">Downloads</Link>
+            <Link to="/downloads">My Downloads</Link>
+            <Link to="/add-torrent">Add Torrent</Link>
             <Link to="/vpn">VPN</Link>
-            <Link to="/server">Server</Link>
-            <Link to="/settings">Settings</Link>
           </div>
         </nav>
         
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<Dashboard serverUrl={serverUrl} />} />
-            <Route path="/downloads" element={<QBittorrent serverUrl={serverUrl} />} />
-            <Route path="/qbittorrent" element={<QBittorrent serverUrl={serverUrl} />} />
-            <Route path="/wireguard" element={<WireGuard serverUrl={serverUrl} />} />
+            <Route path="/" element={<Dashboard serverUrl={serverUrl} setServerUrl={setServerUrl} />} />
+            <Route path="/downloads" element={<MyDownloads />} />
+            <Route path="/add-torrent" element={<AddTorrent />} />
             <Route path="/vpn" element={<WireGuard serverUrl={serverUrl} />} />
-            <Route path="/omv" element={<OMV serverUrl={serverUrl} />} />
-            <Route path="/server" element={<OMV serverUrl={serverUrl} />} />
-            <Route path="/settings" element={<Settings serverUrl={serverUrl} setServerUrl={setServerUrl} />} />
           </Routes>
         </main>
       </div>

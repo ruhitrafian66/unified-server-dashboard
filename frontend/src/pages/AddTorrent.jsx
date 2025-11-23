@@ -1,0 +1,326 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+
+function AddTorrent() {
+  const navigate = useNavigate();
+  const [newTorrent, setNewTorrent] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedTorrent, setSelectedTorrent] = useState(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advancedOptions, setAdvancedOptions] = useState({
+    savepath: '/srv/dev-disk-by-uuid-2f521503-8710-48ab-8e68-17875edf1865/Server/',
+    sequentialDownload: false
+  });
+
+  const addTorrent = async () => {
+    if (!newTorrent.trim()) {
+      alert('Please enter a magnet link or torrent URL');
+      return;
+    }
+
+    try {
+      await axios.post('/api/qbittorrent/torrents/add', {
+        urls: newTorrent
+      });
+      setNewTorrent('');
+      alert('Torrent added successfully!');
+      navigate('/downloads');
+    } catch (error) {
+      alert('Error adding torrent: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const searchTorrents = async () => {
+    if (!searchQuery.trim()) {
+      alert('Please enter a search query');
+      return;
+    }
+
+    setSearching(true);
+    setSearchResults([]);
+    
+    try {
+      const response = await axios.post('/api/qbittorrent/search/start', {
+        pattern: searchQuery,
+        plugins: 'enabled',
+        category: 'all'
+      });
+      
+      const searchJobId = response.data.id;
+      
+      let pollCount = 0;
+      const maxPolls = 15;
+      let lastTotal = 0;
+      let stableCount = 0;
+      
+      const pollResults = setInterval(async () => {
+        try {
+          pollCount++;
+          
+          const status = await axios.get(`/api/qbittorrent/search/status/${searchJobId}`);
+          
+          if (status.data && status.data.length > 0) {
+            const searchStatus = status.data[0];
+            const statusStr = searchStatus.status;
+            const total = searchStatus.total || 0;
+            
+            if (total > 0 && total === lastTotal) {
+              stableCount++;
+            } else {
+              stableCount = 0;
+            }
+            lastTotal = total;
+            
+            if ((statusStr === 'Stopped' && total > 0) || (total > 0 && stableCount >= 2)) {
+              const results = await axios.get(`/api/qbittorrent/search/results/${searchJobId}?limit=200`);
+              
+              if (results.data && results.data.results && results.data.results.length > 0) {
+                setSearchResults(results.data.results);
+                clearInterval(pollResults);
+                setSearching(false);
+                
+                try {
+                  await axios.post('/api/qbittorrent/search/stop', { id: searchJobId });
+                } catch (e) {}
+                
+                return;
+              }
+            } else if (statusStr === 'Stopped' && total === 0) {
+              clearInterval(pollResults);
+              setSearching(false);
+              alert('No results found. Try a different search term.');
+              return;
+            }
+          }
+          
+          if (pollCount >= maxPolls) {
+            clearInterval(pollResults);
+            setSearching(false);
+            
+            try {
+              const results = await axios.get(`/api/qbittorrent/search/results/${searchJobId}?limit=200`);
+              if (results.data && results.data.results && results.data.results.length > 0) {
+                setSearchResults(results.data.results);
+              } else {
+                alert('Search timed out. No results found.');
+              }
+            } catch (e) {
+              alert('Search timed out.');
+            }
+            
+            try {
+              await axios.post('/api/qbittorrent/search/stop', { id: searchJobId });
+            } catch (e) {}
+          }
+        } catch (err) {
+          console.error('Error during search:', err);
+          clearInterval(pollResults);
+          setSearching(false);
+          alert('Search failed: ' + (err.response?.data?.error || err.message));
+        }
+      }, 1000);
+    } catch (error) {
+      alert('Error starting search: ' + (error.response?.data?.error || error.message));
+      setSearching(false);
+    }
+  };
+
+  const selectSearchResult = (result) => {
+    setSelectedTorrent(result);
+    setShowAdvanced(true);
+  };
+
+  const addSearchedTorrent = async () => {
+    if (!selectedTorrent) return;
+
+    const url = selectedTorrent.fileUrl;
+    if (!url || url.trim() === '') {
+      alert('Error: No download link available for this torrent. Try a different result.');
+      return;
+    }
+
+    if (!url.startsWith('magnet:') && !url.startsWith('http')) {
+      alert('Error: Invalid download link format. Try a different result.');
+      return;
+    }
+
+    try {
+      await axios.post('/api/qbittorrent/torrents/add-advanced', {
+        urls: url,
+        savepath: advancedOptions.savepath,
+        sequentialDownload: advancedOptions.sequentialDownload
+      });
+      
+      setSelectedTorrent(null);
+      setShowAdvanced(false);
+      setSearchResults([]);
+      setSearchQuery('');
+      alert('Torrent added successfully!');
+      navigate('/downloads');
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || error.message;
+      const details = error.response?.data?.details;
+      alert('Error adding torrent: ' + errorMsg + (details ? '\nDetails: ' + details : ''));
+    }
+  };
+
+  return (
+    <div>
+      <h1>Add Torrent</h1>
+
+      <div className="card">
+        <h2>🔍 Search for Movies & TV Shows</h2>
+        <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Search for any movie or TV show to download
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+          <input
+            className="input"
+            type="text"
+            placeholder="e.g., Breaking Bad, The Matrix, Game of Thrones..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && searchTorrents()}
+            style={{ marginBottom: 0 }}
+          />
+          <button 
+            className="button" 
+            onClick={searchTorrents}
+            disabled={searching}
+            style={{ minWidth: '120px' }}
+          >
+            {searching ? 'Searching...' : '🔍 Search'}
+          </button>
+        </div>
+
+        {searchResults.length > 0 && (
+          <div style={{ maxHeight: '400px', overflowY: 'auto', marginTop: '1rem' }}>
+            <p style={{ color: '#667eea', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+              ✓ Found {searchResults.length} results - Click any to download
+            </p>
+            {searchResults.map((result, index) => {
+              const hasValidUrl = result.fileUrl && (result.fileUrl.startsWith('magnet:') || result.fileUrl.startsWith('http'));
+              return (
+                <div 
+                  key={index}
+                  onClick={() => hasValidUrl && selectSearchResult(result)}
+                  style={{
+                    padding: '0.75rem',
+                    background: 'rgba(255,255,255,0.03)',
+                    borderRadius: '6px',
+                    marginBottom: '0.5rem',
+                    cursor: hasValidUrl ? 'pointer' : 'not-allowed',
+                    border: '1px solid #2a2a3e',
+                    transition: 'all 0.2s',
+                    opacity: hasValidUrl ? 1 : 0.5
+                  }}
+                  onMouseEnter={(e) => hasValidUrl && (e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)')}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <strong style={{ color: '#e0e0e0', display: 'block', wordBreak: 'break-word' }}>
+                        {result.fileName}
+                      </strong>
+                      <p style={{ fontSize: '0.75rem', color: '#b0b0c0', marginTop: '0.25rem' }}>
+                        Size: {(result.fileSize / 1024 / 1024 / 1024).toFixed(2)} GB • Quality: {result.nbSeeders > 10 ? 'Good' : 'Fair'} ({result.nbSeeders} sources)
+                        {!hasValidUrl && <span style={{ color: '#f44336' }}> • No download link</span>}
+                      </p>
+                    </div>
+                    <button 
+                      className="button"
+                      disabled={!hasValidUrl}
+                      style={{ 
+                        flexShrink: 0, 
+                        fontSize: '0.875rem', 
+                        padding: '0.5rem 1rem',
+                        opacity: hasValidUrl ? 1 : 0.5,
+                        cursor: hasValidUrl ? 'pointer' : 'not-allowed'
+                      }}
+                    >
+                      {hasValidUrl ? '⬇ Download' : '✗ Unavailable'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {showAdvanced && selectedTorrent && (
+        <div className="card" style={{ background: 'rgba(102, 126, 234, 0.1)', borderColor: '#667eea' }}>
+          <h2>⚙️ Download Settings</h2>
+          <p style={{ color: '#e0e0e0', marginBottom: '1rem', wordBreak: 'break-word' }}>
+            <strong>Ready to download:</strong> {selectedTorrent.fileName}
+          </p>
+          
+          <label style={{ display: 'block', marginBottom: '1rem' }}>
+            <strong style={{ color: '#667eea', display: 'block', marginBottom: '0.5rem' }}>
+              📁 Save to Folder
+            </strong>
+            <p style={{ color: '#b0b0c0', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
+              Where should we save this file?
+            </p>
+            <input
+              className="input"
+              type="text"
+              value={advancedOptions.savepath}
+              onChange={(e) => setAdvancedOptions({ ...advancedOptions, savepath: e.target.value })}
+              style={{ marginBottom: 0 }}
+            />
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '1.5rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={advancedOptions.sequentialDownload}
+              onChange={(e) => setAdvancedOptions({ ...advancedOptions, sequentialDownload: e.target.checked })}
+              style={{ width: 'auto', margin: '0.25rem 0 0 0', flexShrink: 0 }}
+            />
+            <div>
+              <span style={{ color: '#e0e0e0', display: 'block' }}>▶️ Download in order (recommended for videos)</span>
+              <span style={{ color: '#b0b0c0', fontSize: '0.75rem', display: 'block', marginTop: '0.25rem' }}>
+                Allows you to start watching while downloading
+              </span>
+            </div>
+          </label>
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="button" onClick={addSearchedTorrent}>
+              ✓ Start Download
+            </button>
+            <button 
+              className="button" 
+              onClick={() => { setShowAdvanced(false); setSelectedTorrent(null); }}
+              style={{ background: '#6a6a7e' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <h2>🔗 Add from Magnet Link</h2>
+        <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Have a magnet link or torrent URL? Paste it here
+        </p>
+        <input
+          className="input"
+          type="text"
+          placeholder="Paste magnet link or .torrent URL here..."
+          value={newTorrent}
+          onChange={(e) => setNewTorrent(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && addTorrent()}
+        />
+        <button className="button" onClick={addTorrent}>+ Add Download</button>
+      </div>
+    </div>
+  );
+}
+
+export default AddTorrent;
