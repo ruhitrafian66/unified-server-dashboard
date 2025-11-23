@@ -43,7 +43,7 @@ cd /opt/server-dashboard
 scp -r backend/ user@your-server:/opt/server-dashboard/
 
 # Or clone from git
-git clone <your-repo> /opt/server-dashboard
+git clone https://github.com/ruhitrafian66/unified-server-dashboard /opt/server-dashboard
 cd /opt/server-dashboard/backend
 
 # Install dependencies
