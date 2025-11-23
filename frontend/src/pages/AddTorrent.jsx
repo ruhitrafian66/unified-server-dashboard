@@ -252,54 +252,84 @@ function AddTorrent() {
       </div>
 
       {showAdvanced && selectedTorrent && (
-        <div className="card" style={{ background: 'rgba(102, 126, 234, 0.1)', borderColor: '#667eea' }}>
-          <h2>⚙️ Download Settings</h2>
-          <p style={{ color: '#e0e0e0', marginBottom: '1rem', wordBreak: 'break-word' }}>
-            <strong>Ready to download:</strong> {selectedTorrent.fileName}
-          </p>
-          
-          <label style={{ display: 'block', marginBottom: '1rem' }}>
-            <strong style={{ color: '#667eea', display: 'block', marginBottom: '0.5rem' }}>
-              📁 Save to Folder
-            </strong>
-            <p style={{ color: '#b0b0c0', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
-              Where should we save this file?
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}
+        onClick={() => { setShowAdvanced(false); setSelectedTorrent(null); }}
+        >
+          <div 
+            className="card" 
+            style={{ 
+              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+              borderColor: '#667eea',
+              maxWidth: '600px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              margin: 0,
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ marginBottom: '1rem' }}>⚙️ Download Settings</h2>
+            <p style={{ color: '#e0e0e0', marginBottom: '1.5rem', wordBreak: 'break-word', lineHeight: '1.5' }}>
+              <strong style={{ color: '#667eea' }}>Ready to download:</strong><br />
+              {selectedTorrent.fileName}
             </p>
-            <input
-              className="input"
-              type="text"
-              value={advancedOptions.savepath}
-              onChange={(e) => setAdvancedOptions({ ...advancedOptions, savepath: e.target.value })}
-              style={{ marginBottom: 0 }}
-            />
-          </label>
+            
+            <label style={{ display: 'block', marginBottom: '1.5rem' }}>
+              <strong style={{ color: '#667eea', display: 'block', marginBottom: '0.5rem' }}>
+                📁 Save to Folder
+              </strong>
+              <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                Where should we save this file?
+              </p>
+              <input
+                className="input"
+                type="text"
+                value={advancedOptions.savepath}
+                onChange={(e) => setAdvancedOptions({ ...advancedOptions, savepath: e.target.value })}
+                style={{ marginBottom: 0 }}
+              />
+            </label>
 
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '1.5rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={advancedOptions.sequentialDownload}
-              onChange={(e) => setAdvancedOptions({ ...advancedOptions, sequentialDownload: e.target.checked })}
-              style={{ width: 'auto', margin: '0.25rem 0 0 0', flexShrink: 0 }}
-            />
-            <div>
-              <span style={{ color: '#e0e0e0', display: 'block' }}>▶️ Download in order (recommended for videos)</span>
-              <span style={{ color: '#b0b0c0', fontSize: '0.75rem', display: 'block', marginTop: '0.25rem' }}>
-                Allows you to start watching while downloading
-              </span>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '2rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={advancedOptions.sequentialDownload}
+                onChange={(e) => setAdvancedOptions({ ...advancedOptions, sequentialDownload: e.target.checked })}
+                style={{ width: 'auto', margin: '0.25rem 0 0 0', flexShrink: 0 }}
+              />
+              <div>
+                <span style={{ color: '#e0e0e0', display: 'block' }}>▶️ Download in order (recommended for videos)</span>
+                <span style={{ color: '#b0b0c0', fontSize: '0.875rem', display: 'block', marginTop: '0.25rem' }}>
+                  Allows you to start watching while downloading
+                </span>
+              </div>
+            </label>
+
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="button" onClick={addSearchedTorrent} style={{ flex: 1 }}>
+                ✓ Start Download
+              </button>
+              <button 
+                className="button" 
+                onClick={() => { setShowAdvanced(false); setSelectedTorrent(null); }}
+                style={{ background: '#6a6a7e', flex: 1 }}
+              >
+                Cancel
+              </button>
             </div>
-          </label>
-
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button className="button" onClick={addSearchedTorrent}>
-              ✓ Start Download
-            </button>
-            <button 
-              className="button" 
-              onClick={() => { setShowAdvanced(false); setSelectedTorrent(null); }}
-              style={{ background: '#6a6a7e' }}
-            >
-              Cancel
-            </button>
           </div>
         </div>
       )}
