@@ -15,6 +15,7 @@ function MyDownloads() {
   const [sortBy, setSortBy] = useState('status');
   const [selectedTorrents, setSelectedTorrents] = useState(new Set());
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchTorrents();
@@ -184,8 +185,6 @@ function MyDownloads() {
   const filteredTorrents = getFilteredTorrents();
   const downloadingCount = torrents.filter(t => ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(t.state)).length;
   const completedCount = torrents.filter(t => t.progress >= 1).length;
-
-  const [showFilters, setShowFilters] = useState(false);
 
   return (
     <div>
