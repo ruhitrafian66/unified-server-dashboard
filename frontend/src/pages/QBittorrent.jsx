@@ -168,9 +168,21 @@ function QBittorrent({ serverUrl }) {
   const addSearchedTorrent = async () => {
     if (!selectedTorrent) return;
 
+    // Validate that we have a valid magnet link or torrent URL
+    const url = selectedTorrent.fileUrl;
+    if (!url || url.trim() === '') {
+      alert('Error: No download link available for this torrent. Try a different result.');
+      return;
+    }
+
+    if (!url.startsWith('magnet:') && !url.startsWith('http')) {
+      alert('Error: Invalid download link format. Try a different result.');
+      return;
+    }
+
     try {
       await axios.post('/api/qbittorrent/torrents/add-advanced', {
-        urls: selectedTorrent.fileUrl, // Use fileUrl which contains the magnet link
+        urls: url,
         savepath: advancedOptions.savepath,
         sequentialDownload: advancedOptions.sequentialDownload
       });
@@ -181,7 +193,9 @@ function QBittorrent({ serverUrl }) {
       setSearchQuery('');
       setTimeout(fetchTorrents, 1000);
     } catch (error) {
-      alert('Error adding torrent: ' + (error.response?.data?.error || error.message));
+      const errorMsg = error.response?.data?.error || error.message;
+      const details = error.response?.data?.details;
+      alert('Error adding torrent: ' + errorMsg + (details ? '\nDetails: ' + details : ''));
     }
   };
 
@@ -277,40 +291,52 @@ function QBittorrent({ serverUrl }) {
             <p style={{ color: '#667eea', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
               ✓ Found {searchResults.length} results - Click any to download
             </p>
-            {searchResults.map((result, index) => (
-              <div 
-                key={index}
-                onClick={() => selectSearchResult(result)}
-                style={{
-                  padding: '0.75rem',
-                  background: 'rgba(255,255,255,0.03)',
-                  borderRadius: '6px',
-                  marginBottom: '0.5rem',
-                  cursor: 'pointer',
-                  border: '1px solid #2a2a3e',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ color: '#e0e0e0', display: 'block', wordBreak: 'break-word' }}>
-                      {result.fileName}
-                    </strong>
-                    <p style={{ fontSize: '0.75rem', color: '#b0b0c0', marginTop: '0.25rem' }}>
-                      Size: {(result.fileSize / 1024 / 1024 / 1024).toFixed(2)} GB • Quality: {result.nbSeeders > 10 ? 'Good' : 'Fair'} ({result.nbSeeders} sources)
-                    </p>
+            {searchResults.map((result, index) => {
+              const hasValidUrl = result.fileUrl && (result.fileUrl.startsWith('magnet:') || result.fileUrl.startsWith('http'));
+              return (
+                <div 
+                  key={index}
+                  onClick={() => hasValidUrl && selectSearchResult(result)}
+                  style={{
+                    padding: '0.75rem',
+                    background: 'rgba(255,255,255,0.03)',
+                    borderRadius: '6px',
+                    marginBottom: '0.5rem',
+                    cursor: hasValidUrl ? 'pointer' : 'not-allowed',
+                    border: '1px solid #2a2a3e',
+                    transition: 'all 0.2s',
+                    opacity: hasValidUrl ? 1 : 0.5
+                  }}
+                  onMouseEnter={(e) => hasValidUrl && (e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)')}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <strong style={{ color: '#e0e0e0', display: 'block', wordBreak: 'break-word' }}>
+                        {result.fileName}
+                      </strong>
+                      <p style={{ fontSize: '0.75rem', color: '#b0b0c0', marginTop: '0.25rem' }}>
+                        Size: {(result.fileSize / 1024 / 1024 / 1024).toFixed(2)} GB • Quality: {result.nbSeeders > 10 ? 'Good' : 'Fair'} ({result.nbSeeders} sources)
+                        {!hasValidUrl && <span style={{ color: '#f44336' }}> • No download link</span>}
+                      </p>
+                    </div>
+                    <button 
+                      className="button"
+                      disabled={!hasValidUrl}
+                      style={{ 
+                        flexShrink: 0, 
+                        fontSize: '0.875rem', 
+                        padding: '0.5rem 1rem',
+                        opacity: hasValidUrl ? 1 : 0.5,
+                        cursor: hasValidUrl ? 'pointer' : 'not-allowed'
+                      }}
+                    >
+                      {hasValidUrl ? '⬇ Download' : '✗ Unavailable'}
+                    </button>
                   </div>
-                  <button 
-                    className="button"
-                    style={{ flexShrink: 0, fontSize: '0.875rem', padding: '0.5rem 1rem' }}
-                  >
-                    ⬇ Download
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
