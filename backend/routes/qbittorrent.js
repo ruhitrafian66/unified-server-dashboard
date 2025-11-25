@@ -90,9 +90,13 @@ router.post('/torrents/add', async (req, res) => {
     
     console.log('Adding torrent:', urls.substring(0, 50) + '...');
     
-    // Don't encode the magnet URL - send it as-is
+    // Use URLSearchParams which properly handles encoding
+    // This ensures & characters in the magnet URL are treated as part of the value
+    const params = new URLSearchParams();
+    params.set('urls', urls);
+    
     const response = await axios.post(`${serverUrl}/api/v2/torrents/add`,
-      `urls=${urls}`,
+      params,
       { 
         headers,
         timeout: 10000
