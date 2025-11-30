@@ -12,8 +12,24 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: #0f0f0f;
   color: #e0e0e0;
+  /* Prevent text size adjustment on mobile */
+  -webkit-text-size-adjust: 100%;
+  /* Improve touch scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
 }
 
 #root {
   min-height: 100vh;
+}
+
+/* Improve touch targets on mobile */
+@media (max-width: 768px) {
+  button, a, input[type="checkbox"] {
+    min-height: 44px; /* iOS recommended touch target size */
+  }
+  
+  /* Prevent zoom on input focus on iOS */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
