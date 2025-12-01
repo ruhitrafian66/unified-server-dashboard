@@ -262,11 +262,17 @@ router.get('/search/status/:id', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error('Search status error:', error.response?.status, error.message);
-    res.status(error.response?.status || 500).json({ 
-      error: error.message,
-      searchId: req.params.id,
-      details: 'Search job may have expired or does not exist'
-    });
+    
+    // If 404, the search job doesn't exist or expired
+    if (error.response?.status === 404) {
+      // Return empty array to indicate no active search
+      res.json([]);
+    } else {
+      res.status(error.response?.status || 500).json({ 
+        error: error.message,
+        searchId: req.params.id
+      });
+    }
   }
 });
 
