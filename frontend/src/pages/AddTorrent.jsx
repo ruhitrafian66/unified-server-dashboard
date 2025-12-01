@@ -70,7 +70,7 @@ function AddTorrent() {
       const searchJobId = response.data.id;
       
       let pollCount = 0;
-      const maxPolls = 15;
+      const maxPolls = 30; // Increased from 15 to 30 seconds
       let lastTotal = 0;
       let stableCount = 0;
       
@@ -92,7 +92,8 @@ function AddTorrent() {
             }
             lastTotal = total;
             
-            if ((statusStr === 'Stopped' && total > 0) || (total > 0 && stableCount >= 2)) {
+            // Get results when stopped OR when we have results and they're stable
+            if ((statusStr === 'Stopped' && total > 0) || (total > 0 && stableCount >= 3)) {
               const results = await axios.get(`/api/qbittorrent/search/results/${searchJobId}?limit=200`);
               
               if (results.data && results.data.results && results.data.results.length > 0) {
