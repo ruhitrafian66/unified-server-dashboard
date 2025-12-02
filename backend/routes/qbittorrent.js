@@ -8,12 +8,16 @@ const getServerUrl = () => {
   return process.env.QBITTORRENT_URL || 'http://localhost:8080';
 };
 
-// Session cookie storage
+// Session cookie storage with expiry tracking
 let sessionCookie = null;
+let sessionExpiry = null;
 
 // Authenticate with qBittorrent
-const authenticate = async () => {
-  if (sessionCookie) return sessionCookie;
+const authenticate = async (forceNew = false) => {
+  // Check if we have a valid session (not expired)
+  if (sessionCookie && sessionExpiry && Date.now() < sessionExpiry && !forceNew) {
+    return sessionCookie;
+  }
   
   try {
     const serverUrl = getServerUrl();
@@ -39,7 +43,10 @@ const authenticate = async () => {
     
     if (response.headers['set-cookie']) {
       sessionCookie = response.headers['set-cookie'][0];
+      // Set expiry to 10 minutes from now (qBittorrent default is 15 minutes)
+      sessionExpiry = Date.now() + (10 * 60 * 1000);
       console.log('Got session cookie:', sessionCookie);
+      console.log('Session expires at:', new Date(sessionExpiry).toISOString());
       return sessionCookie;
     }
     
@@ -58,6 +65,35 @@ const getHeaders = async () => {
     'Content-Type': 'application/x-www-form-urlencoded',
     ...(cookie && { 'Cookie': cookie })
   };
+};
+
+// Make authenticated request with automatic retry on auth failure
+const makeAuthenticatedRequest = async (method, url, data = null, retryCount = 0) => {
+  const cookie = await authenticate();
+  const config = {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      ...(cookie && { 'Cookie': cookie })
+    },
+    timeout: 5000
+  };
+  
+  try {
+    if (method === 'GET') {
+      return await axios.get(url, config);
+    } else {
+      return await axios.post(url, data, config);
+    }
+  } catch (error) {
+    // If we get 401/403/404 and haven't retried yet, re-authenticate and try again
+    if ([401, 403, 404].includes(error.response?.status) && retryCount === 0) {
+      console.log('Auth may have expired, re-authenticating...');
+      sessionCookie = null;
+      sessionExpiry = null;
+      return makeAuthenticatedRequest(method, url, data, 1);
+    }
+    throw error;
+  }
 };
 
 // Get torrent list
@@ -233,18 +269,16 @@ router.post('/search/start', async (req, res) => {
   try {
     const serverUrl = getServerUrl();
     const { pattern, plugins, category } = req.body;
-    const headers = await getHeaders();
     
-    const response = await axios.post(`${serverUrl}/api/v2/search/start`,
-      `pattern=${encodeURIComponent(pattern)}&plugins=${plugins || 'enabled'}&category=${category || 'all'}`,
-      { 
-        headers,
-        timeout: 5000
-      }
+    const response = await makeAuthenticatedRequest(
+      'POST',
+      `${serverUrl}/api/v2/search/start`,
+      `pattern=${encodeURIComponent(pattern)}&plugins=${plugins || 'enabled'}&category=${category || 'all'}`
     );
     res.json(response.data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Search start error:', error.response?.status, error.message);
+    res.status(error.response?.status || 500).json({ error: error.message });
   }
 });
 
@@ -253,12 +287,8 @@ router.get('/search/status/:id', async (req, res) => {
   try {
     const serverUrl = getServerUrl();
     const { id } = req.params;
-    const cookie = await authenticate();
     
-    const response = await axios.get(`${serverUrl}/api/v2/search/status?id=${id}`, {
-      headers: cookie ? { 'Cookie': cookie } : {},
-      timeout: 5000
-    });
+    const response = await makeAuthenticatedRequest('GET', `${serverUrl}/api/v2/search/status?id=${id}`);
     res.json(response.data);
   } catch (error) {
     console.error('Search status error:', error.response?.status, error.message);
@@ -282,16 +312,12 @@ router.get('/search/results/:id', async (req, res) => {
     const serverUrl = getServerUrl();
     const { id } = req.params;
     const { limit, offset } = req.query;
-    const cookie = await authenticate();
     
     let url = `${serverUrl}/api/v2/search/results?id=${id}`;
     if (limit) url += `&limit=${limit}`;
     if (offset) url += `&offset=${offset}`;
     
-    const response = await axios.get(url, {
-      headers: cookie ? { 'Cookie': cookie } : {},
-      timeout: 5000
-    });
+    const response = await makeAuthenticatedRequest('GET', url);
     res.json(response.data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -303,18 +329,16 @@ router.post('/search/stop', async (req, res) => {
   try {
     const serverUrl = getServerUrl();
     const { id } = req.body;
-    const headers = await getHeaders();
     
-    await axios.post(`${serverUrl}/api/v2/search/stop`,
-      `id=${id}`,
-      { 
-        headers,
-        timeout: 5000
-      }
+    await makeAuthenticatedRequest(
+      'POST',
+      `${serverUrl}/api/v2/search/stop`,
+      `id=${id}`
     );
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Search stop error:', error.response?.status, error.message);
+    res.status(error.response?.status || 500).json({ error: error.message });
   }
 });
 
