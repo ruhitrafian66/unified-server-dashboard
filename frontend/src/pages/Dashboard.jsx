@@ -254,7 +254,7 @@ function Dashboard({ serverUrl, setServerUrl }) {
                       <strong>💾 {disk.device}</strong> - {disk.mountPoint}
                     </span>
                     <span style={{ color: '#b0b0c0', fontSize: '0.875rem' }}>
-                      {disk.used} / {disk.size} ({disk.usePercent})
+                      {disk.used} / {disk.size} ({disk.available} free)
                     </span>
                   </div>
                   <div className="progress-bar">
