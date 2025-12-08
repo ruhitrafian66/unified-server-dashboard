@@ -13,7 +13,6 @@ function QBittorrent({ serverUrl }) {
   const [selectedTorrent, setSelectedTorrent] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [advancedOptions, setAdvancedOptions] = useState({
-    savepath: '/media',
     sequentialDownload: false
   });
 
@@ -184,7 +183,6 @@ function QBittorrent({ serverUrl }) {
     try {
       await axios.post('/api/qbittorrent/torrents/add-advanced', {
         urls: url,
-        savepath: advancedOptions.savepath,
         sequentialDownload: advancedOptions.sequentialDownload
       });
       

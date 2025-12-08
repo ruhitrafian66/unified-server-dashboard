@@ -15,7 +15,6 @@ function AddTorrent() {
   const [recentSearches, setRecentSearches] = useState([]);
   const [sortBy, setSortBy] = useState('seeders');
   const [advancedOptions, setAdvancedOptions] = useState({
-    savepath: localStorage.getItem('lastSavePath') || '/media',
     sequentialDownload: true
   });
 
@@ -170,11 +169,8 @@ function AddTorrent() {
     }
 
     try {
-      localStorage.setItem('lastSavePath', advancedOptions.savepath);
-      
       await axios.post('/api/qbittorrent/torrents/add-advanced', {
         urls: url,
-        savepath: advancedOptions.savepath,
         sequentialDownload: advancedOptions.sequentialDownload
       });
       
