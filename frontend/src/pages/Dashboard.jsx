@@ -10,11 +10,13 @@ function Dashboard({ serverUrl, setServerUrl }) {
   const [systemInfo, setSystemInfo] = useState(null);
   const [services, setServices] = useState([]);
   const [disks, setDisks] = useState([]);
+  const [containers, setContainers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [url, setUrl] = useState(serverUrl);
   const [showConfig, setShowConfig] = useState(false);
   const [servicesCollapsed, setServicesCollapsed] = useState(false);
   const [disksCollapsed, setDisksCollapsed] = useState(false);
+  const [containersCollapsed, setContainersCollapsed] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -24,14 +26,16 @@ function Dashboard({ serverUrl, setServerUrl }) {
 
   const fetchData = async () => {
     try {
-      const [systemRes, servicesRes, disksRes] = await Promise.all([
+      const [systemRes, servicesRes, disksRes, containersRes] = await Promise.all([
         axios.get('/api/omv/system'),
         axios.get('/api/omv/services'),
-        axios.get('/api/omv/disks')
+        axios.get('/api/omv/disks'),
+        axios.get('/api/docker/containers')
       ]);
       setSystemInfo(systemRes.data);
       setServices(servicesRes.data.services);
       setDisks(disksRes.data.disks);
+      setContainers(containersRes.data.containers || []);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -159,6 +163,67 @@ function Dashboard({ serverUrl, setServerUrl }) {
             ⚙️ Server Configuration
           </button>
         </div>
+      </div>
+
+      {/* Quick Links */}
+      <div className="card">
+        <h2>🔗 Quick Links</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+          <a href="http://192.168.0.30:9696" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center' }}>
+            🔍 Prowlarr
+          </a>
+          <a href="http://192.168.0.30:8989" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center' }}>
+            📺 Sonarr
+          </a>
+          <a href="http://192.168.0.30:7878" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center' }}>
+            🎬 Radarr
+          </a>
+          <a href="http://192.168.0.30:8080" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center' }}>
+            ⬇️ qBittorrent
+          </a>
+        </div>
+      </div>
+
+      {/* Docker Containers */}
+      <div className="card">
+        <div 
+          className="collapsible-header"
+          onClick={() => setContainersCollapsed(!containersCollapsed)}
+        >
+          <h2 style={{ margin: 0 }}>🐳 Docker Containers ({containers.length})</h2>
+          <span className={`collapsible-icon ${containersCollapsed ? 'collapsed' : ''}`}>▼</span>
+        </div>
+        {!containersCollapsed && (
+          <>
+            {containers.length > 0 ? containers.map((container) => (
+              <div key={container.name} style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '0.75rem',
+                borderBottom: '1px solid #2a2a3e',
+                background: 'rgba(255,255,255,0.02)',
+                borderRadius: '6px',
+                marginBottom: '0.5rem'
+              }}>
+                <div>
+                  <span style={{ color: '#e0e0e0', fontWeight: '600' }}>🐳 {container.name}</span>
+                  <p style={{ fontSize: '0.75rem', color: '#b0b0c0', marginTop: '0.25rem' }}>
+                    {container.image}
+                  </p>
+                </div>
+                <span className={`status-badge ${container.running ? 'status-active' : 'status-inactive'}`}>
+                  {container.running ? 'running' : container.state}
+                </span>
+              </div>
+            )) : (
+              <div className="empty-state">
+                <div className="empty-state-icon">🐳</div>
+                <p className="empty-state-message">No containers found</p>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Server Configuration */}
