@@ -347,22 +347,6 @@ function QBittorrent({ serverUrl }) {
           <p style={{ color: '#e0e0e0', marginBottom: '1rem', wordBreak: 'break-word' }}>
             <strong>Ready to download:</strong> {selectedTorrent.fileName}
           </p>
-          
-          <label style={{ display: 'block', marginBottom: '1rem' }}>
-            <strong style={{ color: '#667eea', display: 'block', marginBottom: '0.5rem' }}>
-              📁 Save to Folder
-            </strong>
-            <p style={{ color: '#b0b0c0', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
-              Where should we save this file?
-            </p>
-            <input
-              className="input"
-              type="text"
-              value={advancedOptions.savepath}
-              onChange={(e) => setAdvancedOptions({ ...advancedOptions, savepath: e.target.value })}
-              style={{ marginBottom: 0 }}
-            />
-          </label>
 
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '1.5rem', cursor: 'pointer' }}>
             <input
