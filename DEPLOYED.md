@@ -165,16 +165,14 @@ ssh orangepi 'systemctl restart server-dashboard'
 - Authentication uses default credentials (can be changed via environment variables)
 - All existing features work with the Docker version
 
-**Installed Search Plugins** (7 plugins):
+**Installed Search Plugins** (5 plugins):
 ✅ **The Pirate Bay** - Movies, Music, Games, Software  
-✅ **LimeTorrents** - Movies, TV Shows, Music, Games, Anime, Software  
 ✅ **TorLock** - Movies, TV Shows, Music, Games, Anime, Books, Software  
 ✅ **EZTV** - TV Shows  
 ✅ **Solid Torrents** - Books, Music  
-✅ **torrents-csv** - All categories  
-✅ **Jackett** - All categories (requires Jackett server configuration)
+✅ **torrents-csv** - All categories
 
-The search functionality is now fully operational and can search across all installed plugins simultaneously!
+All plugins provide direct magnet links for seamless torrent downloads. The search functionality searches across all plugins simultaneously!
 
 ### Search Timeout Issue - RESOLVED ✅
 **Date**: December 2, 2025  
