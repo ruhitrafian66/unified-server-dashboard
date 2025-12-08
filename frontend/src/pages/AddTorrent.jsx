@@ -163,8 +163,9 @@ function AddTorrent() {
       return;
     }
 
-    if (!url.startsWith('magnet:') && !url.startsWith('http')) {
-      showToast('Invalid download link format. Try a different result.', 'error');
+    // Only allow magnet links or .torrent file URLs
+    if (!url.startsWith('magnet:') && !url.endsWith('.torrent')) {
+      showToast('Invalid download link. This result does not have a direct download link.', 'error');
       return;
     }
 
@@ -293,7 +294,7 @@ function AddTorrent() {
             
             <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
               {getSortedResults().map((result, index) => {
-                const hasValidUrl = result.fileUrl && (result.fileUrl.startsWith('magnet:') || result.fileUrl.startsWith('http'));
+                const hasValidUrl = result.fileUrl && (result.fileUrl.startsWith('magnet:') || result.fileUrl.endsWith('.torrent'));
                 const quality = result.nbSeeders > 50 ? 'Excellent' : result.nbSeeders > 10 ? 'Good' : 'Fair';
                 const qualityColor = result.nbSeeders > 50 ? '#4caf50' : result.nbSeeders > 10 ? '#2196f3' : '#ff9800';
                 

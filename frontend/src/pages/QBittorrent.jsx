@@ -175,8 +175,9 @@ function QBittorrent({ serverUrl }) {
       return;
     }
 
-    if (!url.startsWith('magnet:') && !url.startsWith('http')) {
-      alert('Error: Invalid download link format. Try a different result.');
+    // Only allow magnet links or .torrent file URLs
+    if (!url.startsWith('magnet:') && !url.endsWith('.torrent')) {
+      alert('Error: Invalid download link. This result does not have a direct download link.');
       return;
     }
 
@@ -292,7 +293,7 @@ function QBittorrent({ serverUrl }) {
               ✓ Found {searchResults.length} results - Click any to download
             </p>
             {searchResults.map((result, index) => {
-              const hasValidUrl = result.fileUrl && (result.fileUrl.startsWith('magnet:') || result.fileUrl.startsWith('http'));
+              const hasValidUrl = result.fileUrl && (result.fileUrl.startsWith('magnet:') || result.fileUrl.endsWith('.torrent'));
               return (
                 <div 
                   key={index}
