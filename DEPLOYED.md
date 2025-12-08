@@ -165,11 +165,16 @@ ssh orangepi 'systemctl restart server-dashboard'
 - Authentication uses default credentials (can be changed via environment variables)
 - All existing features work with the Docker version
 
-**Search Plugins**:
-To enable torrent search functionality, install search plugins:
-1. Access qBittorrent WebUI: http://192.168.0.30:8080
-2. Go to Search tab → Plugins
-3. Install desired search plugins (e.g., The Pirate Bay, 1337x, etc.)
+**Installed Search Plugins** (7 plugins):
+✅ **The Pirate Bay** - Movies, Music, Games, Software  
+✅ **LimeTorrents** - Movies, TV Shows, Music, Games, Anime, Software  
+✅ **TorLock** - Movies, TV Shows, Music, Games, Anime, Books, Software  
+✅ **EZTV** - TV Shows  
+✅ **Solid Torrents** - Books, Music  
+✅ **torrents-csv** - All categories  
+✅ **Jackett** - All categories (requires Jackett server configuration)
+
+The search functionality is now fully operational and can search across all installed plugins simultaneously!
 
 ### Search Timeout Issue - RESOLVED ✅
 **Date**: December 2, 2025  
