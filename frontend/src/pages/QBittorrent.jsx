@@ -13,7 +13,7 @@ function QBittorrent({ serverUrl }) {
   const [selectedTorrent, setSelectedTorrent] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [advancedOptions, setAdvancedOptions] = useState({
-    savepath: '/srv/dev-disk-by-uuid-2f521503-8710-48ab-8e68-17875edf1865/Server/',
+    savepath: '/media',
     sequentialDownload: false
   });
 
