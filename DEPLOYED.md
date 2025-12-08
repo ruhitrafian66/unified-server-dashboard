@@ -147,7 +147,29 @@ ssh orangepi 'systemctl restart server-dashboard'
 - Access through VPN when remote
 - Change default passwords for all services
 
-## Recent Fixes
+## Recent Updates
+
+### qBittorrent Docker Migration ✅
+**Date**: December 8, 2025  
+**Change**: qBittorrent has been migrated from native installation to Docker container.
+
+**Container Details**:
+- Image: `lscr.io/linuxserver/qbittorrent:latest`
+- Version: v5.1.4
+- Network Mode: host
+- WebUI: http://localhost:8080
+- Default Credentials: admin / adminadmin
+
+**Configuration**:
+- The backend automatically connects to qBittorrent on localhost:8080
+- Authentication uses default credentials (can be changed via environment variables)
+- All existing features work with the Docker version
+
+**Search Plugins**:
+To enable torrent search functionality, install search plugins:
+1. Access qBittorrent WebUI: http://192.168.0.30:8080
+2. Go to Search tab → Plugins
+3. Install desired search plugins (e.g., The Pirate Bay, 1337x, etc.)
 
 ### Search Timeout Issue - RESOLVED ✅
 **Date**: December 2, 2025  
