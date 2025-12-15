@@ -156,6 +156,9 @@ function Dashboard({ serverUrl, setServerUrl }) {
           <button className="button" onClick={() => navigate('/add-torrent')}>
             ➕ Add New Torrent
           </button>
+          <button className="button" onClick={() => navigate('/shows')}>
+            📺 Manage TV Shows
+          </button>
           <button className="button" onClick={() => navigate('/vpn')}>
             🔒 Manage VPN
           </button>
