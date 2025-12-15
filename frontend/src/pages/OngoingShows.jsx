@@ -14,11 +14,22 @@ function OngoingShows() {
     currentEpisode: 0
   });
   const [downloadingSeason, setDownloadingSeason] = useState(null);
+  const [autoCheckEnabled, setAutoCheckEnabled] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
     fetchShows();
+    fetchAutoCheckStatus();
   }, []);
+
+  const fetchAutoCheckStatus = async () => {
+    try {
+      const response = await axios.get('/api/shows/config/auto-check');
+      setAutoCheckEnabled(response.data.enabled);
+    } catch (error) {
+      console.error('Error fetching auto-check status:', error);
+    }
+  };
 
   const fetchShows = async () => {
     try {
@@ -93,6 +104,21 @@ function OngoingShows() {
     setChecking(false);
   };
 
+  const toggleAutoCheck = async () => {
+    try {
+      const response = await axios.post('/api/shows/config/auto-check', {
+        enabled: !autoCheckEnabled
+      });
+      
+      if (response.data.success) {
+        setAutoCheckEnabled(!autoCheckEnabled);
+        showToast(response.data.message, 'success');
+      }
+    } catch (error) {
+      showToast('Error toggling auto-check: ' + error.message, 'error');
+    }
+  };
+
   const downloadSeason = async (showId, season) => {
     const startEp = prompt('Start from episode number:', '1');
     const endEp = prompt('End at episode number:', '24');
@@ -140,8 +166,21 @@ function OngoingShows() {
             <p style={{ color: '#b0b0c0', fontSize: '0.875rem', margin: 0 }}>
               Automatically search and download new episodes as they become available
             </p>
+            <p style={{ color: autoCheckEnabled ? '#4caf50' : '#ff9800', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+              Auto-check: {autoCheckEnabled ? '✅ Enabled (every 2 hours)' : '⏸️ Disabled'}
+            </p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button 
+              className="button" 
+              onClick={toggleAutoCheck}
+              style={{ 
+                background: autoCheckEnabled ? '#ff9800' : '#4caf50',
+                fontSize: '0.875rem'
+              }}
+            >
+              {autoCheckEnabled ? '⏸️ Disable Auto' : '▶️ Enable Auto'}
+            </button>
             <button 
               className="button" 
               onClick={checkForNewEpisodes}
@@ -168,6 +207,9 @@ function OngoingShows() {
             marginBottom: '1rem'
           }}>
             <h3 style={{ color: '#667eea', marginTop: 0 }}>Add New Show</h3>
+            <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
+              Enter the show name and your current progress. We'll automatically search for future episodes.
+            </p>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.5rem', marginBottom: '1rem' }}>
               <input
                 className="input"
@@ -180,7 +222,7 @@ function OngoingShows() {
               <input
                 className="input"
                 type="number"
-                placeholder="Season"
+                placeholder="Current Season"
                 min="1"
                 value={newShow.currentSeason}
                 onChange={(e) => setNewShow({ ...newShow, currentSeason: parseInt(e.target.value) })}
@@ -189,7 +231,7 @@ function OngoingShows() {
               <input
                 className="input"
                 type="number"
-                placeholder="Last Episode"
+                placeholder="Last Watched Episode"
                 min="0"
                 value={newShow.currentEpisode}
                 onChange={(e) => setNewShow({ ...newShow, currentEpisode: parseInt(e.target.value) })}
@@ -241,6 +283,9 @@ function OngoingShows() {
                     Status: <span style={{ color: show.status === 'active' ? '#4caf50' : '#ff9800' }}>
                       {show.status}
                     </span>
+                    {show.nextEpisodeAirDate && (
+                      <span> • Next episode: {new Date(show.nextEpisodeAirDate).toLocaleDateString()}</span>
+                    )}
                     {show.lastChecked && (
                       <span> • Last checked: {new Date(show.lastChecked).toLocaleDateString()}</span>
                     )}
