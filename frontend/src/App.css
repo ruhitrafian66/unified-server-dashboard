@@ -545,6 +545,23 @@
     margin: 0 !important;
   }
   
+  /* Override any button flex properties on mobile */
+  .button {
+    flex-direction: row !important;
+  }
+  
+  /* Force button containers to be vertical */
+  div[style*="flex-direction: column"] {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  div[style*="flex-direction: column"] .button {
+    width: 100% !important;
+    margin: 0 !important;
+    flex-direction: row !important;
+  }
+  
   .mobile-card {
     background: rgba(255,255,255,0.03);
     border: 1px solid #2a2a3e;

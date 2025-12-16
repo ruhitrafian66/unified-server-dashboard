@@ -338,7 +338,11 @@ function MyDownloads() {
                 </div>
                 
                 {/* Action Buttons - Below Content */}
-                <div className="mobile-button-row" style={{ 
+                <div style={{ 
+                  display: 'grid',
+                  gridTemplateColumns: '1fr',
+                  gap: '0.5rem',
+                  width: '100%',
                   borderTop: '1px solid #2a2a3e',
                   paddingTop: '0.75rem'
                 }}>
@@ -349,7 +353,9 @@ function MyDownloads() {
                       style={{ 
                         whiteSpace: 'nowrap', 
                         padding: '0.5rem 1rem', 
-                        fontSize: '0.875rem'
+                        fontSize: '0.875rem',
+                        width: '100%',
+                        margin: '0'
                       }}
                     >
                       ▶️ Resume
@@ -361,7 +367,9 @@ function MyDownloads() {
                       style={{ 
                         whiteSpace: 'nowrap', 
                         padding: '0.5rem 1rem', 
-                        fontSize: '0.875rem'
+                        fontSize: '0.875rem',
+                        width: '100%',
+                        margin: '0'
                       }}
                     >
                       ⏸️ Pause
@@ -373,7 +381,9 @@ function MyDownloads() {
                     style={{ 
                       whiteSpace: 'nowrap', 
                       padding: '0.5rem 1rem', 
-                      fontSize: '0.875rem'
+                      fontSize: '0.875rem',
+                      width: '100%',
+                      margin: '0'
                     }}
                   >
                     🗑️ Remove

@@ -512,7 +512,11 @@ function OngoingShows() {
                   </div>
                   
                   {/* Action Buttons - Below Content */}
-                  <div className="mobile-button-row" style={{ 
+                  <div style={{ 
+                    display: 'grid',
+                    gridTemplateColumns: '1fr',
+                    gap: '0.5rem',
+                    width: '100%',
                     borderTop: '1px solid #2a2a3e',
                     paddingTop: '0.75rem'
                   }}>
@@ -522,7 +526,9 @@ function OngoingShows() {
                       disabled={downloadingSeason === `${show.id}-${show.currentSeason}`}
                       style={{ 
                         fontSize: '0.75rem', 
-                        padding: '0.5rem 0.75rem'
+                        padding: '0.5rem 0.75rem',
+                        width: '100%',
+                        margin: '0'
                       }}
                     >
                       {downloadingSeason === `${show.id}-${show.currentSeason}` ? '⬇️ Downloading...' : '📥 Season'}
@@ -535,7 +541,9 @@ function OngoingShows() {
                       style={{ 
                         fontSize: '0.75rem', 
                         padding: '0.5rem 0.75rem',
-                        background: show.status === 'active' ? '#ff9800' : '#4caf50'
+                        background: show.status === 'active' ? '#ff9800' : '#4caf50',
+                        width: '100%',
+                        margin: '0'
                       }}
                     >
                       {show.status === 'active' ? '⏸️ Pause' : '▶️ Resume'}
@@ -545,7 +553,9 @@ function OngoingShows() {
                       onClick={() => deleteShow(show.id)}
                       style={{ 
                         fontSize: '0.75rem', 
-                        padding: '0.5rem 0.75rem'
+                        padding: '0.5rem 0.75rem',
+                        width: '100%',
+                        margin: '0'
                       }}
                     >
                       🗑️ Delete
