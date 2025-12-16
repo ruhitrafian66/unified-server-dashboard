@@ -487,59 +487,77 @@ function OngoingShows() {
                   marginBottom: '1rem',
                   border: '1px solid #2a2a3e'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ color: '#e0e0e0', margin: '0 0 0.5rem 0' }}>
-                        {show.name}
-                      </h3>
-                      <p style={{ color: '#b0b0c0', fontSize: '0.875rem', margin: 0 }}>
-                        Current: S{show.currentSeason.toString().padStart(2, '0')}E{show.currentEpisode.toString().padStart(2, '0')} • 
-                        Status: <span style={{ color: show.status === 'active' ? '#4caf50' : '#ff9800' }}>
-                          {show.status}
-                        </span>
-                        {show.nextEpisodeAirDate && (
-                          <span> • Next episode: {new Date(show.nextEpisodeAirDate).toLocaleDateString()}</span>
-                        )}
-                        {show.lastChecked && (
-                          <span> • Last checked: {new Date(show.lastChecked).toLocaleDateString()}</span>
-                        )}
-                      </p>
-                      {show.downloadedEpisodes && show.downloadedEpisodes.length > 0 && (
-                        <p style={{ color: '#667eea', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                          Downloaded {show.downloadedEpisodes.length} episodes
-                        </p>
+                  {/* Show Information - Full Width */}
+                  <div style={{ marginBottom: '1rem' }}>
+                    <h3 style={{ color: '#e0e0e0', margin: '0 0 0.5rem 0', wordBreak: 'break-word' }}>
+                      {show.name}
+                    </h3>
+                    <p style={{ color: '#b0b0c0', fontSize: '0.875rem', margin: 0, lineHeight: '1.4' }}>
+                      Current: S{show.currentSeason.toString().padStart(2, '0')}E{show.currentEpisode.toString().padStart(2, '0')} • 
+                      Status: <span style={{ color: show.status === 'active' ? '#4caf50' : '#ff9800' }}>
+                        {show.status}
+                      </span>
+                      {show.nextEpisodeAirDate && (
+                        <span> • Next episode: {new Date(show.nextEpisodeAirDate).toLocaleDateString()}</span>
                       )}
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                      <button
-                        className="button"
-                        onClick={() => downloadSeason(show.id, show.currentSeason)}
-                        disabled={downloadingSeason === `${show.id}-${show.currentSeason}`}
-                        style={{ fontSize: '0.75rem', padding: '0.5rem' }}
-                      >
-                        {downloadingSeason === `${show.id}-${show.currentSeason}` ? '⬇️ Downloading...' : '📥 Season'}
-                      </button>
-                      <button
-                        className="button"
-                        onClick={() => updateShow(show.id, { 
-                          status: show.status === 'active' ? 'paused' : 'active' 
-                        })}
-                        style={{ 
-                          fontSize: '0.75rem', 
-                          padding: '0.5rem',
-                          background: show.status === 'active' ? '#ff9800' : '#4caf50'
-                        }}
-                      >
-                        {show.status === 'active' ? '⏸️ Pause' : '▶️ Resume'}
-                      </button>
-                      <button
-                        className="button button-danger"
-                        onClick={() => deleteShow(show.id)}
-                        style={{ fontSize: '0.75rem', padding: '0.5rem' }}
-                      >
-                        🗑️
-                      </button>
-                    </div>
+                      {show.lastChecked && (
+                        <span> • Last checked: {new Date(show.lastChecked).toLocaleDateString()}</span>
+                      )}
+                    </p>
+                    {show.downloadedEpisodes && show.downloadedEpisodes.length > 0 && (
+                      <p style={{ color: '#667eea', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                        Downloaded {show.downloadedEpisodes.length} episodes
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Action Buttons - Below Content */}
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '0.5rem', 
+                    flexWrap: 'wrap',
+                    borderTop: '1px solid #2a2a3e',
+                    paddingTop: '0.75rem'
+                  }}>
+                    <button
+                      className="button"
+                      onClick={() => downloadSeason(show.id, show.currentSeason)}
+                      disabled={downloadingSeason === `${show.id}-${show.currentSeason}`}
+                      style={{ 
+                        fontSize: '0.75rem', 
+                        padding: '0.5rem 0.75rem',
+                        flex: '1',
+                        minWidth: '120px'
+                      }}
+                    >
+                      {downloadingSeason === `${show.id}-${show.currentSeason}` ? '⬇️ Downloading...' : '📥 Season'}
+                    </button>
+                    <button
+                      className="button"
+                      onClick={() => updateShow(show.id, { 
+                        status: show.status === 'active' ? 'paused' : 'active' 
+                      })}
+                      style={{ 
+                        fontSize: '0.75rem', 
+                        padding: '0.5rem 0.75rem',
+                        background: show.status === 'active' ? '#ff9800' : '#4caf50',
+                        flex: '1',
+                        minWidth: '100px'
+                      }}
+                    >
+                      {show.status === 'active' ? '⏸️ Pause' : '▶️ Resume'}
+                    </button>
+                    <button
+                      className="button button-danger"
+                      onClick={() => deleteShow(show.id)}
+                      style={{ 
+                        fontSize: '0.75rem', 
+                        padding: '0.5rem 0.75rem',
+                        minWidth: '80px'
+                      }}
+                    >
+                      🗑️ Delete
+                    </button>
                   </div>
                 </div>
               ))

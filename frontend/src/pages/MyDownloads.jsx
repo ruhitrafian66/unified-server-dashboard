@@ -259,9 +259,6 @@ function MyDownloads() {
             return (
               <div key={torrent.hash} style={{ 
                 padding: '1rem', 
-                display: 'flex',
-                gap: '1rem',
-                alignItems: 'flex-start',
                 background: isSelected ? 'rgba(102, 126, 234, 0.15)' : isActive ? 'rgba(102, 126, 234, 0.05)' : 'rgba(255,255,255,0.02)',
                 borderRadius: '8px',
                 marginBottom: '0.75rem',
@@ -269,84 +266,98 @@ function MyDownloads() {
                 border: isSelected ? '1px solid #667eea' : '1px solid #2a2a3e',
                 transition: 'all 0.2s'
               }}>
-                {/* Checkbox */}
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggleSelectTorrent(torrent.hash)}
-                  style={{ 
-                    width: '18px', 
-                    height: '18px', 
-                    cursor: 'pointer',
-                    marginTop: '0.25rem',
-                    flexShrink: 0
-                  }}
-                />
-                
-                {/* Content */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ 
-                    color: '#e0e0e0',
-                    display: 'block',
-                    wordBreak: 'break-word',
-                    lineHeight: '1.4',
-                    marginBottom: '0.5rem'
-                  }}>
-                    {torrent.name}
-                  </strong>
+                {/* Top Section - Checkbox and Content */}
+                <div style={{ 
+                  display: 'flex',
+                  gap: '1rem',
+                  alignItems: 'flex-start',
+                  marginBottom: '1rem'
+                }}>
+                  {/* Checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSelectTorrent(torrent.hash)}
+                    style={{ 
+                      width: '18px', 
+                      height: '18px', 
+                      cursor: 'pointer',
+                      marginTop: '0.25rem',
+                      flexShrink: 0
+                    }}
+                  />
                   
-                  {/* Progress Bar */}
-                  <div className="progress-bar" style={{ marginBottom: '0.5rem' }}>
-                    <div 
-                      className="progress-fill" 
-                      style={{ 
-                        width: `${(torrent.progress * 100).toFixed(1)}%`,
-                        background: torrent.progress >= 1 
-                          ? 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-                          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                      }} 
-                    />
-                  </div>
-                  
-                  <div style={{ 
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '1rem',
-                    fontSize: '0.875rem', 
-                    color: '#b0b0c0'
-                  }}>
-                    <span>{formatBytes(torrent.size)} GB</span>
-                    <span>{(torrent.progress * 100).toFixed(1)}%</span>
-                    <span>{getStatusText(torrent.state)}</span>
-                    {torrent.dlspeed > 0 && (
-                      <span style={{ color: '#4caf50' }}>
-                        ⬇ {formatSpeed(torrent.dlspeed)} MB/s
-                      </span>
-                    )}
-                    {torrent.upspeed > 0 && (
-                      <span style={{ color: '#2196f3' }}>
-                        ⬆ {formatSpeed(torrent.upspeed)} MB/s
-                      </span>
-                    )}
-                    {torrent.eta > 0 && torrent.eta < 8640000 && (
-                      <span>ETA: {formatETA(torrent.eta)}</span>
-                    )}
+                  {/* Content - Full Width */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ 
+                      color: '#e0e0e0',
+                      display: 'block',
+                      wordBreak: 'break-word',
+                      lineHeight: '1.4',
+                      marginBottom: '0.5rem'
+                    }}>
+                      {torrent.name}
+                    </strong>
+                    
+                    {/* Progress Bar */}
+                    <div className="progress-bar" style={{ marginBottom: '0.5rem' }}>
+                      <div 
+                        className="progress-fill" 
+                        style={{ 
+                          width: `${(torrent.progress * 100).toFixed(1)}%`,
+                          background: torrent.progress >= 1 
+                            ? 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
+                            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                        }} 
+                      />
+                    </div>
+                    
+                    <div style={{ 
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '1rem',
+                      fontSize: '0.875rem', 
+                      color: '#b0b0c0'
+                    }}>
+                      <span>{formatBytes(torrent.size)} GB</span>
+                      <span>{(torrent.progress * 100).toFixed(1)}%</span>
+                      <span>{getStatusText(torrent.state)}</span>
+                      {torrent.dlspeed > 0 && (
+                        <span style={{ color: '#4caf50' }}>
+                          ⬇ {formatSpeed(torrent.dlspeed)} MB/s
+                        </span>
+                      )}
+                      {torrent.upspeed > 0 && (
+                        <span style={{ color: '#2196f3' }}>
+                          ⬆ {formatSpeed(torrent.upspeed)} MB/s
+                        </span>
+                      )}
+                      {torrent.eta > 0 && torrent.eta < 8640000 && (
+                        <span>ETA: {formatETA(torrent.eta)}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
-                {/* Action Buttons */}
+                {/* Action Buttons - Below Content */}
                 <div style={{ 
                   display: 'flex', 
-                  flexDirection: 'column',
                   gap: '0.5rem',
-                  flexShrink: 0,
-                  minWidth: '100px'
+                  flexWrap: 'wrap',
+                  borderTop: '1px solid #2a2a3e',
+                  paddingTop: '0.75rem'
                 }}>
                   {torrent.state === 'pausedDL' || torrent.state === 'pausedUP' ? (
                     <button 
                       className="button" 
                       onClick={() => controlTorrent('resume', torrent.hash)}
-                      style={{ width: '100%', whiteSpace: 'nowrap', padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+                      style={{ 
+                        whiteSpace: 'nowrap', 
+                        padding: '0.5rem 1rem', 
+                        fontSize: '0.875rem',
+                        flex: '1',
+                        minWidth: '100px'
+                      }}
                     >
                       ▶️ Resume
                     </button>
@@ -354,7 +365,13 @@ function MyDownloads() {
                     <button 
                       className="button" 
                       onClick={() => controlTorrent('pause', torrent.hash)}
-                      style={{ width: '100%', whiteSpace: 'nowrap', padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+                      style={{ 
+                        whiteSpace: 'nowrap', 
+                        padding: '0.5rem 1rem', 
+                        fontSize: '0.875rem',
+                        flex: '1',
+                        minWidth: '100px'
+                      }}
                     >
                       ⏸️ Pause
                     </button>
@@ -362,7 +379,12 @@ function MyDownloads() {
                   <button 
                     className="button button-danger" 
                     onClick={() => setConfirmDelete({ hashes: torrent.hash, name: torrent.name })}
-                    style={{ width: '100%', whiteSpace: 'nowrap', padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+                    style={{ 
+                      whiteSpace: 'nowrap', 
+                      padding: '0.5rem 1rem', 
+                      fontSize: '0.875rem',
+                      minWidth: '100px'
+                    }}
                   >
                     🗑️ Remove
                   </button>
