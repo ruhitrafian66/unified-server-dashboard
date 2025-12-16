@@ -205,7 +205,7 @@ Cascade Result:
 - ✅ **Smart Episode Detection**: Automatically detects how many episodes have already aired
 - ✅ Removed season and episode number inputs from the Add Show form
 - ✅ Enhanced live TMDB search with show posters, ratings, and descriptions
-- ✅ TMDB API key properly configured (064267fc57ae3ffe079b9eea0ab3bf3e)
+- ✅ TMDB API key properly configured via environment variables
 
 **Smart Detection Example**:
 - When adding "Pluribus" (which started airing 11/6/2025)
@@ -291,7 +291,7 @@ Game of Thrones Season 1:
 - Version: v5.1.4
 - Network Mode: host
 - WebUI: http://localhost:8080
-- Default Credentials: admin / adminadmin
+- Default Credentials: admin / (configured via .env)
 
 **Configuration**:
 - The backend automatically connects to qBittorrent on localhost:8080

@@ -108,10 +108,10 @@ qbittorrent-nox
 
 # Default credentials:
 # Username: admin
-# Password: adminadmin
+# Password: (set during first setup)
 # Web UI: http://localhost:8080
 
-# Change password in settings!
+# Configure credentials in .env file!
 ```
 
 ## Frontend Deployment

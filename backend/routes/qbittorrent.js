@@ -22,7 +22,7 @@ const authenticate = async (forceNew = false) => {
   try {
     const serverUrl = getServerUrl();
     const username = process.env.QBITTORRENT_USERNAME || 'admin';
-    const password = process.env.QBITTORRENT_PASSWORD || 'adminadmin';
+    const password = process.env.QBITTORRENT_PASSWORD;
     
     console.log('Authenticating with qBittorrent...');
     

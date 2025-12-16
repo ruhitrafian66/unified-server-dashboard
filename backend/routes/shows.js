@@ -9,7 +9,7 @@ const SHOWS_DB_PATH = '/opt/server-dashboard/data/shows.json';
 const execAsync = promisify(exec);
 
 // TMDB API configuration
-let TMDB_API_KEY = process.env.TMDB_API_KEY || '064267fc57ae3ffe079b9eea0ab3bf3e';
+let TMDB_API_KEY = process.env.TMDB_API_KEY;
 
 // qBittorrent API helpers (to avoid self-referencing HTTP calls)
 const getQBittorrentServerUrl = () => {
@@ -27,7 +27,7 @@ const authenticateQBittorrent = async (forceNew = false) => {
   try {
     const serverUrl = getQBittorrentServerUrl();
     const username = process.env.QBITTORRENT_USERNAME || 'admin';
-    const password = process.env.QBITTORRENT_PASSWORD || 'adminadmin';
+    const password = process.env.QBITTORRENT_PASSWORD;
     
     const response = await axios.post(
       `${serverUrl}/api/v2/auth/login`,
