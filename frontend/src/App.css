@@ -875,3 +875,112 @@
     font-size: 1.1rem;
   }
 }
+
+/* Desktop Improvements */
+@media (min-width: 769px) {
+  .main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+  
+  .navbar {
+    padding: 1rem 2rem;
+  }
+  
+  .navbar h1 {
+    font-size: 1.5rem;
+    text-align: left;
+  }
+  
+  .nav-links {
+    justify-content: flex-start;
+    gap: 1rem;
+  }
+  
+  .nav-links a {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    flex: none;
+    min-width: auto;
+  }
+  
+  .nav-text {
+    font-size: 0.875rem;
+  }
+  
+  .mobile-grid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+  
+  .mobile-grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+  
+  .mobile-grid-3 {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  
+  .card {
+    padding: 1.5rem;
+  }
+  
+  .button {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+}
+
+/* Compact sort buttons */
+.sort-tabs-compact {
+  display: flex;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  padding: 0.25rem;
+  gap: 0.25rem;
+  width: fit-content;
+}
+
+.sort-tab-compact {
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: transparent;
+  color: #b0b0c0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  min-height: 36px;
+}
+
+.sort-tab-compact.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.sort-tab-compact:active {
+  transform: scale(0.98);
+}
+
+/* Horizontal alignment for size and progress */
+.torrent-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #b0b0c0;
+  margin-bottom: 0.5rem;
+}
+
+.torrent-stats-left {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+.torrent-stats-right {
+  text-align: right;
+  white-space: nowrap;
+}

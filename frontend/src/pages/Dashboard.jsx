@@ -91,7 +91,39 @@ function Dashboard({ serverUrl, setServerUrl }) {
 
   return (
     <div className="fade-in">
-      {/* System Status */}
+      {/* Quick Actions - Moved to first position */}
+      <div className="card">
+        <h2>⚡ Quick Actions</h2>
+        <div className="mobile-grid-2">
+          <button className="button" onClick={() => navigate('/shows')}>
+            <span>📺</span>
+            <span>TV Shows</span>
+          </button>
+          <button className="button" onClick={() => navigate('/downloads')}>
+            <span>📥</span>
+            <span>Downloads</span>
+          </button>
+          <button className="button" onClick={() => navigate('/add-torrent')}>
+            <span>➕</span>
+            <span>Add Torrent</span>
+          </button>
+          <button className="button" onClick={() => navigate('/vpn')}>
+            <span>🔒</span>
+            <span>VPN</span>
+          </button>
+        </div>
+        <div className="mobile-grid mt-1">
+          <button 
+            className="button button-secondary" 
+            onClick={() => setShowConfig(!showConfig)}
+          >
+            <span>⚙️</span>
+            <span>Settings</span>
+          </button>
+        </div>
+      </div>
+
+      {/* System Status - Moved to second position */}
       <div className="card">
         <h2>📊 System Status</h2>
         {systemInfo ? (
@@ -162,38 +194,6 @@ function Dashboard({ serverUrl, setServerUrl }) {
             <p className="empty-state-message">Unable to fetch system information</p>
           </div>
         )}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="card">
-        <h2>⚡ Quick Actions</h2>
-        <div className="mobile-grid-2">
-          <button className="button" onClick={() => navigate('/downloads')}>
-            <span>📥</span>
-            <span>Downloads</span>
-          </button>
-          <button className="button" onClick={() => navigate('/add-torrent')}>
-            <span>➕</span>
-            <span>Add Torrent</span>
-          </button>
-          <button className="button" onClick={() => navigate('/shows')}>
-            <span>📺</span>
-            <span>TV Shows</span>
-          </button>
-          <button className="button" onClick={() => navigate('/vpn')}>
-            <span>🔒</span>
-            <span>VPN</span>
-          </button>
-        </div>
-        <div className="mobile-grid mt-1">
-          <button 
-            className="button button-secondary" 
-            onClick={() => setShowConfig(!showConfig)}
-          >
-            <span>⚙️</span>
-            <span>Settings</span>
-          </button>
-        </div>
       </div>
 
       {/* External Services */}

@@ -145,18 +145,21 @@ function MyDownloads() {
 
   const getStatusText = (state) => {
     const statusMap = {
-      'downloading': '⬇️ Downloading',
-      'stalledDL': '⏸️ Waiting',
-      'pausedDL': '⏸️ Paused',
-      'pausedUP': '⏸️ Paused',
-      'uploading': '⬆️ Sharing',
-      'stalledUP': '✓ Complete',
-      'queuedDL': '⏳ Queued',
-      'queuedUP': '⏳ Queued',
-      'checkingDL': '🔍 Checking',
-      'checkingUP': '🔍 Checking',
-      'metaDL': '📋 Getting info',
-      'forcedDL': '⬇️ Downloading'
+      'downloading': 'Downloading',
+      'stalledDL': 'Waiting for peers',
+      'pausedDL': 'Paused',
+      'pausedUP': 'Paused',
+      'uploading': 'Seeding',
+      'stalledUP': 'Completed',
+      'queuedDL': 'Queued',
+      'queuedUP': 'Queued',
+      'checkingDL': 'Checking files',
+      'checkingUP': 'Checking files',
+      'metaDL': 'Getting metadata',
+      'forcedDL': 'Force downloading',
+      'error': 'Error',
+      'missingFiles': 'Missing files',
+      'allocating': 'Allocating space'
     };
     return statusMap[state] || state;
   };
@@ -193,34 +196,30 @@ function MyDownloads() {
 
       {/* Controls */}
       <div className="card">
-        <h2>📥 Downloads ({torrents.length})</h2>
-        
-        {/* Filter Buttons */}
-        <div className="filter-buttons mb-2">
-          <button 
-            className={`filter-button ${filter === 'all' ? 'active' : ''}`}
-            onClick={() => setFilter('all')}
-          >
-            All ({torrents.length})
-          </button>
-          <button 
-            className={`filter-button ${filter === 'downloading' ? 'active' : ''}`}
-            onClick={() => setFilter('downloading')}
-          >
-            ⬇️ Active ({downloadingCount})
-          </button>
-          <button 
-            className={`filter-button ${filter === 'complete' ? 'active' : ''}`}
-            onClick={() => setFilter('complete')}
-          >
-            ✓ Done ({completedCount})
-          </button>
-          <button 
-            className={`filter-button ${filter === 'paused' ? 'active' : ''}`}
-            onClick={() => setFilter('paused')}
-          >
-            ⏸️ Paused
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h2>📥 Downloads ({torrents.length})</h2>
+          
+          {/* Compact Sort Options */}
+          <div className="sort-tabs-compact">
+            <button
+              className={`sort-tab-compact ${sortBy === 'status' ? 'active' : ''}`}
+              onClick={() => setSortBy('status')}
+            >
+              Status
+            </button>
+            <button
+              className={`sort-tab-compact ${sortBy === 'name' ? 'active' : ''}`}
+              onClick={() => setSortBy('name')}
+            >
+              Name
+            </button>
+            <button
+              className={`sort-tab-compact ${sortBy === 'progress' ? 'active' : ''}`}
+              onClick={() => setSortBy('progress')}
+            >
+              Progress
+            </button>
+          </div>
         </div>
 
         {/* Bulk Actions */}
@@ -249,28 +248,6 @@ function MyDownloads() {
             </button>
           </div>
         )}
-
-        {/* Sort Options */}
-        <div className="mobile-tabs">
-          <button
-            className={`mobile-tab ${sortBy === 'status' ? 'active' : ''}`}
-            onClick={() => setSortBy('status')}
-          >
-            Status
-          </button>
-          <button
-            className={`mobile-tab ${sortBy === 'name' ? 'active' : ''}`}
-            onClick={() => setSortBy('name')}
-          >
-            Name
-          </button>
-          <button
-            className={`mobile-tab ${sortBy === 'progress' ? 'active' : ''}`}
-            onClick={() => setSortBy('progress')}
-          >
-            Progress
-          </button>
-        </div>
       </div>
 
       {/* Torrents List */}
@@ -316,10 +293,7 @@ function MyDownloads() {
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleSelectTorrent(torrent.hash)}
-                      className="touchable"
                       style={{ 
-                        width: '20px', 
-                        height: '20px', 
                         cursor: 'pointer',
                         marginTop: '0.25rem',
                         flexShrink: 0
@@ -355,13 +329,13 @@ function MyDownloads() {
                         />
                       </div>
                       
-                      {/* Stats */}
-                      <div className="mobile-grid-2" style={{ gap: '0.5rem', fontSize: '0.75rem', color: '#b0b0c0' }}>
-                        <div>
-                          <div>Size: {formatBytes(torrent.size)} GB</div>
-                          <div>Progress: {(torrent.progress * 100).toFixed(1)}%</div>
+                      {/* Horizontally Aligned Stats */}
+                      <div className="torrent-stats">
+                        <div className="torrent-stats-left">
+                          <span>{formatBytes(torrent.size)} GB</span>
+                          <span>{(torrent.progress * 100).toFixed(1)}%</span>
                         </div>
-                        <div>
+                        <div className="torrent-stats-right">
                           {torrent.dlspeed > 0 && (
                             <div style={{ color: '#4caf50' }}>
                               ⬇ {formatSpeed(torrent.dlspeed)} MB/s

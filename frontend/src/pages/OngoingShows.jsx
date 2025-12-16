@@ -237,6 +237,22 @@ function OngoingShows() {
 
   return (
     <div>
+      {/* Add Show - Prominent placement */}
+      <div className="card" style={{ background: 'rgba(102, 126, 234, 0.1)', borderColor: '#667eea' }}>
+        <h2>➕ Add New Show</h2>
+        <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Add TV shows to automatically track and download new episodes
+        </p>
+        <button 
+          className="button" 
+          onClick={() => setShowForm(!showForm)}
+          style={{ width: '100%' }}
+        >
+          <span>➕</span>
+          <span>Add Show</span>
+        </button>
+      </div>
+
       {/* Status & Controls */}
       <div className="card">
         <h2>📡 Auto Tracking</h2>
@@ -284,7 +300,7 @@ function OngoingShows() {
             onClick={toggleAutoCheck}
             style={{ 
               background: autoCheckEnabled 
-                ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' 
+                ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
                 : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
             }}
           >
@@ -303,14 +319,6 @@ function OngoingShows() {
         </div>
 
         <div className="mobile-grid mt-1">
-          <button 
-            className="button" 
-            onClick={() => setShowForm(!showForm)}
-          >
-            <span>➕</span>
-            <span>Add Show</span>
-          </button>
-          
           {queueStatus && queueStatus.queueLength > 0 && (
             <button 
               className="button button-danger" 
