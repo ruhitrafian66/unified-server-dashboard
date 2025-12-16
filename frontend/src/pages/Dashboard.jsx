@@ -129,7 +129,7 @@ function Dashboard({ serverUrl, setServerUrl }) {
               <div className="mobile-card">
                 <div style={{ textAlign: 'center' }}>
                   <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>💾</span>
-                  <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Disk Space</div>
+                  <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Disk</div>
                   <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.disk}</div>
                 </div>
               </div>
@@ -157,27 +157,27 @@ function Dashboard({ serverUrl, setServerUrl }) {
         <h2>⚡ Quick Actions</h2>
         <div className="mobile-grid">
           <button className="button" onClick={() => navigate('/downloads')}>
-            📥 View My Downloads
+            📥 Downloads
           </button>
           <button className="button" onClick={() => navigate('/add-torrent')}>
-            ➕ Add New Torrent
+            ➕ Add Torrent
           </button>
           <button className="button" onClick={() => navigate('/shows')}>
-            📺 Manage TV Shows
+            📺 TV Shows
           </button>
           <button className="button" onClick={() => navigate('/vpn')}>
-            🔒 Manage VPN
+            🔒 VPN
           </button>
           <button className="button" onClick={() => setShowConfig(!showConfig)} style={{ background: '#6a6a7e' }}>
-            ⚙️ Server Settings
+            ⚙️ Settings
           </button>
         </div>
       </div>
 
       {/* Quick Links - Mobile Optimized */}
       <div className="card">
-        <h2>🔗 External Services</h2>
-        <div className="mobile-grid">
+        <h2>🔗 Services</h2>
+        <div className="mobile-grid-2">
           <a href="http://192.168.0.30:9696" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center' }}>
             🔍 Prowlarr
           </a>

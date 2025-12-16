@@ -27,12 +27,12 @@ function TVShows() {
       
       {/* Tab Description */}
       <div className="card" style={{ marginBottom: '1rem', padding: '0.75rem' }}>
-        <div style={{ color: '#b0b0c0', fontSize: '0.875rem', lineHeight: '1.4' }}>
+        <div style={{ color: '#b0b0c0', fontSize: '0.8rem', lineHeight: '1.3' }}>
           {activeTab === 'ongoing' && (
-            <p>📡 <strong style={{ color: '#667eea' }}>Ongoing Shows:</strong> Track current TV shows and automatically download new episodes as they air with smart scheduling.</p>
+            <p>📡 <strong style={{ color: '#667eea' }}>Ongoing:</strong> Auto-download new episodes as they air.</p>
           )}
           {activeTab === 'past' && (
-            <p>📚 <strong style={{ color: '#667eea' }}>Past Shows:</strong> Download complete seasons of finished shows. Prioritizes high-quality season packs when available.</p>
+            <p>📚 <strong style={{ color: '#667eea' }}>Past Shows:</strong> Download complete seasons with quality packs.</p>
           )}
         </div>
       </div>

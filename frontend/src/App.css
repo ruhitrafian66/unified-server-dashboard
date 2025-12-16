@@ -400,8 +400,11 @@
   }
   
   .navbar h1 {
-    font-size: 1.1rem;
-    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .nav-links {
@@ -418,13 +421,16 @@
   }
   
   .nav-links a {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.8rem;
-    flex: 0 0 auto;
+    padding: 0.5rem 0.5rem;
+    font-size: 1.2rem;
+    flex: 1;
     text-align: center;
     white-space: nowrap;
-    min-width: 80px;
+    min-width: 60px;
     border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
   .main-content {
@@ -438,8 +444,11 @@
   }
   
   .card h2 {
-    font-size: 1.1rem;
+    font-size: 1rem;
     margin-bottom: 0.75rem;
+    line-height: 1.2;
+    word-break: break-word;
+    hyphens: auto;
   }
   
   .grid {
@@ -448,14 +457,18 @@
   }
   
   .button {
-    padding: 0.75rem 1rem;
-    font-size: 0.9rem;
+    padding: 0.75rem 0.5rem;
+    font-size: 0.85rem;
     border-radius: 12px;
     min-height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.25rem;
+    text-align: center;
+    line-height: 1.2;
+    word-break: break-word;
+    hyphens: auto;
   }
   
   .stat-card {
@@ -529,6 +542,39 @@
   .mobile-card:active {
     transform: scale(0.98);
     background: rgba(255,255,255,0.05);
+  }
+  
+  /* Text optimization for mobile */
+  .mobile-text-compact {
+    font-size: 0.8rem;
+    line-height: 1.3;
+    word-break: break-word;
+    hyphens: auto;
+  }
+  
+  .mobile-text-truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .mobile-text-wrap {
+    word-break: break-word;
+    hyphens: auto;
+    line-height: 1.3;
+  }
+  
+  .mobile-button-compact {
+    padding: 0.5rem 0.25rem !important;
+    font-size: 0.8rem !important;
+    line-height: 1.1 !important;
+    min-height: 44px !important;
+  }
+  
+  .mobile-title-compact {
+    font-size: 0.9rem !important;
+    line-height: 1.2 !important;
+    margin-bottom: 0.5rem !important;
   }
   
   /* Progress bars */
@@ -763,15 +809,68 @@
   }
 }
 
-/* Extra small devices (iPhone SE, small phones) */
-@media (max-width: 375px) {
+/* iPhone 12 and similar devices (390px width) */
+@media (max-width: 390px) {
   .navbar h1 {
-    font-size: 1rem;
+    font-size: 0.9rem;
   }
   
   .nav-links a {
-    padding: 0.35rem 0.4rem;
+    padding: 0.4rem 0.25rem;
+    font-size: 1.1rem;
+    min-width: 50px;
+  }
+  
+  .main-content {
+    padding: 0.75rem;
+  }
+  
+  .card {
+    padding: 0.875rem;
+  }
+  
+  .card h2 {
+    font-size: 0.95rem;
+    line-height: 1.1;
+  }
+  
+  .button {
+    padding: 0.5rem 0.25rem;
     font-size: 0.75rem;
+    line-height: 1.1;
+  }
+  
+  .stat-icon {
+    font-size: 1.25rem;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+  }
+  
+  .filter-button {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.5rem;
+  }
+  
+  .mobile-grid-2 {
+    gap: 0.5rem;
+  }
+  
+  .mobile-card {
+    padding: 0.75rem;
+  }
+}
+
+/* Extra small devices (iPhone SE, small phones) */
+@media (max-width: 375px) {
+  .navbar h1 {
+    font-size: 0.85rem;
+  }
+  
+  .nav-links a {
+    padding: 0.35rem 0.2rem;
+    font-size: 1rem;
+    min-width: 45px;
   }
   
   .main-content {
@@ -783,23 +882,33 @@
   }
   
   .card h2 {
-    font-size: 1rem;
+    font-size: 0.9rem;
+    line-height: 1.1;
   }
   
   .button {
-    padding: 0.45rem 0.875rem;
-    font-size: 0.8rem;
+    padding: 0.45rem 0.2rem;
+    font-size: 0.7rem;
+    line-height: 1.1;
   }
   
   .stat-icon {
-    font-size: 1.25rem;
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
+    font-size: 1.1rem;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
   }
   
   .filter-button {
-    font-size: 0.7rem;
-    padding: 0.35rem 0.625rem;
+    font-size: 0.65rem;
+    padding: 0.35rem 0.4rem;
+  }
+  
+  .mobile-grid-2 {
+    gap: 0.4rem;
+  }
+  
+  .mobile-card {
+    padding: 0.6rem;
   }
 }

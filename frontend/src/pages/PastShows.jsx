@@ -130,8 +130,8 @@ function PastShows() {
       {/* Mobile-Optimized Search Section */}
       <div className="card">
         <h2>🔍 Search TV Shows</h2>
-        <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem', lineHeight: '1.4' }}>
-          Search for any TV show to download complete seasons. Automatically finds high-quality season packs.
+        <p style={{ color: '#b0b0c0', fontSize: '0.8rem', marginBottom: '1rem', lineHeight: '1.3' }}>
+          Search TV shows to download complete seasons with high-quality packs.
         </p>
         
         {/* Mobile Search Input */}
@@ -140,7 +140,7 @@ function PastShows() {
           <input
             className="mobile-search-input"
             type="text"
-            placeholder="Search TV shows..."
+            placeholder="Search shows..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -390,45 +390,45 @@ function PastShows() {
           <div style={{ color: '#b0b0c0', fontSize: '0.875rem', lineHeight: '1.6' }}>
             <div className="mobile-card" style={{ marginBottom: '0.75rem' }}>
               <div style={{ color: '#667eea', fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                🎯 Priority Order
+                🎯 Search Order
               </div>
-              <div style={{ fontSize: '0.8rem' }}>
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <strong>1. Season Packs:</strong> Complete season in one torrent (preferred)
+              <div style={{ fontSize: '0.75rem' }}>
+                <div style={{ marginBottom: '0.4rem' }}>
+                  <strong>1. Season Packs:</strong> Complete season (preferred)
                 </div>
                 <div>
-                  <strong>2. Individual Episodes:</strong> Each episode separately if no pack found
+                  <strong>2. Episodes:</strong> Individual if no pack found
                 </div>
               </div>
             </div>
             
             <div className="mobile-card" style={{ marginBottom: '0.75rem' }}>
               <div style={{ color: '#667eea', fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                🏆 Quality Standards
+                🏆 Quality
               </div>
-              <div style={{ fontSize: '0.8rem' }}>
-                2160p WEB-DL → 1080p WEB-DL → 2160p → 1080p
+              <div style={{ fontSize: '0.75rem' }}>
+                4K WEB-DL → 1080p WEB-DL → 4K → 1080p
                 <br />
-                <em style={{ color: '#ff9800' }}>Only 1080p+ quality accepted</em>
+                <em style={{ color: '#ff9800' }}>Only 1080p+ accepted</em>
               </div>
             </div>
             
             <div className="mobile-grid-2">
               <div className="mobile-card">
-                <div style={{ color: '#667eea', fontWeight: '600', marginBottom: '0.5rem', fontSize: '0.8rem' }}>
-                  🌱 Smart Selection
+                <div style={{ color: '#667eea', fontWeight: '600', marginBottom: '0.5rem', fontSize: '0.75rem' }}>
+                  🌱 Selection
                 </div>
-                <div style={{ fontSize: '0.75rem' }}>
-                  Picks torrents with most seeders for reliability
+                <div style={{ fontSize: '0.7rem' }}>
+                  Most seeders for reliability
                 </div>
               </div>
               
               <div className="mobile-card">
-                <div style={{ color: '#667eea', fontWeight: '600', marginBottom: '0.5rem', fontSize: '0.8rem' }}>
-                  💾 Space Check
+                <div style={{ color: '#667eea', fontWeight: '600', marginBottom: '0.5rem', fontSize: '0.75rem' }}>
+                  💾 Space
                 </div>
-                <div style={{ fontSize: '0.75rem' }}>
-                  Requires 5GB+ free space before downloading
+                <div style={{ fontSize: '0.7rem' }}>
+                  Needs 5GB+ free space
                 </div>
               </div>
             </div>
