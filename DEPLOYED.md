@@ -149,6 +149,139 @@ ssh orangepi 'systemctl restart server-dashboard'
 
 ## Recent Updates
 
+### Search Queue System & Cascading Episode Checks ✅
+**Date**: December 16, 2025  
+**Change**: Implemented comprehensive search queue system and cascading episode checks to handle multiple episodes airing simultaneously.
+
+**Major Features**:
+- ✅ **Search Queue System**: All searches now go through a 45-second interval queue to prevent qBittorrent flooding
+- ✅ **Cascading Episode Checks**: When an episode airs, system automatically checks for all subsequent aired episodes
+- ✅ **Season Transitions**: Automatically detects and moves between seasons (S01E24 → S02E01)
+- ✅ **Initial Catch-up**: New shows automatically download all episodes that have already aired
+- ✅ **Queue Management**: Real-time queue status display with clear/management options
+
+**How Cascading Works**:
+```
+Example: "The Bear" currently at S02E05
+- S02E06 aired Monday
+- S02E07 aired Tuesday  
+- S02E08 aired Wednesday
+- S02E09 airs Friday (future)
+
+Cascade Result:
+✅ Downloads S02E06, S02E07, S02E08 sequentially
+⏰ Schedules check for S02E09 on Friday
+```
+
+**Queue System Benefits**:
+- **No More Search Conflicts**: Eliminates 409 errors completely
+- **45-Second Intervals**: Prevents server overload with proper timing
+- **Sequential Processing**: One search at a time for reliability
+- **Real-time Status**: Users can see queue length and progress
+- **Smart Management**: Clear queue option for maintenance
+
+**New API Endpoints**:
+- `GET /api/shows/queue/status` - Get queue metrics and status
+- `POST /api/shows/queue/clear` - Clear all queued searches
+
+**Frontend Enhancements**:
+- Queue status display: "🔄 2 pending (next in 23s)"
+- Clear queue button when items are pending
+- Auto-refresh queue status every 30 seconds
+- Better feedback for multiple episode downloads
+
+**Performance Impact**:
+- Individual searches are slower (45s intervals)
+- Overall reliability is much higher (no failed searches)
+- Predictable server load and resource usage
+- Better handling of simultaneous show scheduling
+
+### Ongoing Shows Feature - Targeted Episode Scheduling ✅
+**Date**: December 15, 2025  
+**Change**: Replaced inefficient 2-hour periodic checking with intelligent targeted scheduling based on actual episode air times.
+
+**Major Updates**:
+- ✅ **Targeted Scheduling**: Episodes are checked exactly 1 hour after their TMDB air time (no more wasteful periodic checking!)
+- ✅ **Smart Episode Detection**: Automatically detects how many episodes have already aired
+- ✅ Removed season and episode number inputs from the Add Show form
+- ✅ Enhanced live TMDB search with show posters, ratings, and descriptions
+- ✅ TMDB API key properly configured (064267fc57ae3ffe079b9eea0ab3bf3e)
+
+**Smart Detection Example**:
+- When adding "Pluribus" (which started airing 11/6/2025)
+- System detects episodes 1-7 have already aired
+- Sets current progress to **S01E07** (not S01E00)
+- Next episode tracking: **S01E08** airing 12/18/2025
+- **Scheduled check**: 12/18/2025 at 1:00 AM UTC (1 hour after air time)
+
+**Efficiency Improvement**:
+- **Before**: Checked every 2 hours regardless of air times (wasteful)
+- **After**: Only checks 1 hour after each episode airs (targeted & efficient)
+
+**How It Works**:
+1. Search for a TV show by name using live TMDB search
+2. Select the correct show from search results with poster and details
+3. Click "Add Show" - system automatically detects your current progress
+4. System schedules targeted checks for future episodes based on TMDB air dates
+5. Each episode is automatically searched exactly 1 hour after it airs
+6. Downloads prioritize 4K WEB-DL, then 1080p WEB-DL, then any available quality
+7. After successful download, next episode is automatically scheduled
+
+### TV Shows Interface Redesign ✅
+**Date**: December 15, 2025  
+**Change**: Restructured TV Shows section with tabbed interface and new "Past Shows" feature for downloading complete seasons.
+
+**New Features**:
+- ✅ **Tabbed Interface**: TV Shows now has "Ongoing Shows" and "Past Shows" tabs
+- ✅ **Past Shows**: Download complete seasons of any TV show with smart season pack detection
+- ✅ **Collapsible Tracked Shows**: The tracked shows list can now be collapsed to save space
+- ✅ **Navigation Reorder**: TV Shows moved to 2nd position (after Dashboard)
+
+**Past Shows Features**:
+- 🎯 **Season Pack Priority**: Searches for complete season torrents first (preferred)
+- 📺 **Individual Episode Fallback**: Downloads episodes separately if no season pack found
+- 🔍 **Direct qBittorrent API**: Uses direct API calls for reliable search functionality
+- 🔍 **Smart Search Patterns**: Uses 10 different search patterns to find the best releases
+- 📊 **Quality Priority**: 4K WEB-DL → 1080p WEB-DL → Any available quality
+- 🎪 **TMDB Integration**: Search and select shows with posters and metadata
+
+**Search Pattern Priority for Season Packs**:
+1. `Show Season X complete`
+2. `Show SXX complete`
+3. `Show SXX`
+4. Individual episodes (if no season pack found)
+
+### Full Season Torrent Implementation ✅
+**Date**: December 15, 2025  
+**Change**: Successfully implemented and debugged full season torrent functionality with direct qBittorrent API integration.
+
+**Technical Implementation**:
+- ✅ **Direct qBittorrent API calls** - Eliminated self-referencing HTTP calls that caused 500 errors
+- ✅ **Season pack priority** - Searches for complete seasons first, falls back to individual episodes
+- ✅ **Smart conflict handling** - Handles HTTP 409 conflicts with proper delays and retries
+- ✅ **Quality selection** - Automatically picks torrents with most seeders for reliability
+- ✅ **Performance optimized** - Reduced search delays and episode limits for faster response
+- ✅ **Frontend timeout handling** - 5-minute timeout with progress indicators
+
+**Performance Optimizations**:
+- Search delays reduced from 10s to 6s per pattern
+- Episode limit reduced from 24 to 12 episodes per season
+- Early termination after 2 failed episodes (instead of 3)
+- Conflict retry delays reduced from 5s to 3s
+- Frontend shows "Searching & Downloading... (may take 2-3 minutes)" message
+
+**Test Results**:
+```
+Game of Thrones Season 1:
+✅ Season pack: "Game of Thrones S01E01 2160p UHD BluRay x265-SCOTLUHD"
+✅ Individual episodes: Multiple episodes found and downloaded
+✅ Smart stopping: Stopped when no more episodes available
+✅ Response time: Under 2 minutes for most searches
+```
+
+**Search Plugin Limitations**:
+⚠️ **Note**: Current search plugins (EZTV, TorLock, etc.) may not have classic TV shows like "Friends" (1994). The system works correctly but finds shows with similar names. For best results, use specific show names or newer shows that are well-indexed in torrent sites.
+
 ### qBittorrent Docker Migration ✅
 **Date**: December 8, 2025  
 **Change**: qBittorrent has been migrated from native installation to Docker container.

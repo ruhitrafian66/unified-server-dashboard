@@ -4,7 +4,7 @@ import Dashboard from './pages/Dashboard';
 import MyDownloads from './pages/MyDownloads';
 import AddTorrent from './pages/AddTorrent';
 import WireGuard from './pages/WireGuard';
-import OngoingShows from './pages/OngoingShows';
+import TVShows from './pages/TVShows';
 import Toast from './components/Toast';
 import './App.css';
 
@@ -42,14 +42,14 @@ function App() {
               <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
                 Dashboard
               </NavLink>
+              <NavLink to="/shows" className={({ isActive }) => isActive ? 'active' : ''}>
+                TV Shows
+              </NavLink>
               <NavLink to="/downloads" className={({ isActive }) => isActive ? 'active' : ''}>
                 Downloads
               </NavLink>
               <NavLink to="/add-torrent" className={({ isActive }) => isActive ? 'active' : ''}>
                 Add Torrent
-              </NavLink>
-              <NavLink to="/shows" className={({ isActive }) => isActive ? 'active' : ''}>
-                TV Shows
               </NavLink>
               <NavLink to="/vpn" className={({ isActive }) => isActive ? 'active' : ''}>
                 VPN
@@ -62,7 +62,7 @@ function App() {
               <Route path="/" element={<Dashboard serverUrl={serverUrl} setServerUrl={setServerUrl} />} />
               <Route path="/downloads" element={<MyDownloads />} />
               <Route path="/add-torrent" element={<AddTorrent />} />
-              <Route path="/shows" element={<OngoingShows />} />
+              <Route path="/shows" element={<TVShows />} />
               <Route path="/vpn" element={<WireGuard serverUrl={serverUrl} />} />
             </Routes>
           </main>
