@@ -6,40 +6,42 @@ function TVShows() {
   const [activeTab, setActiveTab] = useState('ongoing');
 
   return (
-    <div>
-      <h1>📺 TV Shows</h1>
-      
-      {/* Mobile-Optimized Tab Navigation */}
+    <div className="fade-in">
+      {/* Tab Navigation */}
       <div className="mobile-tabs">
         <button
           className={`mobile-tab ${activeTab === 'ongoing' ? 'active' : ''}`}
           onClick={() => setActiveTab('ongoing')}
         >
-          📡 Ongoing Shows
+          <span>📡</span>
+          <span>Ongoing</span>
         </button>
         <button
           className={`mobile-tab ${activeTab === 'past' ? 'active' : ''}`}
           onClick={() => setActiveTab('past')}
         >
-          📚 Past Shows
+          <span>📚</span>
+          <span>Past Shows</span>
         </button>
       </div>
       
       {/* Tab Description */}
-      <div className="card" style={{ marginBottom: '1rem', padding: '0.75rem' }}>
-        <div style={{ color: '#b0b0c0', fontSize: '0.8rem', lineHeight: '1.3' }}>
+      <div className="card">
+        <div style={{ color: '#b0b0c0', fontSize: '0.875rem', lineHeight: '1.4' }}>
           {activeTab === 'ongoing' && (
-            <p>📡 <strong style={{ color: '#667eea' }}>Ongoing:</strong> Auto-download new episodes as they air.</p>
+            <p>📡 <strong style={{ color: '#667eea' }}>Ongoing Shows:</strong> Automatically download new episodes as they air</p>
           )}
           {activeTab === 'past' && (
-            <p>📚 <strong style={{ color: '#667eea' }}>Past Shows:</strong> Download complete seasons with quality packs.</p>
+            <p>📚 <strong style={{ color: '#667eea' }}>Past Shows:</strong> Download complete seasons with quality packs</p>
           )}
         </div>
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'ongoing' && <OngoingShows />}
-      {activeTab === 'past' && <PastShows />}
+      <div className="slide-up">
+        {activeTab === 'ongoing' && <OngoingShows />}
+        {activeTab === 'past' && <PastShows />}
+      </div>
     </div>
   );
 }

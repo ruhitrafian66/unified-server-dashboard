@@ -11,7 +11,6 @@ function AddTorrent() {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedTorrent, setSelectedTorrent] = useState(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
   const [sortBy, setSortBy] = useState('seeders');
   const [advancedOptions, setAdvancedOptions] = useState({
@@ -69,7 +68,7 @@ function AddTorrent() {
       const searchJobId = response.data.id;
       
       let pollCount = 0;
-      const maxPolls = 30; // Increased from 15 to 30 seconds
+      const maxPolls = 30;
       let lastTotal = 0;
       let stableCount = 0;
       
@@ -91,7 +90,6 @@ function AddTorrent() {
             }
             lastTotal = total;
             
-            // Get results when stopped OR when we have results and they're stable
             if ((statusStr === 'Stopped' && total > 0) || (total > 0 && stableCount >= 3)) {
               const results = await axios.get(`/api/qbittorrent/search/results/${searchJobId}?limit=200`);
               
@@ -110,7 +108,7 @@ function AddTorrent() {
             } else if (statusStr === 'Stopped' && total === 0) {
               clearInterval(pollResults);
               setSearching(false);
-              showToast('No results found. Try a different search term.', 'warning');
+              showToast('No results found. Try different keywords.', 'warning');
               return;
             }
           }
@@ -150,7 +148,6 @@ function AddTorrent() {
 
   const selectSearchResult = (result) => {
     setSelectedTorrent(result);
-    setShowAdvanced(true);
   };
 
   const addSearchedTorrent = async () => {
@@ -158,13 +155,12 @@ function AddTorrent() {
 
     const url = selectedTorrent.fileUrl;
     if (!url || url.trim() === '') {
-      showToast('No download link available for this torrent. Try a different result.', 'error');
+      showToast('No download link available for this torrent.', 'error');
       return;
     }
 
-    // Only allow magnet links or .torrent file URLs
     if (!url.startsWith('magnet:') && !url.endsWith('.torrent')) {
-      showToast('Invalid download link. This result does not have a direct download link.', 'error');
+      showToast('Invalid download link.', 'error');
       return;
     }
 
@@ -175,7 +171,6 @@ function AddTorrent() {
       });
       
       setSelectedTorrent(null);
-      setShowAdvanced(false);
       setSearchResults([]);
       setSearchQuery('');
       showToast('Torrent added successfully!', 'success');
@@ -200,48 +195,50 @@ function AddTorrent() {
   };
 
   return (
-    <div>
-      <h1>Add Torrent</h1>
-
+    <div className="fade-in">
+      {/* Search Section */}
       <div className="card">
-        <h2>🔍 Search for Movies & TV Shows</h2>
+        <h2>🔍 Search Torrents</h2>
         <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
-          Search for any movie or TV show to download
+          Search for movies, TV shows, or any content
         </p>
         
         {/* Search Input */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+        <div className="mobile-search-container">
+          <div className="mobile-search-icon">🔍</div>
           <input
-            className="input"
+            className="mobile-search-input"
             type="text"
-            placeholder="e.g., Breaking Bad, The Matrix, Game of Thrones..."
+            placeholder="Breaking Bad, The Matrix, etc..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && searchTorrents()}
-            style={{ marginBottom: 0 }}
           />
-          <button 
-            className="button" 
-            onClick={() => searchTorrents()}
-            disabled={searching}
-            style={{ minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-          >
-            {searching ? (
-              <>
-                <span className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px' }}></span>
-                Searching...
-              </>
-            ) : (
-              '🔍 Search'
-            )}
-          </button>
         </div>
+
+        <button 
+          className="button mb-2" 
+          onClick={() => searchTorrents()}
+          disabled={searching}
+        >
+          {searching ? (
+            <>
+              <span className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px' }}></span>
+              <span>Searching...</span>
+            </>
+          ) : (
+            <>
+              <span>🔍</span>
+              <span>Search</span>
+            </>
+          )}
+        </button>
 
         {/* Recent Searches */}
         {recentSearches.length > 0 && !searching && searchResults.length === 0 && (
-          <div style={{ marginBottom: '1rem' }}>
-            <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Recent searches:</p>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div>
+            <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Recent:</p>
+            <div className="filter-buttons">
               {recentSearches.map((query, i) => (
                 <button
                   key={i}
@@ -257,227 +254,164 @@ function AddTorrent() {
             </div>
           </div>
         )}
-
-        {/* Search Results */}
-        {searchResults.length > 0 && (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', marginBottom: '1rem' }}>
-              <p style={{ color: '#667eea', fontSize: '0.875rem', margin: 0 }}>
-                ✓ Found {searchResults.length} results
-              </p>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <span style={{ color: '#b0b0c0', fontSize: '0.875rem' }}>Sort:</span>
-                <button 
-                  className={`filter-button ${sortBy === 'seeders' ? 'active' : ''}`}
-                  onClick={() => setSortBy('seeders')}
-                >
-                  Quality
-                </button>
-                <button 
-                  className={`filter-button ${sortBy === 'size' ? 'active' : ''}`}
-                  onClick={() => setSortBy('size')}
-                >
-                  Size
-                </button>
-                <button 
-                  className={`filter-button ${sortBy === 'name' ? 'active' : ''}`}
-                  onClick={() => setSortBy('name')}
-                >
-                  Name
-                </button>
-              </div>
-            </div>
-            
-            <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
-              {getSortedResults().map((result, index) => {
-                const hasValidUrl = result.fileUrl && (result.fileUrl.startsWith('magnet:') || result.fileUrl.endsWith('.torrent'));
-                const quality = result.nbSeeders > 50 ? 'Excellent' : result.nbSeeders > 10 ? 'Good' : 'Fair';
-                const qualityColor = result.nbSeeders > 50 ? '#4caf50' : result.nbSeeders > 10 ? '#2196f3' : '#ff9800';
-                
-                return (
-                  <div 
-                    key={index}
-                    onClick={() => hasValidUrl && selectSearchResult(result)}
-                    style={{
-                      padding: '1rem',
-                      background: 'rgba(255,255,255,0.03)',
-                      borderRadius: '8px',
-                      marginBottom: '0.75rem',
-                      cursor: hasValidUrl ? 'pointer' : 'not-allowed',
-                      border: '1px solid #2a2a3e',
-                      transition: 'all 0.2s',
-                      opacity: hasValidUrl ? 1 : 0.5
-                    }}
-                    onMouseEnter={(e) => hasValidUrl && (e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)')}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <strong style={{ color: '#e0e0e0', display: 'block', wordBreak: 'break-word', marginBottom: '0.5rem' }}>
-                          {result.fileName}
-                        </strong>
-                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontSize: '0.875rem' }}>
-                          <span style={{ color: '#b0b0c0' }}>
-                            📦 {(result.fileSize / 1024 / 1024 / 1024).toFixed(2)} GB
-                          </span>
-                          <span style={{ color: qualityColor }}>
-                            ⭐ {quality} ({result.nbSeeders} sources)
-                          </span>
-                          {!hasValidUrl && <span style={{ color: '#f44336' }}>✗ No download link</span>}
-                        </div>
-                      </div>
-                      <button 
-                        className="button"
-                        disabled={!hasValidUrl}
-                        style={{ 
-                          flexShrink: 0, 
-                          fontSize: '0.875rem', 
-                          padding: '0.5rem 1rem',
-                          opacity: hasValidUrl ? 1 : 0.5,
-                          cursor: hasValidUrl ? 'pointer' : 'not-allowed'
-                        }}
-                      >
-                        {hasValidUrl ? '⬇ Download' : '✗ Unavailable'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
       </div>
 
-      {/* Download Settings Modal */}
-      {showAdvanced && selectedTorrent && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem',
-            animation: 'fadeIn 0.2s ease-out'
-          }}
-          onClick={() => {
-            setShowAdvanced(false);
-            setSelectedTorrent(null);
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-              borderColor: '#667eea',
-              maxWidth: '600px',
-              width: '100%',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              margin: 0,
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{ marginBottom: '1rem' }}>⚙️ Download Settings</h2>
-            <p
-              style={{
-                color: '#e0e0e0',
-                marginBottom: '1.5rem',
-                wordBreak: 'break-word',
-                lineHeight: '1.5'
-              }}
+      {/* Search Results */}
+      {searchResults.length > 0 && (
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2>📋 Results ({searchResults.length})</h2>
+          </div>
+          
+          {/* Sort Options */}
+          <div className="mobile-tabs mb-2">
+            <button 
+              className={`mobile-tab ${sortBy === 'seeders' ? 'active' : ''}`}
+              onClick={() => setSortBy('seeders')}
             >
-              <strong style={{ color: '#667eea' }}>Ready to download:</strong>
-              <br />
-              {selectedTorrent.fileName}
-            </p>
-
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '0.5rem',
-                marginBottom: '2rem',
-                cursor: 'pointer'
-              }}
+              Quality
+            </button>
+            <button 
+              className={`mobile-tab ${sortBy === 'size' ? 'active' : ''}`}
+              onClick={() => setSortBy('size')}
             >
-              <input
-                type="checkbox"
-                checked={advancedOptions.sequentialDownload}
-                onChange={(e) =>
-                  setAdvancedOptions({
-                    ...advancedOptions,
-                    sequentialDownload: e.target.checked
-                  })
-                }
-                style={{
-                  width: 'auto',
-                  margin: '0.25rem 0 0 0',
-                  flexShrink: 0
-                }}
-              />
-              <div>
-                <span style={{ color: '#e0e0e0', display: 'block' }}>
-                  ▶️ Download in order (recommended for videos)
-                </span>
-                <span
+              Size
+            </button>
+            <button 
+              className={`mobile-tab ${sortBy === 'name' ? 'active' : ''}`}
+              onClick={() => setSortBy('name')}
+            >
+              Name
+            </button>
+          </div>
+          
+          {/* Results List */}
+          <div className="mobile-grid">
+            {getSortedResults().map((result, index) => {
+              const hasValidUrl = result.fileUrl && (result.fileUrl.startsWith('magnet:') || result.fileUrl.endsWith('.torrent'));
+              const quality = result.nbSeeders > 50 ? 'Excellent' : result.nbSeeders > 10 ? 'Good' : 'Fair';
+              const qualityColor = result.nbSeeders > 50 ? '#4caf50' : result.nbSeeders > 10 ? '#2196f3' : '#ff9800';
+              
+              return (
+                <div 
+                  key={index}
+                  className="mobile-card"
                   style={{
-                    color: '#b0b0c0',
-                    fontSize: '0.875rem',
-                    display: 'block',
-                    marginTop: '0.25rem'
+                    cursor: hasValidUrl ? 'pointer' : 'not-allowed',
+                    opacity: hasValidUrl ? 1 : 0.5,
+                    border: selectedTorrent === result ? '1px solid #667eea' : '1px solid #2a2a3e',
+                    background: selectedTorrent === result ? 'rgba(102, 126, 234, 0.1)' : 'rgba(255,255,255,0.02)'
                   }}
+                  onClick={() => hasValidUrl && selectSearchResult(result)}
                 >
-                  Allows you to start watching while downloading
-                </span>
-              </div>
-            </label>
+                  <div className="mobile-list-title text-wrap" style={{ marginBottom: '0.75rem' }}>
+                    {result.fileName}
+                  </div>
+                  
+                  <div className="mobile-grid-2" style={{ gap: '0.5rem', fontSize: '0.75rem', marginBottom: '0.75rem' }}>
+                    <div>
+                      <div style={{ color: '#b0b0c0' }}>
+                        📦 {(result.fileSize / 1024 / 1024 / 1024).toFixed(2)} GB
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: qualityColor }}>
+                        ⭐ {quality} ({result.nbSeeders})
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {!hasValidUrl && (
+                    <div style={{ color: '#f44336', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
+                      ✗ No download link available
+                    </div>
+                  )}
+                  
+                  {selectedTorrent === result && (
+                    <div style={{ 
+                      background: 'rgba(102, 126, 234, 0.1)', 
+                      border: '1px solid #667eea',
+                      borderRadius: '8px',
+                      padding: '0.75rem',
+                      marginTop: '0.75rem'
+                    }}>
+                      <div style={{ color: '#667eea', fontWeight: '600', marginBottom: '0.75rem' }}>
+                        ⚙️ Download Options
+                      </div>
+                      
+                      <label style={{ 
+                        display: 'flex', 
+                        alignItems: 'flex-start', 
+                        gap: '0.5rem', 
+                        marginBottom: '1rem',
+                        cursor: 'pointer'
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={advancedOptions.sequentialDownload}
+                          onChange={(e) => setAdvancedOptions({
+                            ...advancedOptions,
+                            sequentialDownload: e.target.checked
+                          })}
+                          className="touchable"
+                          style={{ marginTop: '0.25rem' }}
+                        />
+                        <div>
+                          <div style={{ color: '#e0e0e0', fontSize: '0.875rem' }}>
+                            ▶️ Download in order
+                          </div>
+                          <div style={{ color: '#b0b0c0', fontSize: '0.75rem' }}>
+                            Recommended for videos
+                          </div>
+                        </div>
+                      </label>
 
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button
-                className="button"
-                onClick={addSearchedTorrent}
-                style={{ flex: 1 }}
-              >
-                ✓ Start Download
-              </button>
-              <button
-                className="button"
-                onClick={() => {
-                  setShowAdvanced(false);
-                  setSelectedTorrent(null);
-                }}
-                style={{ background: '#6a6a7e', flex: 1 }}
-              >
-                Cancel
-              </button>
-            </div>
+                      <div className="mobile-grid-2">
+                        <button
+                          className="button button-small"
+                          onClick={addSearchedTorrent}
+                        >
+                          <span>✓</span>
+                          <span>Download</span>
+                        </button>
+                        <button
+                          className="button button-small button-secondary"
+                          onClick={() => setSelectedTorrent(null)}
+                        >
+                          <span>✕</span>
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Add from Magnet Link */}
+      {/* Manual Add Section */}
       <div className="card">
-        <h2>🔗 Add from Magnet Link</h2>
+        <h2>🔗 Add Magnet Link</h2>
         <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
-          Have a magnet link or torrent URL? Paste it here for quick add
+          Paste a magnet link or torrent URL directly
         </p>
-        <input
-          className="input"
-          type="text"
-          placeholder="Paste magnet link or .torrent URL here..."
-          value={newTorrent}
-          onChange={(e) => setNewTorrent(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && addTorrent()}
-        />
+        
+        <div className="form-group">
+          <input
+            className="input"
+            type="text"
+            placeholder="magnet:?xt=urn:btih:... or http://example.com/file.torrent"
+            value={newTorrent}
+            onChange={(e) => setNewTorrent(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && addTorrent()}
+          />
+        </div>
+        
         <button className="button" onClick={addTorrent}>
-          + Add Download
+          <span>➕</span>
+          <span>Add Download</span>
         </button>
       </div>
     </div>

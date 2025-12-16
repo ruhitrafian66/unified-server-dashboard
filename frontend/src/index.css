@@ -12,24 +12,35 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: #0f0f0f;
   color: #e0e0e0;
-  /* Prevent text size adjustment on mobile */
   -webkit-text-size-adjust: 100%;
-  /* Improve touch scrolling on iOS */
   -webkit-overflow-scrolling: touch;
+  /* Mobile-first optimizations */
+  overscroll-behavior: none;
+  touch-action: manipulation;
 }
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile */
 }
 
-/* Improve touch targets on mobile */
-@media (max-width: 768px) {
-  button, a, input[type="checkbox"] {
-    min-height: 44px; /* iOS recommended touch target size */
-  }
-  
-  /* Prevent zoom on input focus on iOS */
-  input, select, textarea {
-    font-size: 16px !important;
-  }
+/* Mobile-first touch targets */
+button, a, input[type="checkbox"], .touchable {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Prevent zoom on input focus */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
+/* Improve scrolling performance */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Remove tap highlight on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
 }

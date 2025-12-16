@@ -45,7 +45,6 @@ function WireGuard({ serverUrl }) {
     try {
       const response = await axios.get(`/api/wireguard/status/${iface}`);
       setStatus(response.data.status);
-      // Check if interface is up by looking for "interface:" in status
       setIsConnected(response.data.status.toLowerCase().includes('interface:'));
     } catch (error) {
       console.error('Error fetching status:', error);
@@ -67,7 +66,7 @@ function WireGuard({ serverUrl }) {
       await axios.post(`/api/wireguard/interface/${action}`, {
         interface: selectedInterface
       });
-      showToast(`VPN ${action === 'up' ? 'started' : 'stopped'} successfully`, 'success');
+      showToast(`VPN ${action === 'up' ? 'started' : 'stopped'}`, 'success');
       setTimeout(() => {
         fetchStatus(selectedInterface);
         fetchPeers(selectedInterface);
@@ -85,9 +84,9 @@ function WireGuard({ serverUrl }) {
 
   if (loading) {
     return (
-      <div>
-        <h1>WireGuard VPN</h1>
+      <div className="fade-in">
         <div className="card">
+          <h2>🔒 VPN</h2>
           <LoadingSkeleton count={3} height="80px" />
         </div>
       </div>
@@ -96,12 +95,11 @@ function WireGuard({ serverUrl }) {
 
   if (interfaces.length === 0) {
     return (
-      <div>
-        <h1>WireGuard VPN</h1>
+      <div className="fade-in">
         <div className="card">
           <div className="empty-state">
             <div className="empty-state-icon">🔒</div>
-            <div className="empty-state-title">No VPN Interfaces Found</div>
+            <div className="empty-state-title">No VPN Interfaces</div>
             <p className="empty-state-message">
               No WireGuard interfaces are configured on this server.
             </p>
@@ -112,58 +110,64 @@ function WireGuard({ serverUrl }) {
   }
 
   return (
-    <div>
-      <h1>WireGuard VPN</h1>
-      
-      {/* Connection Status Card */}
+    <div className="fade-in">
+      {/* Connection Status */}
       <div className="card" style={{ 
         background: isConnected 
           ? 'rgba(76, 175, 80, 0.1)' 
           : 'rgba(244, 67, 54, 0.1)',
         borderColor: isConnected ? '#4caf50' : '#f44336'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
+        <div className="stat-card">
+          <div className="stat-icon" style={{
             background: isConnected 
               ? 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-              : 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '2rem'
+              : 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)'
           }}>
             {isConnected ? '🔒' : '🔓'}
           </div>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0, marginBottom: '0.25rem' }}>
-              {isConnected ? 'VPN Connected' : 'VPN Disconnected'}
-            </h2>
-            <p style={{ color: '#b0b0c0', fontSize: '0.875rem', margin: 0 }}>
-              {selectedInterface ? `Interface: ${selectedInterface}` : 'No interface selected'}
-            </p>
+          <div className="stat-content">
+            <div className="stat-label">VPN Status</div>
+            <div className="stat-value">
+              {isConnected ? 'Connected' : 'Disconnected'}
+            </div>
+            {selectedInterface && (
+              <div className="stat-label">Interface: {selectedInterface}</div>
+            )}
           </div>
-          {selectedInterface && (
-            <button 
-              className={`button ${isConnected ? 'button-danger' : ''}`}
-              onClick={() => toggleInterface(isConnected ? 'down' : 'up')}
-              style={{ minWidth: '120px' }}
-            >
-              {isConnected ? '⏹️ Disconnect' : '▶️ Connect'}
-            </button>
-          )}
         </div>
+        
+        {selectedInterface && (
+          <div className="mobile-grid-2 mt-2">
+            <button 
+              className="button"
+              onClick={() => toggleInterface('up')}
+              disabled={isConnected}
+              style={{ opacity: isConnected ? 0.5 : 1 }}
+            >
+              <span>▶️</span>
+              <span>Connect</span>
+            </button>
+            <button 
+              className="button button-danger"
+              onClick={() => toggleInterface('down')}
+              disabled={!isConnected}
+              style={{ opacity: !isConnected ? 0.5 : 1 }}
+            >
+              <span>⏹️</span>
+              <span>Disconnect</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Interfaces */}
+      {/* Interface Selection */}
       <div className="card">
-        <h2>VPN Interfaces ({interfaces.length})</h2>
+        <h2>🔧 Interfaces ({interfaces.length})</h2>
         <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
-          Select an interface to view details and manage connection
+          Select an interface to manage
         </p>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="filter-buttons">
           {interfaces.map((iface) => (
             <button
               key={iface}
@@ -178,24 +182,10 @@ function WireGuard({ serverUrl }) {
 
       {selectedInterface && (
         <>
-          {/* Quick Controls */}
+          {/* Quick Actions */}
           <div className="card">
-            <h2>Quick Controls</h2>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button 
-                className="button" 
-                onClick={() => toggleInterface('up')}
-                disabled={isConnected}
-              >
-                ▶️ Start VPN
-              </button>
-              <button 
-                className="button button-danger" 
-                onClick={() => toggleInterface('down')}
-                disabled={!isConnected}
-              >
-                ⏹️ Stop VPN
-              </button>
+            <h2>⚡ Quick Actions</h2>
+            <div className="mobile-grid">
               <button 
                 className="button" 
                 onClick={() => {
@@ -203,53 +193,55 @@ function WireGuard({ serverUrl }) {
                   fetchPeers(selectedInterface);
                   showToast('Status refreshed', 'info');
                 }}
-                style={{ marginLeft: 'auto' }}
               >
-                🔄 Refresh
+                <span>🔄</span>
+                <span>Refresh Status</span>
               </button>
             </div>
           </div>
 
-          {/* Status */}
+          {/* Status Details */}
           <div className="card">
-            <h2>Interface Status</h2>
-            <pre style={{ 
+            <h2>📊 Interface Status</h2>
+            <div className="mobile-card" style={{ 
               background: '#0a0a14', 
-              padding: '1rem', 
-              borderRadius: '8px', 
-              overflow: 'auto', 
-              color: isConnected ? '#4caf50' : '#f44336',
               border: '1px solid #2a2a3e',
-              fontSize: '0.875rem',
-              lineHeight: '1.5',
-              maxHeight: '300px'
+              fontFamily: 'monospace'
             }}>
-              {status || 'No status available'}
-            </pre>
+              <pre style={{ 
+                color: isConnected ? '#4caf50' : '#f44336',
+                fontSize: '0.75rem',
+                lineHeight: '1.4',
+                margin: 0,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                overflow: 'auto',
+                maxHeight: '200px'
+              }}>
+                {status || 'No status available'}
+              </pre>
+            </div>
           </div>
 
-          {/* Peers */}
+          {/* Connected Peers */}
           <div className="card">
-            <h2>Connected Peers ({peers.length})</h2>
+            <h2>👥 Connected Peers ({peers.length})</h2>
             {peers.length > 0 ? (
-              peers.map((peer, index) => (
-                <div 
-                  key={index} 
-                  style={{ 
-                    padding: '0.75rem', 
-                    borderBottom: index < peers.length - 1 ? '1px solid #2a2a3e' : 'none',
-                    background: 'rgba(255,255,255,0.02)', 
-                    borderRadius: '6px', 
-                    marginBottom: '0.5rem',
-                    color: '#e0e0e0',
-                    fontSize: '0.875rem',
-                    fontFamily: 'monospace',
-                    wordBreak: 'break-all'
-                  }}
-                >
-                  {peer}
-                </div>
-              ))
+              <div className="mobile-grid">
+                {peers.map((peer, index) => (
+                  <div key={index} className="mobile-card">
+                    <div style={{ 
+                      color: '#e0e0e0',
+                      fontSize: '0.75rem',
+                      fontFamily: 'monospace',
+                      wordBreak: 'break-all',
+                      lineHeight: '1.4'
+                    }}>
+                      {peer}
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="empty-state">
                 <div className="empty-state-icon">👥</div>

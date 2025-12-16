@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Simple deployment script - builds on server
-SERVER="root@10.211.55.4"
+SERVER="orangepi"
 REMOTE_PATH="/opt/server-dashboard"
 
 echo "Creating directory on server..."
@@ -43,4 +43,4 @@ systemctl status server-dashboard --no-pager
 EOF
 
 echo ""
-echo "Dashboard should be accessible at: http://10.211.55.4:3001"
+echo "Dashboard should be accessible at: http://orangepi:3001"

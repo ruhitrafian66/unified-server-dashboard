@@ -39,7 +39,6 @@ function MyDownloads() {
   const getFilteredTorrents = () => {
     let filtered = [...torrents];
     
-    // Apply filter
     if (filter === 'downloading') {
       filtered = filtered.filter(t => ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(t.state));
     } else if (filter === 'paused') {
@@ -50,7 +49,6 @@ function MyDownloads() {
       filtered = filtered.filter(t => ['uploading', 'stalledUP'].includes(t.state));
     }
     
-    // Apply sorting
     filtered.sort((a, b) => {
       if (sortBy === 'status') {
         const aActive = ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(a.state);
@@ -128,14 +126,6 @@ function MyDownloads() {
     setSelectedTorrents(newSelected);
   };
 
-  const toggleSelectAll = () => {
-    if (selectedTorrents.size === filteredTorrents.length) {
-      setSelectedTorrents(new Set());
-    } else {
-      setSelectedTorrents(new Set(filteredTorrents.map(t => t.hash)));
-    }
-  };
-
   const formatBytes = (bytes) => {
     return (bytes / 1024 / 1024 / 1024).toFixed(2);
   };
@@ -173,10 +163,10 @@ function MyDownloads() {
 
   if (loading) {
     return (
-      <div>
-        <h1>My Downloads</h1>
+      <div className="fade-in">
         <div className="card">
-          <LoadingSkeleton count={5} height="100px" />
+          <h2>📥 Downloads</h2>
+          <LoadingSkeleton count={3} height="100px" />
         </div>
       </div>
     );
@@ -187,362 +177,249 @@ function MyDownloads() {
   const completedCount = torrents.filter(t => t.progress >= 1).length;
 
   return (
-    <div>
-      <h1>Downloads</h1>
-      
+    <div className="fade-in">
+      {/* Error State */}
       {error && (
         <div className="card" style={{ background: 'rgba(244, 67, 54, 0.1)', borderColor: '#f44336' }}>
-          <p style={{ color: '#f44336' }}>
-            <strong>Connection Error:</strong> {error}
+          <h2>⚠️ Connection Error</h2>
+          <p style={{ color: '#f44336', marginBottom: '0.5rem' }}>
+            {error}
           </p>
-          <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-            The download service isn't responding. Please check if it's running.
+          <p style={{ color: '#b0b0c0', fontSize: '0.875rem' }}>
+            The download service isn't responding. Check if it's running.
           </p>
         </div>
       )}
 
+      {/* Controls */}
       <div className="card">
-        {/* Controls Bar */}
-        <div className="controls-bar" style={{ marginBottom: '1rem' }}>
+        <h2>📥 Downloads ({torrents.length})</h2>
+        
+        {/* Filter Buttons */}
+        <div className="filter-buttons mb-2">
           <button 
-            className="button"
-            onClick={() => setShowFilters(true)}
-            style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+            className={`filter-button ${filter === 'all' ? 'active' : ''}`}
+            onClick={() => setFilter('all')}
           >
-            🎛️ Filters & Sort
+            All ({torrents.length})
           </button>
-          
-          {selectedTorrents.size > 0 && (
-            <>
-              <button className="filter-button" onClick={() => handleBulkAction('pause')}>
-                ⏸️ Pause ({selectedTorrents.size})
-              </button>
-              <button className="filter-button" onClick={() => handleBulkAction('resume')}>
-                ▶️ Resume ({selectedTorrents.size})
-              </button>
-              <button className="filter-button" onClick={() => handleBulkAction('delete')} style={{ color: '#f44336' }}>
-                🗑️ Delete ({selectedTorrents.size})
-              </button>
-            </>
-          )}
-          
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            {(filter !== 'all' || sortBy !== 'status') && (
-              <span style={{ fontSize: '0.75rem', color: '#667eea' }}>
-                {filter !== 'all' && `Filter: ${filter}`}
-                {filter !== 'all' && sortBy !== 'status' && ' • '}
-                {sortBy !== 'status' && `Sort: ${sortBy}`}
-              </span>
-            )}
-          </div>
+          <button 
+            className={`filter-button ${filter === 'downloading' ? 'active' : ''}`}
+            onClick={() => setFilter('downloading')}
+          >
+            ⬇️ Active ({downloadingCount})
+          </button>
+          <button 
+            className={`filter-button ${filter === 'complete' ? 'active' : ''}`}
+            onClick={() => setFilter('complete')}
+          >
+            ✓ Done ({completedCount})
+          </button>
+          <button 
+            className={`filter-button ${filter === 'paused' ? 'active' : ''}`}
+            onClick={() => setFilter('paused')}
+          >
+            ⏸️ Paused
+          </button>
         </div>
 
-        {/* Torrents List */}
+        {/* Bulk Actions */}
+        {selectedTorrents.size > 0 && (
+          <div className="mobile-grid-3 mb-2">
+            <button 
+              className="button button-small" 
+              onClick={() => handleBulkAction('resume')}
+            >
+              <span>▶️</span>
+              <span>Resume</span>
+            </button>
+            <button 
+              className="button button-small" 
+              onClick={() => handleBulkAction('pause')}
+            >
+              <span>⏸️</span>
+              <span>Pause</span>
+            </button>
+            <button 
+              className="button button-small button-danger" 
+              onClick={() => handleBulkAction('delete')}
+            >
+              <span>🗑️</span>
+              <span>Delete</span>
+            </button>
+          </div>
+        )}
+
+        {/* Sort Options */}
+        <div className="mobile-tabs">
+          <button
+            className={`mobile-tab ${sortBy === 'status' ? 'active' : ''}`}
+            onClick={() => setSortBy('status')}
+          >
+            Status
+          </button>
+          <button
+            className={`mobile-tab ${sortBy === 'name' ? 'active' : ''}`}
+            onClick={() => setSortBy('name')}
+          >
+            Name
+          </button>
+          <button
+            className={`mobile-tab ${sortBy === 'progress' ? 'active' : ''}`}
+            onClick={() => setSortBy('progress')}
+          >
+            Progress
+          </button>
+        </div>
+      </div>
+
+      {/* Torrents List */}
+      <div className="card">
         {filteredTorrents.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">📥</div>
-            <div className="empty-state-title">No downloads yet</div>
+            <div className="empty-state-title">No downloads</div>
             <p className="empty-state-message">
               {filter === 'all' 
-                ? "Start by searching for movies or TV shows!" 
+                ? "Start by adding a torrent!" 
                 : `No ${filter} downloads found`}
             </p>
             <button className="button" onClick={() => navigate('/add-torrent')}>
-              ➕ Add New Torrent
+              <span>➕</span>
+              <span>Add Torrent</span>
             </button>
           </div>
         ) : (
-          filteredTorrents.map((torrent) => {
-            const isActive = ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(torrent.state);
-            const isSelected = selectedTorrents.has(torrent.hash);
-            
-            return (
-              <div key={torrent.hash} style={{ 
-                padding: '1rem', 
-                background: isSelected ? 'rgba(102, 126, 234, 0.15)' : isActive ? 'rgba(102, 126, 234, 0.05)' : 'rgba(255,255,255,0.02)',
-                borderRadius: '8px',
-                marginBottom: '0.75rem',
-                borderLeft: isActive ? '3px solid #667eea' : '3px solid transparent',
-                border: isSelected ? '1px solid #667eea' : '1px solid #2a2a3e',
-                transition: 'all 0.2s'
-              }}>
-                {/* Top Section - Checkbox and Content */}
-                <div style={{ 
-                  display: 'flex',
-                  gap: '1rem',
-                  alignItems: 'flex-start',
-                  marginBottom: '1rem'
-                }}>
-                  {/* Checkbox */}
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleSelectTorrent(torrent.hash)}
-                    style={{ 
-                      width: '18px', 
-                      height: '18px', 
-                      cursor: 'pointer',
-                      marginTop: '0.25rem',
-                      flexShrink: 0
-                    }}
-                  />
-                  
-                  {/* Content - Full Width */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <strong className="mobile-torrent-name" style={{ 
-                      color: '#e0e0e0',
-                      display: 'block',
-                      marginBottom: '0.5rem'
-                    }}>
-                      {torrent.name}
-                    </strong>
+          <div className="mobile-grid">
+            {filteredTorrents.map((torrent) => {
+              const isActive = ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(torrent.state);
+              const isSelected = selectedTorrents.has(torrent.hash);
+              const isPaused = torrent.state === 'pausedDL' || torrent.state === 'pausedUP';
+              
+              return (
+                <div 
+                  key={torrent.hash} 
+                  className="mobile-card"
+                  style={{ 
+                    background: isSelected 
+                      ? 'rgba(102, 126, 234, 0.15)' 
+                      : isActive 
+                      ? 'rgba(102, 126, 234, 0.05)' 
+                      : 'rgba(255,255,255,0.02)',
+                    borderLeft: isActive ? '3px solid #667eea' : '3px solid transparent',
+                    border: isSelected ? '1px solid #667eea' : '1px solid #2a2a3e'
+                  }}
+                >
+                  {/* Header with Checkbox */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelectTorrent(torrent.hash)}
+                      className="touchable"
+                      style={{ 
+                        width: '20px', 
+                        height: '20px', 
+                        cursor: 'pointer',
+                        marginTop: '0.25rem',
+                        flexShrink: 0
+                      }}
+                    />
                     
-                    {/* Progress Bar */}
-                    <div className="progress-bar" style={{ marginBottom: '0.5rem' }}>
-                      <div 
-                        className="progress-fill" 
-                        style={{ 
-                          width: `${(torrent.progress * 100).toFixed(1)}%`,
-                          background: torrent.progress >= 1 
-                            ? 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-                            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                        }} 
-                      />
-                    </div>
-                    
-                    <div style={{ 
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '1rem',
-                      fontSize: '0.875rem', 
-                      color: '#b0b0c0'
-                    }}>
-                      <span>{formatBytes(torrent.size)} GB</span>
-                      <span>{(torrent.progress * 100).toFixed(1)}%</span>
-                      <span>{getStatusText(torrent.state)}</span>
-                      {torrent.dlspeed > 0 && (
-                        <span style={{ color: '#4caf50' }}>
-                          ⬇ {formatSpeed(torrent.dlspeed)} MB/s
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="mobile-list-title text-wrap" style={{ marginBottom: '0.5rem' }}>
+                        {torrent.name}
+                      </div>
+                      
+                      {/* Status Badge */}
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <span className={`status-badge ${
+                          torrent.progress >= 1 ? 'status-active' : 
+                          isPaused ? 'status-warning' : 
+                          isActive ? 'status-active' : 'status-inactive'
+                        }`}>
+                          {getStatusText(torrent.state)}
                         </span>
-                      )}
-                      {torrent.upspeed > 0 && (
-                        <span style={{ color: '#2196f3' }}>
-                          ⬆ {formatSpeed(torrent.upspeed)} MB/s
-                        </span>
-                      )}
-                      {torrent.eta > 0 && torrent.eta < 8640000 && (
-                        <span>ETA: {formatETA(torrent.eta)}</span>
-                      )}
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="progress-bar" style={{ marginBottom: '0.75rem' }}>
+                        <div 
+                          className="progress-fill" 
+                          style={{ 
+                            width: `${(torrent.progress * 100).toFixed(1)}%`,
+                            background: torrent.progress >= 1 
+                              ? 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
+                              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                          }} 
+                        />
+                      </div>
+                      
+                      {/* Stats */}
+                      <div className="mobile-grid-2" style={{ gap: '0.5rem', fontSize: '0.75rem', color: '#b0b0c0' }}>
+                        <div>
+                          <div>Size: {formatBytes(torrent.size)} GB</div>
+                          <div>Progress: {(torrent.progress * 100).toFixed(1)}%</div>
+                        </div>
+                        <div>
+                          {torrent.dlspeed > 0 && (
+                            <div style={{ color: '#4caf50' }}>
+                              ⬇ {formatSpeed(torrent.dlspeed)} MB/s
+                            </div>
+                          )}
+                          {torrent.upspeed > 0 && (
+                            <div style={{ color: '#2196f3' }}>
+                              ⬆ {formatSpeed(torrent.upspeed)} MB/s
+                            </div>
+                          )}
+                          {torrent.eta > 0 && torrent.eta < 8640000 && (
+                            <div>ETA: {formatETA(torrent.eta)}</div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Action Buttons - Below Content */}
-                <div style={{ 
-                  display: 'grid',
-                  gridTemplateColumns: '1fr',
-                  gap: '0.5rem',
-                  width: '100%',
-                  borderTop: '1px solid #2a2a3e',
-                  paddingTop: '0.75rem'
-                }}>
-                  {torrent.state === 'pausedDL' || torrent.state === 'pausedUP' ? (
+                  
+                  {/* Actions */}
+                  <div className="mobile-grid-2">
                     <button 
-                      className="button" 
-                      onClick={() => controlTorrent('resume', torrent.hash)}
-                      style={{ 
-                        whiteSpace: 'nowrap', 
-                        padding: '0.5rem 1rem', 
-                        fontSize: '0.875rem',
-                        width: '100%',
-                        margin: '0'
-                      }}
+                      className="button button-small" 
+                      onClick={() => controlTorrent(isPaused ? 'resume' : 'pause', torrent.hash)}
                     >
-                      ▶️ Resume
+                      <span>{isPaused ? '▶️' : '⏸️'}</span>
+                      <span>{isPaused ? 'Resume' : 'Pause'}</span>
                     </button>
-                  ) : (
                     <button 
-                      className="button" 
-                      onClick={() => controlTorrent('pause', torrent.hash)}
-                      style={{ 
-                        whiteSpace: 'nowrap', 
-                        padding: '0.5rem 1rem', 
-                        fontSize: '0.875rem',
-                        width: '100%',
-                        margin: '0'
-                      }}
+                      className="button button-small button-danger" 
+                      onClick={() => setConfirmDelete({ hashes: torrent.hash, name: torrent.name })}
                     >
-                      ⏸️ Pause
+                      <span>🗑️</span>
+                      <span>Remove</span>
                     </button>
-                  )}
-                  <button 
-                    className="button button-danger" 
-                    onClick={() => setConfirmDelete({ hashes: torrent.hash, name: torrent.name })}
-                    style={{ 
-                      whiteSpace: 'nowrap', 
-                      padding: '0.5rem 1rem', 
-                      fontSize: '0.875rem',
-                      width: '100%',
-                      margin: '0'
-                    }}
-                  >
-                    🗑️ Remove
-                  </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </div>
 
-      {/* Filters & Sort Modal */}
-      {showFilters && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '1rem',
-            animation: 'fadeIn 0.2s ease-out'
-          }}
-          onClick={() => setShowFilters(false)}
-        >
-          <div
-            style={{
-              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-              borderRadius: '12px',
-              padding: '2rem',
-              maxWidth: '500px',
-              width: '100%',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-              border: '1px solid #2a2a3e'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{ marginBottom: '1.5rem', color: '#e0e0e0' }}>🎛️ Filters & Sort</h2>
-            
-            {/* Filter Section */}
-            <div style={{ marginBottom: '2rem' }}>
-              <h3 style={{ fontSize: '1rem', color: '#667eea', marginBottom: '0.75rem' }}>Filter by Status</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
-                <button 
-                  className={`filter-button ${filter === 'all' ? 'active' : ''}`}
-                  onClick={() => setFilter('all')}
-                  style={{ width: '100%' }}
-                >
-                  All ({torrents.length})
-                </button>
-                <button 
-                  className={`filter-button ${filter === 'downloading' ? 'active' : ''}`}
-                  onClick={() => setFilter('downloading')}
-                  style={{ width: '100%' }}
-                >
-                  Downloading ({downloadingCount})
-                </button>
-                <button 
-                  className={`filter-button ${filter === 'complete' ? 'active' : ''}`}
-                  onClick={() => setFilter('complete')}
-                  style={{ width: '100%' }}
-                >
-                  Complete ({completedCount})
-                </button>
-                <button 
-                  className={`filter-button ${filter === 'paused' ? 'active' : ''}`}
-                  onClick={() => setFilter('paused')}
-                  style={{ width: '100%' }}
-                >
-                  Paused
-                </button>
-                <button 
-                  className={`filter-button ${filter === 'seeding' ? 'active' : ''}`}
-                  onClick={() => setFilter('seeding')}
-                  style={{ width: '100%', gridColumn: 'span 2' }}
-                >
-                  Seeding
-                </button>
-              </div>
-            </div>
-
-            {/* Sort Section */}
-            <div style={{ marginBottom: '2rem' }}>
-              <h3 style={{ fontSize: '1rem', color: '#667eea', marginBottom: '0.75rem' }}>Sort by</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
-                <button 
-                  className={`filter-button ${sortBy === 'status' ? 'active' : ''}`}
-                  onClick={() => setSortBy('status')}
-                  style={{ width: '100%' }}
-                >
-                  Status
-                </button>
-                <button 
-                  className={`filter-button ${sortBy === 'name' ? 'active' : ''}`}
-                  onClick={() => setSortBy('name')}
-                  style={{ width: '100%' }}
-                >
-                  Name
-                </button>
-                <button 
-                  className={`filter-button ${sortBy === 'size' ? 'active' : ''}`}
-                  onClick={() => setSortBy('size')}
-                  style={{ width: '100%' }}
-                >
-                  Size
-                </button>
-                <button 
-                  className={`filter-button ${sortBy === 'progress' ? 'active' : ''}`}
-                  onClick={() => setSortBy('progress')}
-                  style={{ width: '100%' }}
-                >
-                  Progress
-                </button>
-                <button 
-                  className={`filter-button ${sortBy === 'speed' ? 'active' : ''}`}
-                  onClick={() => setSortBy('speed')}
-                  style={{ width: '100%', gridColumn: 'span 2' }}
-                >
-                  Speed
-                </button>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button
-                className="button"
-                onClick={() => {
-                  setFilter('all');
-                  setSortBy('status');
-                }}
-                style={{ flex: 1, background: '#6a6a7e' }}
-              >
-                Reset
-              </button>
-              <button
-                className="button"
-                onClick={() => setShowFilters(false)}
-                style={{ flex: 1 }}
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Add Torrent FAB */}
+      <button 
+        className="fab" 
+        onClick={() => navigate('/add-torrent')}
+        title="Add Torrent"
+      >
+        ➕
+      </button>
 
       {/* Confirm Delete Modal */}
       {confirmDelete && (
         <ConfirmModal
           title="Remove Torrent"
           message={confirmDelete.name 
-            ? `Are you sure you want to remove "${confirmDelete.name}"? This will also delete the downloaded files.`
-            : `Are you sure you want to remove ${confirmDelete.count} torrent(s)? This will also delete the downloaded files.`
+            ? `Remove "${confirmDelete.name}"? This will delete the downloaded files.`
+            : `Remove ${confirmDelete.count} torrent(s)? This will delete the downloaded files.`
           }
           confirmText="Remove"
           cancelText="Cancel"

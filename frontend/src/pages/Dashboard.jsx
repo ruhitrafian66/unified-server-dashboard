@@ -14,9 +14,12 @@ function Dashboard({ serverUrl, setServerUrl }) {
   const [loading, setLoading] = useState(true);
   const [url, setUrl] = useState(serverUrl);
   const [showConfig, setShowConfig] = useState(false);
-  const [servicesCollapsed, setServicesCollapsed] = useState(false);
-  const [disksCollapsed, setDisksCollapsed] = useState(false);
-  const [containersCollapsed, setContainersCollapsed] = useState(false);
+  const [servicesCollapsed, setServicesCollapsed] = useState(true);
+  const [disksCollapsed, setDisksCollapsed] = useState(true);
+  const [containersCollapsed, setContainersCollapsed] = useState(true);
+  const [confirmPower, setConfirmPower] = useState(null);
+
+  const { showToast } = useToast();
 
   useEffect(() => {
     fetchData();
@@ -33,8 +36,8 @@ function Dashboard({ serverUrl, setServerUrl }) {
         axios.get('/api/docker/containers')
       ]);
       setSystemInfo(systemRes.data);
-      setServices(servicesRes.data.services);
-      setDisks(disksRes.data.disks);
+      setServices(servicesRes.data.services || []);
+      setDisks(disksRes.data.disks || []);
       setContainers(containersRes.data.containers || []);
       setLoading(false);
     } catch (error) {
@@ -42,9 +45,6 @@ function Dashboard({ serverUrl, setServerUrl }) {
       setLoading(false);
     }
   };
-
-  const { showToast } = useToast();
-  const [confirmPower, setConfirmPower] = useState(null);
 
   const powerAction = async (action) => {
     setConfirmPower(action);
@@ -71,16 +71,15 @@ function Dashboard({ serverUrl, setServerUrl }) {
 
   const parsePercentage = (str) => {
     if (!str) return 0;
-    // Handle both "36.4%" and "36.4" formats
     const match = str.match(/(\d+\.?\d*)/);
     return match ? parseFloat(match[1]) : 0;
   };
 
   if (loading) {
     return (
-      <div>
-        <h1>Dashboard</h1>
+      <div className="fade-in">
         <div className="card">
+          <h2>🏠 Dashboard</h2>
           <LoadingSkeleton count={4} height="60px" />
         </div>
       </div>
@@ -91,113 +90,155 @@ function Dashboard({ serverUrl, setServerUrl }) {
   const memoryPercent = parsePercentage(systemInfo?.memory);
 
   return (
-    <div>
-      <h1>🏠 Dashboard</h1>
-      
-      {/* System Status - Mobile Optimized */}
+    <div className="fade-in">
+      {/* System Status */}
       <div className="card">
         <h2>📊 System Status</h2>
         {systemInfo ? (
           <div className="mobile-grid">
-            <div className="mobile-card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ fontSize: '1.5rem' }}>💻</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '0.7rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>CPU</div>
-                  <div style={{ fontSize: '0.9rem', color: '#e0e0e0', fontWeight: '600', marginBottom: '0.5rem' }}>{systemInfo.cpu}</div>
-                  <div className="progress-bar">
-                    <div className="progress-fill" style={{ width: `${cpuPercent}%` }} />
-                  </div>
+            {/* CPU Card */}
+            <div className="stat-card">
+              <div className="stat-icon">💻</div>
+              <div className="stat-content">
+                <div className="stat-label">CPU Usage</div>
+                <div className="stat-value">{systemInfo.cpu}</div>
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill" 
+                    style={{ 
+                      width: `${cpuPercent}%`,
+                      background: cpuPercent > 80 
+                        ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
+                        : cpuPercent > 60
+                        ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
+                        : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
+                    }} 
+                  />
                 </div>
               </div>
             </div>
             
-            <div className="mobile-card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ fontSize: '1.5rem' }}>🧠</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '0.7rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Memory</div>
-                  <div style={{ fontSize: '0.9rem', color: '#e0e0e0', fontWeight: '600', marginBottom: '0.5rem' }}>{systemInfo.memory}</div>
-                  <div className="progress-bar">
-                    <div className="progress-fill" style={{ width: `${memoryPercent}%` }} />
-                  </div>
+            {/* Memory Card */}
+            <div className="stat-card">
+              <div className="stat-icon">🧠</div>
+              <div className="stat-content">
+                <div className="stat-label">Memory Usage</div>
+                <div className="stat-value">{systemInfo.memory}</div>
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill" 
+                    style={{ 
+                      width: `${memoryPercent}%`,
+                      background: memoryPercent > 80 
+                        ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
+                        : memoryPercent > 60
+                        ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
+                        : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
+                    }} 
+                  />
                 </div>
               </div>
             </div>
             
+            {/* Disk & Uptime */}
             <div className="mobile-grid-2">
-              <div className="mobile-card">
-                <div style={{ textAlign: 'center' }}>
-                  <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>💾</span>
-                  <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Disk</div>
-                  <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.disk}</div>
-                </div>
+              <div className="mobile-card text-center">
+                <div className="stat-icon" style={{ margin: '0 auto 0.5rem' }}>💾</div>
+                <div className="stat-label">Disk Usage</div>
+                <div className="stat-value text-small">{systemInfo.disk}</div>
               </div>
               
-              <div className="mobile-card">
-                <div style={{ textAlign: 'center' }}>
-                  <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>⏱️</span>
-                  <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Uptime</div>
-                  <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.uptime}</div>
-                </div>
+              <div className="mobile-card text-center">
+                <div className="stat-icon" style={{ margin: '0 auto 0.5rem' }}>⏱️</div>
+                <div className="stat-label">Uptime</div>
+                <div className="stat-value text-small">{systemInfo.uptime}</div>
               </div>
             </div>
           </div>
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">⚠️</div>
-            <div className="empty-state-title">Unable to fetch system info</div>
-            <p className="empty-state-message">The server may be offline or unreachable</p>
+            <div className="empty-state-title">System Offline</div>
+            <p className="empty-state-message">Unable to fetch system information</p>
           </div>
         )}
       </div>
 
-      {/* Quick Actions - Mobile Optimized */}
+      {/* Quick Actions */}
       <div className="card">
         <h2>⚡ Quick Actions</h2>
-        <div className="mobile-grid">
+        <div className="mobile-grid-2">
           <button className="button" onClick={() => navigate('/downloads')}>
             <span>📥</span>
-            <span style={{ fontSize: '0.8rem' }}>Downloads</span>
+            <span>Downloads</span>
           </button>
           <button className="button" onClick={() => navigate('/add-torrent')}>
             <span>➕</span>
-            <span style={{ fontSize: '0.8rem' }}>Add</span>
+            <span>Add Torrent</span>
           </button>
           <button className="button" onClick={() => navigate('/shows')}>
             <span>📺</span>
-            <span style={{ fontSize: '0.8rem' }}>Shows</span>
+            <span>TV Shows</span>
           </button>
           <button className="button" onClick={() => navigate('/vpn')}>
             <span>🔒</span>
-            <span style={{ fontSize: '0.8rem' }}>VPN</span>
+            <span>VPN</span>
           </button>
-          <button className="button" onClick={() => setShowConfig(!showConfig)} style={{ background: '#6a6a7e' }}>
+        </div>
+        <div className="mobile-grid mt-1">
+          <button 
+            className="button button-secondary" 
+            onClick={() => setShowConfig(!showConfig)}
+          >
             <span>⚙️</span>
-            <span style={{ fontSize: '0.8rem' }}>Config</span>
+            <span>Settings</span>
           </button>
         </div>
       </div>
 
-      {/* Quick Links - Mobile Optimized */}
+      {/* External Services */}
       <div className="card">
-        <h2>🔗 Services</h2>
+        <h2>🔗 External Services</h2>
         <div className="mobile-grid-2">
-          <a href="http://192.168.0.30:9696" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center', flexDirection: 'column', gap: '0.25rem' }}>
-            <span style={{ fontSize: '1.2rem' }}>🔍</span>
-            <span style={{ fontSize: '0.7rem' }}>Prowlarr</span>
+          <a 
+            href="http://192.168.0.30:9696" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="button"
+            style={{ textDecoration: 'none' }}
+          >
+            <span>🔍</span>
+            <span>Prowlarr</span>
           </a>
-          <a href="http://192.168.0.30:8989" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center', flexDirection: 'column', gap: '0.25rem' }}>
-            <span style={{ fontSize: '1.2rem' }}>📺</span>
-            <span style={{ fontSize: '0.7rem' }}>Sonarr</span>
+          <a 
+            href="http://192.168.0.30:8989" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="button"
+            style={{ textDecoration: 'none' }}
+          >
+            <span>📺</span>
+            <span>Sonarr</span>
           </a>
-          <a href="http://192.168.0.30:7878" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center', flexDirection: 'column', gap: '0.25rem' }}>
-            <span style={{ fontSize: '1.2rem' }}>🎬</span>
-            <span style={{ fontSize: '0.7rem' }}>Radarr</span>
+          <a 
+            href="http://192.168.0.30:7878" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="button"
+            style={{ textDecoration: 'none' }}
+          >
+            <span>🎬</span>
+            <span>Radarr</span>
           </a>
-          <a href="http://192.168.0.30:8080" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center', flexDirection: 'column', gap: '0.25rem' }}>
-            <span style={{ fontSize: '1.2rem' }}>⬇️</span>
-            <span style={{ fontSize: '0.7rem' }}>qBittorrent</span>
+          <a 
+            href="http://192.168.0.30:8080" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="button"
+            style={{ textDecoration: 'none' }}
+          >
+            <span>⬇️</span>
+            <span>qBittorrent</span>
           </a>
         </div>
       </div>
@@ -208,30 +249,22 @@ function Dashboard({ serverUrl, setServerUrl }) {
           className="collapsible-header"
           onClick={() => setContainersCollapsed(!containersCollapsed)}
         >
-          <h2 style={{ margin: 0 }}>🐳 Docker Containers ({containers.length})</h2>
+          <h2>🐳 Docker Containers ({containers.length})</h2>
           <span className={`collapsible-icon ${containersCollapsed ? 'collapsed' : ''}`}>▼</span>
         </div>
         {!containersCollapsed && (
-          <>
+          <div className="slide-up">
             {containers.length > 0 ? containers.map((container) => (
-              <div key={container.name} style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '0.75rem',
-                borderBottom: '1px solid #2a2a3e',
-                background: 'rgba(255,255,255,0.02)',
-                borderRadius: '6px',
-                marginBottom: '0.5rem'
-              }}>
-                <div>
-                  <span style={{ color: '#e0e0e0', fontWeight: '600' }}>🐳 {container.name}</span>
-                  <p style={{ fontSize: '0.75rem', color: '#b0b0c0', marginTop: '0.25rem' }}>
-                    {container.image}
-                  </p>
+              <div key={container.name} className="mobile-list-item">
+                <div className="stat-icon" style={{ width: '40px', height: '40px', fontSize: '1.2rem' }}>
+                  🐳
+                </div>
+                <div className="mobile-list-content">
+                  <div className="mobile-list-title">{container.name}</div>
+                  <div className="mobile-list-subtitle text-truncate">{container.image}</div>
                 </div>
                 <span className={`status-badge ${container.running ? 'status-active' : 'status-inactive'}`}>
-                  {container.running ? 'running' : container.state}
+                  {container.running ? 'Running' : container.state}
                 </span>
               </div>
             )) : (
@@ -240,105 +273,69 @@ function Dashboard({ serverUrl, setServerUrl }) {
                 <p className="empty-state-message">No containers found</p>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* Server Configuration */}
-      {showConfig && (
-        <div className="card" style={{ background: 'rgba(102, 126, 234, 0.1)', borderColor: '#667eea' }}>
-          <h2>Server Configuration</h2>
-          <label>
-            <strong style={{ color: '#667eea', display: 'block', marginBottom: '0.5rem' }}>Backend Server URL</strong>
-            <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-              Leave empty to use the current server
-            </p>
-            <input
-              className="input"
-              type="text"
-              placeholder="http://192.168.1.100:3001"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
-          </label>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            <button className="button" onClick={saveSettings}>✓ Save Settings</button>
-            <button className="button" onClick={() => setShowConfig(false)} style={{ background: '#6a6a7e' }}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {/* Power Control */}
-      <div className="card">
-        <h2>Power Control</h2>
-        <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
-          Manage server power state
-        </p>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="button" onClick={() => powerAction('reboot')}>🔄 Reboot</button>
-          <button className="button button-danger" onClick={() => powerAction('shutdown')}>⏻ Shutdown</button>
-        </div>
-      </div>
-
-      {/* Services - Collapsible */}
+      {/* Services */}
       <div className="card">
         <div 
           className="collapsible-header"
           onClick={() => setServicesCollapsed(!servicesCollapsed)}
         >
-          <h2 style={{ margin: 0 }}>Services ({services.length})</h2>
+          <h2>🔧 System Services ({services.length})</h2>
           <span className={`collapsible-icon ${servicesCollapsed ? 'collapsed' : ''}`}>▼</span>
         </div>
         {!servicesCollapsed && (
-          <>
+          <div className="slide-up">
             {services.length > 0 ? services.map((service) => (
-              <div key={service.service} style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '0.75rem',
-                borderBottom: '1px solid #2a2a3e',
-                background: 'rgba(255,255,255,0.02)',
-                borderRadius: '6px',
-                marginBottom: '0.5rem'
-              }}>
-                <span style={{ color: '#e0e0e0' }}>{service.service}</span>
+              <div key={service.service} className="mobile-list-item">
+                <div className="stat-icon" style={{ width: '40px', height: '40px', fontSize: '1.2rem' }}>
+                  🔧
+                </div>
+                <div className="mobile-list-content">
+                  <div className="mobile-list-title">{service.service}</div>
+                </div>
                 <span className={`status-badge ${service.status === 'active' ? 'status-active' : 'status-inactive'}`}>
                   {service.status}
                 </span>
               </div>
             )) : (
               <div className="empty-state">
-                <div className="empty-state-icon">📋</div>
+                <div className="empty-state-icon">🔧</div>
                 <p className="empty-state-message">No services data available</p>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* Disk Usage - Collapsible */}
+      {/* Disk Usage */}
       <div className="card">
         <div 
           className="collapsible-header"
           onClick={() => setDisksCollapsed(!disksCollapsed)}
         >
-          <h2 style={{ margin: 0 }}>Disk Usage ({disks.length})</h2>
+          <h2>💾 Storage ({disks.length})</h2>
           <span className={`collapsible-icon ${disksCollapsed ? 'collapsed' : ''}`}>▼</span>
         </div>
         {!disksCollapsed && (
-          <>
+          <div className="slide-up">
             {disks.length > 0 ? disks.map((disk) => {
               const usePercent = parseInt(disk.usePercent);
               return (
-                <div key={disk.device} style={{ marginBottom: '1rem', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', alignItems: 'center' }}>
-                    <span style={{ color: '#e0e0e0' }}>
-                      <strong>💾 {disk.device}</strong> - {disk.mountPoint}
-                    </span>
-                    <span style={{ color: '#b0b0c0', fontSize: '0.875rem' }}>
-                      {disk.used} / {disk.size} ({disk.available} free)
-                    </span>
+                <div key={disk.device} className="mobile-card mb-1">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <div>
+                      <div className="mobile-list-title">💾 {disk.device}</div>
+                      <div className="mobile-list-subtitle">{disk.mountPoint}</div>
+                    </div>
+                    <div className="text-small text-center">
+                      <div>{disk.usePercent}</div>
+                    </div>
+                  </div>
+                  <div className="text-small mb-1" style={{ color: '#b0b0c0' }}>
+                    {disk.used} / {disk.size} ({disk.available} free)
                   </div>
                   <div className="progress-bar">
                     <div 
@@ -361,8 +358,56 @@ function Dashboard({ serverUrl, setServerUrl }) {
                 <p className="empty-state-message">No disk data available</p>
               </div>
             )}
-          </>
+          </div>
         )}
+      </div>
+
+      {/* Server Configuration */}
+      {showConfig && (
+        <div className="card" style={{ background: 'rgba(102, 126, 234, 0.1)', borderColor: '#667eea' }}>
+          <h2>⚙️ Server Configuration</h2>
+          <div className="form-group">
+            <label className="form-label">Backend Server URL</label>
+            <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+              Leave empty to use the current server
+            </p>
+            <input
+              className="input"
+              type="text"
+              placeholder="http://192.168.1.100:3001"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+          </div>
+          <div className="mobile-grid-2">
+            <button className="button" onClick={saveSettings}>
+              <span>✓</span>
+              <span>Save</span>
+            </button>
+            <button className="button button-secondary" onClick={() => setShowConfig(false)}>
+              <span>✕</span>
+              <span>Cancel</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Power Control */}
+      <div className="card">
+        <h2>⚡ Power Control</h2>
+        <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Manage server power state
+        </p>
+        <div className="mobile-grid-2">
+          <button className="button" onClick={() => powerAction('reboot')}>
+            <span>🔄</span>
+            <span>Reboot</span>
+          </button>
+          <button className="button button-danger" onClick={() => powerAction('shutdown')}>
+            <span>⏻</span>
+            <span>Shutdown</span>
+          </button>
+        </div>
       </div>
 
       {/* Power Action Confirmation Modal */}

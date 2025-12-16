@@ -22,7 +22,6 @@ export const useToast = () => {
 function App() {
   const [serverUrl, setServerUrl] = useState(localStorage.getItem('serverUrl') || '');
   const [toasts, setToasts] = useState([]);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   const showToast = (message, type = 'info', duration = 3000) => {
     const id = Date.now();
@@ -33,37 +32,32 @@ function App() {
     setToasts(prev => prev.filter(toast => toast.id !== id));
   };
 
-  // Handle window resize for mobile detection
-  React.useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   return (
-    <ToastContext.Provider value={{ showToast, isMobile }}>
+    <ToastContext.Provider value={{ showToast }}>
       <BrowserRouter>
         <div className="app">
           <nav className="navbar">
             <h1>📱 Server Dashboard</h1>
             <div className="nav-links">
               <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
-                {isMobile ? '🏠' : '🏠 Dashboard'}
+                <span>🏠</span>
+                <span className="nav-text">Home</span>
               </NavLink>
               <NavLink to="/shows" className={({ isActive }) => isActive ? 'active' : ''}>
-                {isMobile ? '📺' : '📺 TV Shows'}
+                <span>📺</span>
+                <span className="nav-text">Shows</span>
               </NavLink>
               <NavLink to="/downloads" className={({ isActive }) => isActive ? 'active' : ''}>
-                {isMobile ? '📥' : '📥 Downloads'}
+                <span>📥</span>
+                <span className="nav-text">Downloads</span>
               </NavLink>
               <NavLink to="/add-torrent" className={({ isActive }) => isActive ? 'active' : ''}>
-                {isMobile ? '➕' : '➕ Add Torrent'}
+                <span>➕</span>
+                <span className="nav-text">Add</span>
               </NavLink>
               <NavLink to="/vpn" className={({ isActive }) => isActive ? 'active' : ''}>
-                {isMobile ? '🔒' : '🔒 VPN'}
+                <span>🔒</span>
+                <span className="nav-text">VPN</span>
               </NavLink>
             </div>
           </nav>
@@ -78,18 +72,8 @@ function App() {
             </Routes>
           </main>
 
-          {/* Toast notifications - mobile optimized */}
-          <div style={{ 
-            position: 'fixed', 
-            top: isMobile ? '80px' : '20px', 
-            right: isMobile ? '10px' : '20px',
-            left: isMobile ? '10px' : 'auto',
-            zIndex: 10000,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-            maxWidth: isMobile ? 'none' : '500px'
-          }}>
+          {/* Toast notifications */}
+          <div className="toast-container">
             {toasts.map((toast) => (
               <Toast
                 key={toast.id}
