@@ -172,9 +172,10 @@ class SearchQueue {
       // Search patterns with quality preference
       const searchPatterns = [
         `${showName} S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')} 2160p web-dl`,
+        `${showName} S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')} 2160p`,
         `${showName} S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')} 1080p web-dl`,
-        `${showName} S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')} 1080p`,
-        `${showName} S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')}`
+        `${showName} S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')} 1080p`
+        // Note: Removed generic pattern - only 1080p+ quality accepted
       ];
 
       for (const pattern of searchPatterns) {
@@ -1129,10 +1130,194 @@ router.post('/check', async (req, res) => {
 
 
 
+// Async function to process season download with progress tracking
+const processSeasonDownload = async (sessionId, showName, seasonNum, tmdbId) => {
+  const results = [];
+  let seasonPackFound = false;
+  
+  try {
+    // Update progress: Starting
+    downloadProgress.set(sessionId, {
+      status: 'searching',
+      message: 'Checking disk space...',
+      progress: 5,
+      totalPatterns: 10,
+      currentPattern: 0,
+      showName,
+      season: seasonNum
+    });
+
+    const hasSpace = await checkDiskSpace();
+    if (!hasSpace) {
+      downloadProgress.set(sessionId, {
+        status: 'error',
+        message: 'Insufficient disk space (less than 5GB available)',
+        progress: 100,
+        error: true
+      });
+      return;
+    }
+
+    // Update progress: Checking plugins
+    downloadProgress.set(sessionId, {
+      status: 'searching',
+      message: 'Checking search plugins...',
+      progress: 10,
+      totalPatterns: 10,
+      currentPattern: 0,
+      showName,
+      season: seasonNum
+    });
+
+    const seasonPackPatterns = [
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 2160p web-dl`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 2160p`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p web-dl`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p`,
+      `${showName} Season ${seasonNum} 2160p complete`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 2160p complete`,
+      `${showName} Season ${seasonNum} 1080p complete`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p complete`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 2160p pack`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p pack`
+    ];
+
+    // Update progress: Starting season pack search
+    downloadProgress.set(sessionId, {
+      status: 'searching',
+      message: 'Searching for season packs...',
+      progress: 15,
+      totalPatterns: seasonPackPatterns.length,
+      currentPattern: 0,
+      showName,
+      season: seasonNum
+    });
+
+    // Try season pack search with progress updates
+    try {
+      const seasonResult = await searchQueue.enqueue({
+        showName,
+        season: seasonNum,
+        patterns: seasonPackPatterns,
+        searchType: 'season',
+        sessionId // Pass session ID for progress updates
+      });
+      
+      if (seasonResult) {
+        downloadProgress.set(sessionId, {
+          status: 'downloading',
+          message: `Found season pack: ${seasonResult.fileName}`,
+          progress: 80,
+          totalPatterns: seasonPackPatterns.length,
+          currentPattern: seasonPackPatterns.length,
+          showName,
+          season: seasonNum
+        });
+
+        const added = await addTorrent(seasonResult.fileUrl);
+        if (added) {
+          results.push({
+            type: 'season_pack',
+            title: seasonResult.fileName,
+            status: 'downloaded'
+          });
+          seasonPackFound = true;
+        }
+      }
+    } catch (seasonError) {
+      console.error(`Error searching season pack:`, seasonError.message);
+    }
+
+    // If no season pack found, try individual episodes
+    if (!seasonPackFound) {
+      downloadProgress.set(sessionId, {
+        status: 'searching',
+        message: 'No season pack found, searching individual episodes...',
+        progress: 50,
+        totalPatterns: 12,
+        currentPattern: 0,
+        showName,
+        season: seasonNum
+      });
+
+      let consecutiveFailures = 0;
+      
+      for (let ep = 1; ep <= 12; ep++) {
+        downloadProgress.set(sessionId, {
+          status: 'searching',
+          message: `Searching for episode ${ep}...`,
+          progress: 50 + (ep / 12) * 40, // 50-90% for episodes
+          totalPatterns: 12,
+          currentPattern: ep,
+          showName,
+          season: seasonNum
+        });
+
+        const result = await searchEpisodes(showName, seasonNum, ep);
+        
+        if (result) {
+          const added = await addTorrent(result.fileUrl);
+          if (added) {
+            results.push({
+              type: 'episode',
+              episode: `S${seasonNum.toString().padStart(2, '0')}E${ep.toString().padStart(2, '0')}`,
+              title: result.fileName,
+              status: 'downloaded'
+            });
+            consecutiveFailures = 0;
+          }
+        } else {
+          consecutiveFailures++;
+          if (consecutiveFailures >= 3 && ep > 3) {
+            console.log(`🛑 No episodes found for 3 consecutive attempts, stopping search`);
+            break;
+          }
+        }
+      }
+    }
+
+    // Final progress update
+    if (results.length === 0) {
+      downloadProgress.set(sessionId, {
+        status: 'completed',
+        message: `No 1080p+ quality found for ${showName} Season ${seasonNum}. Please search manually for lower quality options.`,
+        progress: 100,
+        downloads: [],
+        seasonPack: false,
+        qualityNote: "Only 1080p and 2160p quality are automatically downloaded.",
+        success: false
+      });
+    } else {
+      const message = seasonPackFound 
+        ? `Downloaded high-quality season pack for ${showName} Season ${seasonNum}`
+        : `Downloaded ${results.length} high-quality episodes of ${showName} Season ${seasonNum}`;
+      
+      downloadProgress.set(sessionId, {
+        status: 'completed',
+        message,
+        progress: 100,
+        downloads: results,
+        seasonPack: seasonPackFound,
+        success: true
+      });
+    }
+
+  } catch (error) {
+    console.error(`Error in processSeasonDownload:`, error);
+    downloadProgress.set(sessionId, {
+      status: 'error',
+      message: `Download failed: ${error.message}`,
+      progress: 100,
+      error: true
+    });
+  }
+};
+
 // Download season for past shows (prioritizes season packs)
 router.post('/download-season', async (req, res) => {
   try {
     const { tmdbId, showName, season } = req.body;
+    const sessionId = Date.now().toString(); // Simple session ID
     
     if (!showName || !season) {
       return res.status(400).json({ error: 'Show name and season are required' });
@@ -1153,130 +1338,38 @@ router.post('/download-season', async (req, res) => {
     const seasonNum = parseInt(season);
     const results = [];
     
-    console.log(`🔍 Searching for ${showName} Season ${seasonNum}...`);
-    console.log(`📊 Available plugins and search configuration:`);
+    // Initialize progress tracking
+    downloadProgress.set(sessionId, {
+      status: 'initializing',
+      message: 'Starting search...',
+      progress: 0,
+      totalPatterns: 10, // Number of search patterns
+      currentPattern: 0,
+      showName,
+      season: seasonNum
+    });
     
-    // Log current qBittorrent search plugins
-    try {
-      const serverUrl = getQBittorrentServerUrl();
-      const pluginsResponse = await makeQBittorrentRequest(
-        'GET',
-        `${serverUrl}/api/v2/search/plugins`
-      );
-      
-      if (pluginsResponse.data) {
-        const enabledPlugins = pluginsResponse.data.filter(p => p.enabled);
-        console.log(`🔌 Enabled search plugins: ${enabledPlugins.map(p => p.name).join(', ')}`);
-      }
-    } catch (pluginError) {
-      console.log('Could not fetch plugin info:', pluginError.message);
-    }
+    console.log(`🔍 Searching for ${showName} Season ${seasonNum}... (Session: ${sessionId})`);
     
-    // First try to find complete season packs
-    let seasonPackFound = false;
-    
-    const seasonPackPatterns = [
-      // Priority 1: High quality with web-dl preference
-      `${showName} S${seasonNum.toString().padStart(2, '0')} 2160p web-dl`,
-      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p web-dl`,
-      // Priority 2: High quality without web-dl
-      `${showName} S${seasonNum.toString().padStart(2, '0')} 2160p`,
-      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p`,
-      // Priority 3: Standard quality
-      `${showName} S${seasonNum.toString().padStart(2, '0')} 720p`,
-      // Priority 4: Quality-specific complete seasons
-      `${showName} Season ${seasonNum} 1080p complete`,
-      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p complete`,
-      // Priority 5: Generic complete seasons
-      `${showName} Season ${seasonNum} complete`,
-      `${showName} S${seasonNum.toString().padStart(2, '0')} complete`,
-      // Priority 6: Pack formats with quality
-      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p pack`,
-      `${showName} S${seasonNum.toString().padStart(2, '0')} pack`,
-      // Priority 7: Generic formats (fallback)
-      `${showName} S${seasonNum.toString().padStart(2, '0')}`,
-      `${showName} Season ${seasonNum}`,
-      // Priority 8: Alternative formats
-      `${showName} S${seasonNum.toString().padStart(2, '0')} collection`,
-      `${showName} Season${seasonNum}`,
-      `${showName}.S${seasonNum.toString().padStart(2, '0')}`
-    ];
-
-    // Try season pack patterns first using the queue
-    console.log(`🎬 Queueing season pack search for ${showName} Season ${seasonNum}`);
-    
-    try {
-      const seasonResult = await searchQueue.enqueue({
-        showName,
-        season: seasonNum,
-        patterns: seasonPackPatterns,
-        searchType: 'season'
+    // Start async download process
+    processSeasonDownload(sessionId, showName, seasonNum, tmdbId).catch(error => {
+      console.error(`Error in season download ${sessionId}:`, error);
+      downloadProgress.set(sessionId, {
+        status: 'error',
+        message: `Download failed: ${error.message}`,
+        progress: 100,
+        error: true
       });
-      
-      if (seasonResult) {
-        const added = await addTorrent(seasonResult.fileUrl);
-        if (added) {
-          console.log(`✅ Found and added season pack: ${seasonResult.fileName}`);
-          console.log(`🌱 Seeders: ${seasonResult.nbSeeders}`);
-          results.push({
-            type: 'season_pack',
-            title: seasonResult.fileName,
-            status: 'downloaded'
-          });
-          seasonPackFound = true;
-        }
-      }
-    } catch (seasonError) {
-      console.error(`Error searching season pack:`, seasonError.message);
-    }
+    });
     
-    // If no season pack found, try individual episodes
-    if (!seasonPackFound) {
-      console.log(`📺 No season pack found, queueing individual episode searches...`);
-      
-      let consecutiveFailures = 0;
-      
-      for (let ep = 1; ep <= 24; ep++) {
-        console.log(`📋 Queueing search for episode ${ep}...`);
-        const result = await searchEpisodes(showName, seasonNum, ep);
-        
-        if (result) {
-          const added = await addTorrent(result.fileUrl);
-          if (added) {
-            console.log(`✅ Added episode: ${showName} S${seasonNum}E${ep}`);
-            results.push({
-              type: 'episode',
-              episode: `S${seasonNum.toString().padStart(2, '0')}E${ep.toString().padStart(2, '0')}`,
-              title: result.fileName,
-              status: 'downloaded'
-            });
-            consecutiveFailures = 0; // Reset failure count
-          }
-        } else {
-          consecutiveFailures++;
-          console.log(`❌ No result for episode ${ep} (${consecutiveFailures} consecutive failures)`);
-          
-          // If we can't find 3 consecutive episodes, assume we've reached the end
-          if (consecutiveFailures >= 3 && ep > 3) {
-            console.log(`🛑 No episodes found for 3 consecutive attempts after episode ${ep-3}, assuming end of season`);
-            break;
-          }
-        }
-      }
-    }
-    
-    const message = seasonPackFound 
-      ? `Downloaded complete season pack for ${showName} Season ${seasonNum}`
-      : `Downloaded ${results.length} episodes of ${showName} Season ${seasonNum}`;
-    
+    // Return session ID immediately for progress tracking
     res.json({ 
       success: true, 
-      message,
-      downloads: results,
-      seasonPack: seasonPackFound
+      sessionId,
+      message: 'Download started. Use the session ID to track progress.'
     });
   } catch (error) {
-    console.error('Error downloading season:', error);
+    console.error('Error starting season download:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1423,6 +1516,19 @@ router.get('/queue/status', (req, res) => {
     ...status,
     searchInterval: searchQueue.searchInterval / 1000 // Convert to seconds
   });
+});
+
+// Progress tracking for season downloads
+const downloadProgress = new Map(); // Map of sessionId -> progress info
+
+// Get download progress
+router.get('/download-progress/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  const progress = downloadProgress.get(sessionId) || {
+    status: 'not_found',
+    message: 'Download session not found'
+  };
+  res.json(progress);
 });
 
 // Clear search queue (for maintenance)

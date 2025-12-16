@@ -390,36 +390,51 @@
   animation: spin 0.8s linear infinite;
 }
 
-/* Mobile optimizations for iPhone 12 and similar devices */
+/* Mobile optimizations for better UX */
 @media (max-width: 768px) {
   .navbar {
     padding: 0.75rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
   }
   
   .navbar h1 {
     font-size: 1.1rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
   }
   
   .nav-links {
     gap: 0.25rem;
     justify-content: space-between;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .nav-links::-webkit-scrollbar {
+    display: none;
   }
   
   .nav-links a {
-    padding: 0.4rem 0.6rem;
+    padding: 0.5rem 0.75rem;
     font-size: 0.8rem;
-    flex: 1;
+    flex: 0 0 auto;
     text-align: center;
+    white-space: nowrap;
+    min-width: 80px;
+    border-radius: 20px;
   }
   
   .main-content {
-    padding: 0.75rem;
+    padding: 1rem;
   }
   
   .card {
-    padding: 0.875rem;
+    padding: 1rem;
     margin-bottom: 1rem;
+    border-radius: 16px;
   }
   
   .card h2 {
@@ -433,21 +448,29 @@
   }
   
   .button {
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    border-radius: 12px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
   }
   
   .stat-card {
     flex-direction: row;
-    padding: 0.75rem;
+    padding: 1rem;
     gap: 0.75rem;
+    border-radius: 12px;
   }
   
   .stat-icon {
     font-size: 1.5rem;
-    width: 45px;
-    height: 45px;
-    min-width: 45px;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 12px;
   }
   
   .stat-label {
@@ -459,59 +482,284 @@
   }
   
   .controls-bar {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.375rem;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
   }
   
   .filter-button {
-    font-size: 0.75rem;
-    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    min-height: 44px;
   }
   
   .input {
-    font-size: 0.9rem;
-    padding: 0.625rem;
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.75rem;
+    border-radius: 12px;
+    min-height: 48px;
   }
   
-  /* Smaller progress bars on mobile */
+  /* Mobile-specific components */
+  .mobile-section {
+    margin-bottom: 1.5rem;
+  }
+  
+  .mobile-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .mobile-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  
+  .mobile-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #2a2a3e;
+    border-radius: 12px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+  }
+  
+  .mobile-card:active {
+    transform: scale(0.98);
+    background: rgba(255,255,255,0.05);
+  }
+  
+  /* Progress bars */
   .progress-bar {
-    height: 6px;
+    height: 8px;
+    border-radius: 4px;
   }
   
-  /* Compact torrent cards */
-  .card > div[style*="padding: 1rem"] {
-    padding: 0.75rem !important;
-  }
-  
-  /* Make modals full screen on mobile */
-  .card[style*="position: fixed"] {
-    max-width: 100% !important;
-    max-height: 100% !important;
+  /* Full-screen modals on mobile */
+  .mobile-modal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
     border-radius: 0 !important;
     margin: 0 !important;
+    z-index: 2000;
+    overflow-y: auto;
   }
   
-  /* Smaller empty state icons */
-  .empty-state-icon {
-    font-size: 3rem;
+  .mobile-modal-header {
+    position: sticky;
+    top: 0;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 1rem;
+    border-bottom: 1px solid #2a2a3e;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
   }
   
-  .empty-state-title {
-    font-size: 1.25rem;
+  .mobile-modal-content {
+    padding: 1rem;
+    padding-bottom: 2rem;
   }
   
-  .empty-state-message {
+  /* Compact lists */
+  .mobile-list-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    border-bottom: 1px solid #2a2a3e;
+    background: rgba(255,255,255,0.02);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    gap: 0.75rem;
+  }
+  
+  .mobile-list-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .mobile-list-item:active {
+    background: rgba(255,255,255,0.05);
+  }
+  
+  /* Floating action button */
+  .fab {
+    position: fixed;
+    bottom: 2rem;
+    right: 1rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+    cursor: pointer;
+    z-index: 1000;
+    transition: all 0.3s ease;
+  }
+  
+  .fab:active {
+    transform: scale(0.95);
+  }
+  
+  /* Swipe indicators */
+  .swipe-indicator {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+  
+  .swipe-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #2a2a3e;
+    transition: background 0.2s;
+  }
+  
+  .swipe-dot.active {
+    background: #667eea;
+  }
+  
+  /* Bottom sheet */
+  .bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    border: 1px solid #2a2a3e;
+    border-bottom: none;
+    z-index: 2000;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  
+  .bottom-sheet.open {
+    transform: translateY(0);
+  }
+  
+  .bottom-sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: #2a2a3e;
+    border-radius: 2px;
+    margin: 0.75rem auto 1rem;
+  }
+  
+  /* Compact forms */
+  .mobile-form-group {
+    margin-bottom: 1rem;
+  }
+  
+  .mobile-form-label {
+    display: block;
+    color: #b0b0c0;
     font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
   }
   
-  /* Compact collapsible headers */
+  /* Tab navigation improvements */
+  .mobile-tabs {
+    display: flex;
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+    padding: 0.25rem;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .mobile-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .mobile-tab {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    background: transparent;
+    color: #b0b0c0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    min-width: 120px;
+  }
+  
+  .mobile-tab.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  
+  /* Search improvements */
+  .mobile-search-container {
+    position: relative;
+    margin-bottom: 1rem;
+  }
+  
+  .mobile-search-input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 3rem;
+    border: 1px solid #2a2a3e;
+    border-radius: 25px;
+    background: rgba(255,255,255,0.03);
+    color: #e0e0e0;
+    font-size: 16px;
+    transition: all 0.2s ease;
+  }
+  
+  .mobile-search-input:focus {
+    border-color: #667eea;
+    background: rgba(255,255,255,0.05);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+  
+  .mobile-search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #b0b0c0;
+    font-size: 1.1rem;
+  }
+  
+  /* Collapsible improvements */
   .collapsible-header {
-    padding: 0.375rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin: -0.5rem -0.5rem 1rem -0.5rem;
   }
   
   .collapsible-header h2 {
     font-size: 1rem;
+    margin: 0;
+  }
+  
+  /* Status badges */
+  .status-badge {
+    padding: 0.375rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
   }
 }
 

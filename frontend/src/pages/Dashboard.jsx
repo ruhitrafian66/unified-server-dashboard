@@ -92,48 +92,54 @@ function Dashboard({ serverUrl, setServerUrl }) {
 
   return (
     <div>
-      <h1>Dashboard</h1>
+      <h1>🏠 Dashboard</h1>
       
-      {/* System Status - Condensed */}
+      {/* System Status - Mobile Optimized */}
       <div className="card">
-        <h2>System Status</h2>
+        <h2>📊 System Status</h2>
         {systemInfo ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.5rem' }}>💻</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>CPU</div>
-                <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.cpu}</div>
-                <div className="progress-bar" style={{ height: '4px', marginTop: '0.25rem' }}>
-                  <div className="progress-fill" style={{ width: `${cpuPercent}%` }} />
+          <div className="mobile-grid">
+            <div className="mobile-card">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>💻</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>CPU Usage</div>
+                  <div style={{ fontSize: '1rem', color: '#e0e0e0', fontWeight: '600', marginBottom: '0.5rem' }}>{systemInfo.cpu}</div>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${cpuPercent}%` }} />
+                  </div>
                 </div>
               </div>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.5rem' }}>🧠</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Memory</div>
-                <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.memory}</div>
-                <div className="progress-bar" style={{ height: '4px', marginTop: '0.25rem' }}>
-                  <div className="progress-fill" style={{ width: `${memoryPercent}%` }} />
+            <div className="mobile-card">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>🧠</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Memory Usage</div>
+                  <div style={{ fontSize: '1rem', color: '#e0e0e0', fontWeight: '600', marginBottom: '0.5rem' }}>{systemInfo.memory}</div>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${memoryPercent}%` }} />
+                  </div>
                 </div>
               </div>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.5rem' }}>💾</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Disk</div>
-                <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.disk}</div>
+            <div className="mobile-grid-2">
+              <div className="mobile-card">
+                <div style={{ textAlign: 'center' }}>
+                  <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>💾</span>
+                  <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Disk Space</div>
+                  <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.disk}</div>
+                </div>
               </div>
-            </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.5rem' }}>⏱️</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Uptime</div>
-                <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.uptime}</div>
+              
+              <div className="mobile-card">
+                <div style={{ textAlign: 'center' }}>
+                  <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>⏱️</span>
+                  <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Uptime</div>
+                  <div style={{ fontSize: '0.875rem', color: '#e0e0e0', fontWeight: '600' }}>{systemInfo.uptime}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -146,10 +152,10 @@ function Dashboard({ serverUrl, setServerUrl }) {
         )}
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions - Mobile Optimized */}
       <div className="card">
-        <h2>Quick Actions</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+        <h2>⚡ Quick Actions</h2>
+        <div className="mobile-grid">
           <button className="button" onClick={() => navigate('/downloads')}>
             📥 View My Downloads
           </button>
@@ -162,16 +168,16 @@ function Dashboard({ serverUrl, setServerUrl }) {
           <button className="button" onClick={() => navigate('/vpn')}>
             🔒 Manage VPN
           </button>
-          <button className="button" onClick={() => setShowConfig(!showConfig)}>
-            ⚙️ Server Configuration
+          <button className="button" onClick={() => setShowConfig(!showConfig)} style={{ background: '#6a6a7e' }}>
+            ⚙️ Server Settings
           </button>
         </div>
       </div>
 
-      {/* Quick Links */}
+      {/* Quick Links - Mobile Optimized */}
       <div className="card">
-        <h2>🔗 Quick Links</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+        <h2>🔗 External Services</h2>
+        <div className="mobile-grid">
           <a href="http://192.168.0.30:9696" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center' }}>
             🔍 Prowlarr
           </a>

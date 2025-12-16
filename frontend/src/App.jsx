@@ -22,6 +22,7 @@ export const useToast = () => {
 function App() {
   const [serverUrl, setServerUrl] = useState(localStorage.getItem('serverUrl') || '');
   const [toasts, setToasts] = useState([]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   const showToast = (message, type = 'info', duration = 3000) => {
     const id = Date.now();
@@ -32,27 +33,37 @@ function App() {
     setToasts(prev => prev.filter(toast => toast.id !== id));
   };
 
+  // Handle window resize for mobile detection
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={{ showToast, isMobile }}>
       <BrowserRouter>
         <div className="app">
           <nav className="navbar">
-            <h1>Server Dashboard</h1>
+            <h1>📱 Server Dashboard</h1>
             <div className="nav-links">
               <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
-                Dashboard
+                {isMobile ? '🏠' : '🏠 Dashboard'}
               </NavLink>
               <NavLink to="/shows" className={({ isActive }) => isActive ? 'active' : ''}>
-                TV Shows
+                {isMobile ? '📺' : '📺 TV Shows'}
               </NavLink>
               <NavLink to="/downloads" className={({ isActive }) => isActive ? 'active' : ''}>
-                Downloads
+                {isMobile ? '📥' : '📥 Downloads'}
               </NavLink>
               <NavLink to="/add-torrent" className={({ isActive }) => isActive ? 'active' : ''}>
-                Add Torrent
+                {isMobile ? '➕' : '➕ Add Torrent'}
               </NavLink>
               <NavLink to="/vpn" className={({ isActive }) => isActive ? 'active' : ''}>
-                VPN
+                {isMobile ? '🔒' : '🔒 VPN'}
               </NavLink>
             </div>
           </nav>
@@ -67,16 +78,17 @@ function App() {
             </Routes>
           </main>
 
-          {/* Toast notifications */}
+          {/* Toast notifications - mobile optimized */}
           <div style={{ 
             position: 'fixed', 
-            top: '20px', 
-            right: '20px', 
+            top: isMobile ? '80px' : '20px', 
+            right: isMobile ? '10px' : '20px',
+            left: isMobile ? '10px' : 'auto',
             zIndex: 10000,
             display: 'flex',
             flexDirection: 'column',
             gap: '10px',
-            maxWidth: '500px'
+            maxWidth: isMobile ? 'none' : '500px'
           }}>
             {toasts.map((toast) => (
               <Toast
