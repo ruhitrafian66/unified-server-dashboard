@@ -103,8 +103,8 @@ function Dashboard({ serverUrl, setServerUrl }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <span style={{ fontSize: '1.5rem' }}>💻</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>CPU Usage</div>
-                  <div style={{ fontSize: '1rem', color: '#e0e0e0', fontWeight: '600', marginBottom: '0.5rem' }}>{systemInfo.cpu}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>CPU</div>
+                  <div style={{ fontSize: '0.9rem', color: '#e0e0e0', fontWeight: '600', marginBottom: '0.5rem' }}>{systemInfo.cpu}</div>
                   <div className="progress-bar">
                     <div className="progress-fill" style={{ width: `${cpuPercent}%` }} />
                   </div>
@@ -116,8 +116,8 @@ function Dashboard({ serverUrl, setServerUrl }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <span style={{ fontSize: '1.5rem' }}>🧠</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '0.75rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Memory Usage</div>
-                  <div style={{ fontSize: '1rem', color: '#e0e0e0', fontWeight: '600', marginBottom: '0.5rem' }}>{systemInfo.memory}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#b0b0c0', marginBottom: '0.25rem' }}>Memory</div>
+                  <div style={{ fontSize: '0.9rem', color: '#e0e0e0', fontWeight: '600', marginBottom: '0.5rem' }}>{systemInfo.memory}</div>
                   <div className="progress-bar">
                     <div className="progress-fill" style={{ width: `${memoryPercent}%` }} />
                   </div>
@@ -157,19 +157,24 @@ function Dashboard({ serverUrl, setServerUrl }) {
         <h2>⚡ Quick Actions</h2>
         <div className="mobile-grid">
           <button className="button" onClick={() => navigate('/downloads')}>
-            📥 Downloads
+            <span>📥</span>
+            <span style={{ fontSize: '0.8rem' }}>Downloads</span>
           </button>
           <button className="button" onClick={() => navigate('/add-torrent')}>
-            ➕ Add Torrent
+            <span>➕</span>
+            <span style={{ fontSize: '0.8rem' }}>Add</span>
           </button>
           <button className="button" onClick={() => navigate('/shows')}>
-            📺 TV Shows
+            <span>📺</span>
+            <span style={{ fontSize: '0.8rem' }}>Shows</span>
           </button>
           <button className="button" onClick={() => navigate('/vpn')}>
-            🔒 VPN
+            <span>🔒</span>
+            <span style={{ fontSize: '0.8rem' }}>VPN</span>
           </button>
           <button className="button" onClick={() => setShowConfig(!showConfig)} style={{ background: '#6a6a7e' }}>
-            ⚙️ Settings
+            <span>⚙️</span>
+            <span style={{ fontSize: '0.8rem' }}>Config</span>
           </button>
         </div>
       </div>
@@ -178,17 +183,21 @@ function Dashboard({ serverUrl, setServerUrl }) {
       <div className="card">
         <h2>🔗 Services</h2>
         <div className="mobile-grid-2">
-          <a href="http://192.168.0.30:9696" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center' }}>
-            🔍 Prowlarr
+          <a href="http://192.168.0.30:9696" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center', flexDirection: 'column', gap: '0.25rem' }}>
+            <span style={{ fontSize: '1.2rem' }}>🔍</span>
+            <span style={{ fontSize: '0.7rem' }}>Prowlarr</span>
           </a>
-          <a href="http://192.168.0.30:8989" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center' }}>
-            📺 Sonarr
+          <a href="http://192.168.0.30:8989" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center', flexDirection: 'column', gap: '0.25rem' }}>
+            <span style={{ fontSize: '1.2rem' }}>📺</span>
+            <span style={{ fontSize: '0.7rem' }}>Sonarr</span>
           </a>
-          <a href="http://192.168.0.30:7878" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center' }}>
-            🎬 Radarr
+          <a href="http://192.168.0.30:7878" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center', flexDirection: 'column', gap: '0.25rem' }}>
+            <span style={{ fontSize: '1.2rem' }}>🎬</span>
+            <span style={{ fontSize: '0.7rem' }}>Radarr</span>
           </a>
-          <a href="http://192.168.0.30:8080" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center' }}>
-            ⬇️ qBittorrent
+          <a href="http://192.168.0.30:8080" target="_blank" rel="noopener noreferrer" className="button" style={{ textDecoration: 'none', textAlign: 'center', flexDirection: 'column', gap: '0.25rem' }}>
+            <span style={{ fontSize: '1.2rem' }}>⬇️</span>
+            <span style={{ fontSize: '0.7rem' }}>qBittorrent</span>
           </a>
         </div>
       </div>

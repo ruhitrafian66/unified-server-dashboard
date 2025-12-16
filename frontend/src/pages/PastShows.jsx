@@ -356,10 +356,13 @@ function PastShows() {
                 disabled={downloading}
                 style={{ 
                   background: downloading ? '#ff9800' : '#4caf50',
-                  opacity: downloading ? 0.8 : 1
+                  opacity: downloading ? 0.8 : 1,
+                  flexDirection: 'column',
+                  gap: '0.2rem'
                 }}
               >
-                {downloading ? '⬇️ Downloading...' : '📥 Download'}
+                <span style={{ fontSize: '1.2rem' }}>{downloading ? '⬇️' : '📥'}</span>
+                <span style={{ fontSize: '0.7rem' }}>{downloading ? 'Downloading' : 'Download'}</span>
               </button>
               <button 
                 className="button" 
@@ -367,10 +370,13 @@ function PastShows() {
                 disabled={downloading}
                 style={{ 
                   background: '#6a6a7e',
-                  opacity: downloading ? 0.5 : 1
+                  opacity: downloading ? 0.5 : 1,
+                  flexDirection: 'column',
+                  gap: '0.2rem'
                 }}
               >
-                🗑️ Clear
+                <span style={{ fontSize: '1.2rem' }}>🗑️</span>
+                <span style={{ fontSize: '0.7rem' }}>Clear</span>
               </button>
             </div>
           </div>
