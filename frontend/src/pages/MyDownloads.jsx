@@ -338,10 +338,7 @@ function MyDownloads() {
                 </div>
                 
                 {/* Action Buttons - Below Content */}
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '0.5rem',
-                  flexWrap: 'wrap',
+                <div className="mobile-button-row" style={{ 
                   borderTop: '1px solid #2a2a3e',
                   paddingTop: '0.75rem'
                 }}>
@@ -352,9 +349,7 @@ function MyDownloads() {
                       style={{ 
                         whiteSpace: 'nowrap', 
                         padding: '0.5rem 1rem', 
-                        fontSize: '0.875rem',
-                        flex: '1',
-                        minWidth: '100px'
+                        fontSize: '0.875rem'
                       }}
                     >
                       ▶️ Resume
@@ -366,9 +361,7 @@ function MyDownloads() {
                       style={{ 
                         whiteSpace: 'nowrap', 
                         padding: '0.5rem 1rem', 
-                        fontSize: '0.875rem',
-                        flex: '1',
-                        minWidth: '100px'
+                        fontSize: '0.875rem'
                       }}
                     >
                       ⏸️ Pause
@@ -380,8 +373,7 @@ function MyDownloads() {
                     style={{ 
                       whiteSpace: 'nowrap', 
                       padding: '0.5rem 1rem', 
-                      fontSize: '0.875rem',
-                      minWidth: '100px'
+                      fontSize: '0.875rem'
                     }}
                   >
                     🗑️ Remove

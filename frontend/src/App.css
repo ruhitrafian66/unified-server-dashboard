@@ -532,6 +532,19 @@
     gap: 0.75rem;
   }
   
+  /* Force buttons to stack vertically on mobile */
+  .mobile-button-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+  
+  .mobile-button-row .button {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  
   .mobile-card {
     background: rgba(255,255,255,0.03);
     border: 1px solid #2a2a3e;

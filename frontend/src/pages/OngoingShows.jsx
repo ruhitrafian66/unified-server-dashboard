@@ -512,10 +512,7 @@ function OngoingShows() {
                   </div>
                   
                   {/* Action Buttons - Below Content */}
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '0.5rem', 
-                    flexWrap: 'wrap',
+                  <div className="mobile-button-row" style={{ 
                     borderTop: '1px solid #2a2a3e',
                     paddingTop: '0.75rem'
                   }}>
@@ -525,9 +522,7 @@ function OngoingShows() {
                       disabled={downloadingSeason === `${show.id}-${show.currentSeason}`}
                       style={{ 
                         fontSize: '0.75rem', 
-                        padding: '0.5rem 0.75rem',
-                        flex: '1',
-                        minWidth: '120px'
+                        padding: '0.5rem 0.75rem'
                       }}
                     >
                       {downloadingSeason === `${show.id}-${show.currentSeason}` ? '⬇️ Downloading...' : '📥 Season'}
@@ -540,9 +535,7 @@ function OngoingShows() {
                       style={{ 
                         fontSize: '0.75rem', 
                         padding: '0.5rem 0.75rem',
-                        background: show.status === 'active' ? '#ff9800' : '#4caf50',
-                        flex: '1',
-                        minWidth: '100px'
+                        background: show.status === 'active' ? '#ff9800' : '#4caf50'
                       }}
                     >
                       {show.status === 'active' ? '⏸️ Pause' : '▶️ Resume'}
@@ -552,8 +545,7 @@ function OngoingShows() {
                       onClick={() => deleteShow(show.id)}
                       style={{ 
                         fontSize: '0.75rem', 
-                        padding: '0.5rem 0.75rem',
-                        minWidth: '80px'
+                        padding: '0.5rem 0.75rem'
                       }}
                     >
                       🗑️ Delete
