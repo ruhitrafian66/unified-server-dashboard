@@ -8,8 +8,8 @@ const router = express.Router();
 const SHOWS_DB_PATH = '/opt/server-dashboard/data/shows.json';
 const execAsync = promisify(exec);
 
-// TMDB API configuration
-let TMDB_API_KEY = process.env.TMDB_API_KEY;
+// TMDB API configuration - loaded dynamically to ensure dotenv is initialized
+const getTMDBApiKey = () => process.env.TMDB_API_KEY;
 
 // qBittorrent API helpers (to avoid self-referencing HTTP calls)
 const getQBittorrentServerUrl = () => {
@@ -514,7 +514,8 @@ const saveShows = async (data) => {
 
 // Search TMDB for show information
 const searchTMDBShow = async (showName) => {
-  if (!TMDB_API_KEY) {
+  const apiKey = getTMDBApiKey();
+  if (!apiKey) {
     console.log('TMDB API key not configured, skipping show lookup');
     return null;
   }
@@ -522,7 +523,7 @@ const searchTMDBShow = async (showName) => {
   try {
     const response = await axios.get(`https://api.themoviedb.org/3/search/tv`, {
       params: {
-        api_key: TMDB_API_KEY,
+        api_key: apiKey,
         query: showName
       }
     });
@@ -539,14 +540,15 @@ const searchTMDBShow = async (showName) => {
 
 // Get episode air date from TMDB
 const getEpisodeAirDate = async (tmdbId, season, episode) => {
-  if (!TMDB_API_KEY || !tmdbId) {
+  const apiKey = getTMDBApiKey();
+  if (!apiKey || !tmdbId) {
     return null;
   }
 
   try {
     const response = await axios.get(`https://api.themoviedb.org/3/tv/${tmdbId}/season/${season}/episode/${episode}`, {
       params: {
-        api_key: TMDB_API_KEY
+        api_key: apiKey
       }
     });
 
@@ -559,14 +561,15 @@ const getEpisodeAirDate = async (tmdbId, season, episode) => {
 
 // Get current episode progress for a show (how many episodes have aired)
 const getCurrentEpisodeProgress = async (tmdbId) => {
-  if (!TMDB_API_KEY || !tmdbId) {
+  const apiKey = getTMDBApiKey();
+  if (!apiKey || !tmdbId) {
     return { currentSeason: 1, currentEpisode: 0 };
   }
 
   try {
     // Get show details to find the current season
     const showResponse = await axios.get(`https://api.themoviedb.org/3/tv/${tmdbId}`, {
-      params: { api_key: TMDB_API_KEY }
+      params: { api_key: apiKey }
     });
 
     const numberOfSeasons = showResponse.data.number_of_seasons;
@@ -576,7 +579,7 @@ const getCurrentEpisodeProgress = async (tmdbId) => {
     for (let season = numberOfSeasons; season >= 1; season--) {
       try {
         const seasonResponse = await axios.get(`https://api.themoviedb.org/3/tv/${tmdbId}/season/${season}`, {
-          params: { api_key: TMDB_API_KEY }
+          params: { api_key: apiKey }
         });
 
         const episodes = seasonResponse.data.episodes || [];
@@ -624,12 +627,13 @@ const isEpisodeAvailable = (airDate) => {
 
 // Check if we should try the next season (when current season episodes are not found)
 const shouldTryNextSeason = async (tmdbId, currentSeason, currentEpisode) => {
-  if (!tmdbId || !TMDB_API_KEY) return false;
+  const apiKey = getTMDBApiKey();
+  if (!tmdbId || !apiKey) return false;
   
   try {
     // Check if there's a next season
     const showResponse = await axios.get(`https://api.themoviedb.org/3/tv/${tmdbId}`, {
-      params: { api_key: TMDB_API_KEY }
+      params: { api_key: apiKey }
     });
     
     const numberOfSeasons = showResponse.data.number_of_seasons;
@@ -741,10 +745,11 @@ router.post('/', async (req, res) => {
     let tmdbShow = null;
     
     // If TMDB ID is provided, get show details directly
-    if (tmdbId && TMDB_API_KEY) {
+    const apiKey = getTMDBApiKey();
+    if (tmdbId && apiKey) {
       try {
         const response = await axios.get(`https://api.themoviedb.org/3/tv/${tmdbId}`, {
-          params: { api_key: TMDB_API_KEY }
+          params: { api_key: apiKey }
         });
         tmdbShow = response.data;
       } catch (error) {
@@ -1292,8 +1297,7 @@ router.post('/config/tmdb', async (req, res) => {
     });
 
     if (testResponse.status === 200) {
-      // Update the runtime variable
-      TMDB_API_KEY = apiKey;
+      // Update the environment variable
       process.env.TMDB_API_KEY = apiKey;
       res.json({ success: true, message: 'TMDB API key configured successfully' });
     } else {
@@ -1309,7 +1313,8 @@ router.get('/search/:query', async (req, res) => {
   try {
     const { query } = req.params;
     
-    if (!TMDB_API_KEY) {
+    const apiKey = getTMDBApiKey();
+    if (!apiKey) {
       return res.status(400).json({ error: 'TMDB API key not configured' });
     }
 
@@ -1319,7 +1324,7 @@ router.get('/search/:query', async (req, res) => {
 
     const response = await axios.get(`https://api.themoviedb.org/3/search/tv`, {
       params: {
-        api_key: TMDB_API_KEY,
+        api_key: apiKey,
         query: query
       }
     });
@@ -1342,10 +1347,11 @@ router.get('/search/:query', async (req, res) => {
 
 // Get TMDB configuration status
 router.get('/config/tmdb', (req, res) => {
+  const apiKey = getTMDBApiKey();
   res.json({ 
-    configured: !!TMDB_API_KEY,
+    configured: !!apiKey,
     hasKey: !!process.env.TMDB_API_KEY,
-    keyLength: TMDB_API_KEY ? TMDB_API_KEY.length : 0
+    keyLength: apiKey ? apiKey.length : 0
   });
 });
 
