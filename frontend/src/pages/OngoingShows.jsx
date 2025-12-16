@@ -489,7 +489,7 @@ function OngoingShows() {
                 }}>
                   {/* Show Information - Full Width */}
                   <div style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ color: '#e0e0e0', margin: '0 0 0.5rem 0', wordBreak: 'break-word' }}>
+                    <h3 className="mobile-show-name" style={{ color: '#e0e0e0', margin: '0 0 0.5rem 0' }}>
                       {show.name}
                     </h3>
                     <p style={{ color: '#b0b0c0', fontSize: '0.875rem', margin: 0, lineHeight: '1.4' }}>

@@ -198,11 +198,10 @@ function PastShows() {
                     />
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ 
+                    <div className="mobile-show-name" style={{ 
                       color: '#e0e0e0', 
                       fontWeight: '600', 
-                      marginBottom: '0.5rem',
-                      fontSize: '1rem'
+                      marginBottom: '0.5rem'
                     }}>
                       {show.name}
                     </div>
@@ -265,11 +264,10 @@ function PastShows() {
                 />
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ 
+                <div className="mobile-show-name" style={{ 
                   color: '#4caf50', 
                   fontWeight: '600', 
-                  marginBottom: '0.5rem', 
-                  fontSize: '1.1rem',
+                  marginBottom: '0.5rem',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem'

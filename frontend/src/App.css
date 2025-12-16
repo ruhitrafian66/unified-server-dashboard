@@ -881,10 +881,44 @@
     line-height: 1 !important;
     white-space: nowrap !important;
   }
+  
+  /* Specific fixes for long names */
+  .mobile-show-name {
+    font-size: 0.85rem !important;
+    line-height: 1.2 !important;
+    word-break: break-word !important;
+    hyphens: auto !important;
+    overflow-wrap: break-word !important;
+    max-width: 100% !important;
+  }
+  
+  .mobile-torrent-name {
+    font-size: 0.8rem !important;
+    line-height: 1.2 !important;
+    word-break: break-word !important;
+    hyphens: auto !important;
+    overflow-wrap: break-word !important;
+    max-width: 100% !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
 }
 
 /* Extra small devices (iPhone SE, small phones) */
 @media (max-width: 375px) {
+  /* Even more aggressive text handling for very small screens */
+  .mobile-show-name {
+    font-size: 0.8rem !important;
+    line-height: 1.1 !important;
+  }
+  
+  .mobile-torrent-name {
+    font-size: 0.75rem !important;
+    line-height: 1.1 !important;
+    -webkit-line-clamp: 3 !important;
+  }
   .navbar h1 {
     font-size: 0.85rem;
   }

@@ -289,11 +289,9 @@ function MyDownloads() {
                   
                   {/* Content - Full Width */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ 
+                    <strong className="mobile-torrent-name" style={{ 
                       color: '#e0e0e0',
                       display: 'block',
-                      wordBreak: 'break-word',
-                      lineHeight: '1.4',
                       marginBottom: '0.5rem'
                     }}>
                       {torrent.name}
