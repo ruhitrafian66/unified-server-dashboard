@@ -325,12 +325,37 @@ class SearchQueue {
                   );
                   
                   if (resultsResponse.data.results && resultsResponse.data.results.length > 0) {
+                    console.log(`📊 Found ${resultsResponse.data.results.length} total results for pattern: ${pattern}`);
+                    
+                    // Log first few results for debugging
+                    resultsResponse.data.results.slice(0, 3).forEach((result, i) => {
+                      console.log(`  ${i+1}. ${result.fileName} (${result.nbSeeders} seeders)`);
+                    });
+                    
                     const validResults = resultsResponse.data.results
                       .filter(result => {
                         if (!result.fileUrl || !result.fileUrl.startsWith('magnet:')) return false;
                         const fileName = result.fileName?.toLowerCase() || '';
-                        return fileName.includes('season') || fileName.includes('complete') || 
-                               fileName.includes('pack') || fileName.includes('collection');
+                        const showNameLower = showName.toLowerCase();
+                        
+                        // Must contain the show name
+                        if (!fileName.includes(showNameLower)) return false;
+                        
+                        // Season pack indicators (more flexible)
+                        const hasSeasonIndicator = 
+                          fileName.includes('season') || 
+                          fileName.includes('complete') || 
+                          fileName.includes('pack') || 
+                          fileName.includes('collection') ||
+                          // Check for season format like "s01" or "s1" 
+                          fileName.includes(`s${season.toString().padStart(2, '0')}`) ||
+                          fileName.includes(`s${season}`) ||
+                          // Check for multiple episodes (likely season pack)
+                          (fileName.match(/e\d+/g) || []).length > 3 ||
+                          // Check for episode ranges like "e01-e10" or "e01e02e03"
+                          fileName.includes('e01') && (fileName.includes('e10') || fileName.includes('e12') || fileName.includes('e08'));
+                        
+                        return hasSeasonIndicator;
                       })
                       .sort((a, b) => {
                         const seedersA = a.nbSeeders || 0;
@@ -346,7 +371,11 @@ class SearchQueue {
                         return qualityScoreB - qualityScoreA;
                       });
                     
+                    console.log(`✅ Filtered to ${validResults.length} valid season pack results`);
+                    
                     if (validResults.length > 0) {
+                      console.log(`🎯 Selected result: ${validResults[0].fileName} (${validResults[0].nbSeeders} seeders)`);
+                      
                       // Stop the search to clean up
                       try {
                         await makeQBittorrentRequest(
@@ -359,6 +388,8 @@ class SearchQueue {
                       }
                       
                       return validResults[0];
+                    } else {
+                      console.log(`❌ No valid season packs found after filtering`);
                     }
                   }
                 } else if (searchStatus.status === 'Stopped' && searchStatus.total === 0) {
@@ -1145,9 +1176,23 @@ router.post('/download-season', async (req, res) => {
     let seasonPackFound = false;
     
     const seasonPackPatterns = [
+      // Most common format: "Breaking Bad S01"
+      `${showName} S${seasonNum.toString().padStart(2, '0')}`,
+      // With quality indicators
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 2160p`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 720p`,
+      // Complete season formats
       `${showName} Season ${seasonNum} complete`,
       `${showName} S${seasonNum.toString().padStart(2, '0')} complete`,
-      `${showName} S${seasonNum.toString().padStart(2, '0')}`
+      // Pack formats
+      `${showName} Season ${seasonNum}`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} pack`,
+      // Collection formats
+      `${showName} S${seasonNum.toString().padStart(2, '0')} collection`,
+      // Alternative formats
+      `${showName} Season${seasonNum}`,
+      `${showName}.S${seasonNum.toString().padStart(2, '0')}`
     ];
 
     // Try season pack patterns first using the queue
