@@ -1176,21 +1176,28 @@ router.post('/download-season', async (req, res) => {
     let seasonPackFound = false;
     
     const seasonPackPatterns = [
-      // Most common format: "Breaking Bad S01"
-      `${showName} S${seasonNum.toString().padStart(2, '0')}`,
-      // With quality indicators
-      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p`,
+      // Priority 1: High quality with web-dl preference
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 2160p web-dl`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p web-dl`,
+      // Priority 2: High quality without web-dl
       `${showName} S${seasonNum.toString().padStart(2, '0')} 2160p`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p`,
+      // Priority 3: Standard quality
       `${showName} S${seasonNum.toString().padStart(2, '0')} 720p`,
-      // Complete season formats
+      // Priority 4: Quality-specific complete seasons
+      `${showName} Season ${seasonNum} 1080p complete`,
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p complete`,
+      // Priority 5: Generic complete seasons
       `${showName} Season ${seasonNum} complete`,
       `${showName} S${seasonNum.toString().padStart(2, '0')} complete`,
-      // Pack formats
-      `${showName} Season ${seasonNum}`,
+      // Priority 6: Pack formats with quality
+      `${showName} S${seasonNum.toString().padStart(2, '0')} 1080p pack`,
       `${showName} S${seasonNum.toString().padStart(2, '0')} pack`,
-      // Collection formats
+      // Priority 7: Generic formats (fallback)
+      `${showName} S${seasonNum.toString().padStart(2, '0')}`,
+      `${showName} Season ${seasonNum}`,
+      // Priority 8: Alternative formats
       `${showName} S${seasonNum.toString().padStart(2, '0')} collection`,
-      // Alternative formats
       `${showName} Season${seasonNum}`,
       `${showName}.S${seasonNum.toString().padStart(2, '0')}`
     ];
