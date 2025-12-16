@@ -185,7 +185,7 @@ class SearchQueue {
           const searchResponse = await makeQBittorrentRequest(
             'POST',
             `${serverUrl}/api/v2/search/start`,
-            `pattern=${encodeURIComponent(pattern)}&plugins=enabled&category=tv`
+            `pattern=${encodeURIComponent(pattern)}&plugins=enabled&category=all`
           );
 
           const searchId = searchResponse.data.id;
@@ -294,7 +294,7 @@ class SearchQueue {
           const searchResponse = await makeQBittorrentRequest(
             'POST',
             `${serverUrl}/api/v2/search/start`,
-            `pattern=${encodeURIComponent(pattern)}&plugins=enabled&category=tv`
+            `pattern=${encodeURIComponent(pattern)}&plugins=enabled&category=all`
           );
 
           const searchId = searchResponse.data.id;
