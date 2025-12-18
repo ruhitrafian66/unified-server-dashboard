@@ -149,6 +149,37 @@ ssh orangepi 'systemctl restart server-dashboard'
 
 ## Recent Updates
 
+### 📋 Queue System & Desktop Responsive Improvements ✅
+**Date**: December 18, 2025  
+**Change**: Added comprehensive task queue system and enhanced desktop responsive design.
+
+**New Queue System**:
+- ✅ **Task Queue Page**: New dedicated page to monitor background tasks and operations
+- ✅ **Queue Management**: View, filter, and manage pending, processing, completed, and failed tasks
+- ✅ **Real-time Updates**: Auto-refresh every 5 seconds to show current queue status
+- ✅ **Task Types**: TV show downloads, season downloads, episode checks, and more
+- ✅ **Progress Tracking**: Visual progress bars for processing tasks
+- ✅ **Error Handling**: Clear error messages for failed tasks with retry options
+- ✅ **Queue Actions**: Clear all items, remove individual items, filter by status
+
+**Desktop Responsive Enhancements**:
+- ✅ **Responsive Scaling**: App panel now scales with screen size using max-width containers
+- ✅ **Collapsible Sections**: Auto Tracking and Tracked Shows sections are now collapsible
+- ✅ **Space Optimization**: Removed Downloads icon, improved horizontal alignment
+- ✅ **Torrent Stats**: Download/upload stats now align horizontally for better readability
+- ✅ **Breakpoint System**: Optimized for mobile (≤768px), tablet (769-1024px), and desktop (>1024px)
+
+**Queue Navigation**:
+- 📋 **New Tab**: Queue tab added to main navigation between Add and VPN
+- 🔄 **Status Indicators**: Shows pending/processing counts in real-time
+- 📊 **Filter System**: Filter by All, Pending, Processing, Completed, and Failed
+- 🗑️ **Bulk Actions**: Clear entire queue or remove individual items
+
+**Mock Data for Testing**:
+- Sample queue items with different statuses (pending, processing, completed, failed)
+- Realistic task types: TV show downloads, episode checks, season downloads
+- Progress tracking and error simulation for comprehensive testing
+
 ### 📱 Major Mobile UI Improvements ✅
 **Date**: December 16, 2025  
 **Change**: Complete mobile-first redesign with enhanced user experience and touch optimization.

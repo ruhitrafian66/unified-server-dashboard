@@ -5,6 +5,7 @@ import MyDownloads from './pages/MyDownloads';
 import AddTorrent from './pages/AddTorrent';
 import WireGuard from './pages/WireGuard';
 import TVShows from './pages/TVShows';
+
 import Toast from './components/Toast';
 import './App.css';
 

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useToast } from '../App';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import ConfirmModal from '../components/ConfirmModal';
+import QueuePopup from '../components/QueuePopup';
 
 function Dashboard({ serverUrl, setServerUrl }) {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ function Dashboard({ serverUrl, setServerUrl }) {
   const [disksCollapsed, setDisksCollapsed] = useState(true);
   const [containersCollapsed, setContainersCollapsed] = useState(true);
   const [confirmPower, setConfirmPower] = useState(null);
+  const [showQueue, setShowQueue] = useState(false);
 
   const { showToast } = useToast();
 
@@ -112,13 +114,20 @@ function Dashboard({ serverUrl, setServerUrl }) {
             <span>VPN</span>
           </button>
         </div>
-        <div className="mobile-grid mt-1">
+        <div className="mobile-grid-2 mt-1">
           <button 
             className="button button-secondary" 
             onClick={() => setShowConfig(!showConfig)}
           >
             <span>⚙️</span>
             <span>Settings</span>
+          </button>
+          <button 
+            className="button button-secondary" 
+            onClick={() => setShowQueue(true)}
+          >
+            <span>📋</span>
+            <span>Queue</span>
           </button>
         </div>
       </div>
@@ -422,6 +431,12 @@ function Dashboard({ serverUrl, setServerUrl }) {
           onCancel={() => setConfirmPower(null)}
         />
       )}
+
+      {/* Queue Popup */}
+      <QueuePopup 
+        isOpen={showQueue} 
+        onClose={() => setShowQueue(false)} 
+      />
     </div>
   );
 }

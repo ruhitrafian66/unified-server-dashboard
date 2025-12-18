@@ -11,11 +11,8 @@ function MyDownloads() {
   const [torrents, setTorrents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('status');
   const [selectedTorrents, setSelectedTorrents] = useState(new Set());
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchTorrents();
@@ -36,41 +33,21 @@ function MyDownloads() {
     }
   };
 
-  const getFilteredTorrents = () => {
-    let filtered = [...torrents];
+  const getSortedTorrents = () => {
+    const sorted = [...torrents];
     
-    if (filter === 'downloading') {
-      filtered = filtered.filter(t => ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(t.state));
-    } else if (filter === 'paused') {
-      filtered = filtered.filter(t => ['pausedDL', 'pausedUP'].includes(t.state));
-    } else if (filter === 'complete') {
-      filtered = filtered.filter(t => t.progress >= 1);
-    } else if (filter === 'seeding') {
-      filtered = filtered.filter(t => ['uploading', 'stalledUP'].includes(t.state));
-    }
-    
-    filtered.sort((a, b) => {
-      if (sortBy === 'status') {
-        const aActive = ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(a.state);
-        const bActive = ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(b.state);
-        if (aActive && !bActive) return -1;
-        if (!aActive && bActive) return 1;
-        if (a.progress < 1 && b.progress >= 1) return -1;
-        if (a.progress >= 1 && b.progress < 1) return 1;
-        return 0;
-      } else if (sortBy === 'name') {
-        return a.name.localeCompare(b.name);
-      } else if (sortBy === 'size') {
-        return b.size - a.size;
-      } else if (sortBy === 'progress') {
-        return b.progress - a.progress;
-      } else if (sortBy === 'speed') {
-        return b.dlspeed - a.dlspeed;
-      }
+    // Default sorting: active downloads first, then by progress
+    sorted.sort((a, b) => {
+      const aActive = ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(a.state);
+      const bActive = ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(b.state);
+      if (aActive && !bActive) return -1;
+      if (!aActive && bActive) return 1;
+      if (a.progress < 1 && b.progress >= 1) return -1;
+      if (a.progress >= 1 && b.progress < 1) return 1;
       return 0;
     });
     
-    return filtered;
+    return sorted;
   };
 
   const controlTorrent = async (action, hash, deleteFiles = true) => {
@@ -175,7 +152,7 @@ function MyDownloads() {
     );
   }
 
-  const filteredTorrents = getFilteredTorrents();
+  const sortedTorrents = getSortedTorrents();
   const downloadingCount = torrents.filter(t => ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(t.state)).length;
   const completedCount = torrents.filter(t => t.progress >= 1).length;
 
@@ -194,72 +171,16 @@ function MyDownloads() {
         </div>
       )}
 
-      {/* Controls */}
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2>📥 Downloads ({torrents.length})</h2>
-          
-          {/* Compact Sort Options */}
-          <div className="sort-tabs-compact">
-            <button
-              className={`sort-tab-compact ${sortBy === 'status' ? 'active' : ''}`}
-              onClick={() => setSortBy('status')}
-            >
-              Status
-            </button>
-            <button
-              className={`sort-tab-compact ${sortBy === 'name' ? 'active' : ''}`}
-              onClick={() => setSortBy('name')}
-            >
-              Name
-            </button>
-            <button
-              className={`sort-tab-compact ${sortBy === 'progress' ? 'active' : ''}`}
-              onClick={() => setSortBy('progress')}
-            >
-              Progress
-            </button>
-          </div>
-        </div>
 
-        {/* Bulk Actions */}
-        {selectedTorrents.size > 0 && (
-          <div className="mobile-grid-3 mb-2">
-            <button 
-              className="button button-small" 
-              onClick={() => handleBulkAction('resume')}
-            >
-              <span>▶️</span>
-              <span>Resume</span>
-            </button>
-            <button 
-              className="button button-small" 
-              onClick={() => handleBulkAction('pause')}
-            >
-              <span>⏸️</span>
-              <span>Pause</span>
-            </button>
-            <button 
-              className="button button-small button-danger" 
-              onClick={() => handleBulkAction('delete')}
-            >
-              <span>🗑️</span>
-              <span>Delete</span>
-            </button>
-          </div>
-        )}
-      </div>
 
       {/* Torrents List */}
       <div className="card">
-        {filteredTorrents.length === 0 ? (
+        {sortedTorrents.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">📥</div>
             <div className="empty-state-title">No downloads</div>
             <p className="empty-state-message">
-              {filter === 'all' 
-                ? "Start by adding a torrent!" 
-                : `No ${filter} downloads found`}
+              Start by adding a torrent!
             </p>
             <button className="button" onClick={() => navigate('/add-torrent')}>
               <span>➕</span>
@@ -268,7 +189,7 @@ function MyDownloads() {
           </div>
         ) : (
           <div className="mobile-grid">
-            {filteredTorrents.map((torrent) => {
+            {sortedTorrents.map((torrent) => {
               const isActive = ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(torrent.state);
               const isSelected = selectedTorrents.has(torrent.hash);
               const isPaused = torrent.state === 'pausedDL' || torrent.state === 'pausedUP';
@@ -329,27 +250,32 @@ function MyDownloads() {
                         />
                       </div>
                       
-                      {/* Horizontally Aligned Stats */}
-                      <div className="torrent-stats">
-                        <div className="torrent-stats-left">
+                      {/* Torrent Meta Information */}
+                      <div className="torrent-meta">
+                        {/* First line: Size, Progress, ETA */}
+                        <div className="torrent-meta-line">
                           <span>{formatBytes(torrent.size)} GB</span>
                           <span>{(torrent.progress * 100).toFixed(1)}%</span>
-                        </div>
-                        <div className="torrent-stats-right">
-                          {torrent.dlspeed > 0 && (
-                            <div style={{ color: '#4caf50' }}>
-                              ⬇ {formatSpeed(torrent.dlspeed)} MB/s
-                            </div>
-                          )}
-                          {torrent.upspeed > 0 && (
-                            <div style={{ color: '#2196f3' }}>
-                              ⬆ {formatSpeed(torrent.upspeed)} MB/s
-                            </div>
-                          )}
                           {torrent.eta > 0 && torrent.eta < 8640000 && (
-                            <div>ETA: {formatETA(torrent.eta)}</div>
+                            <span>ETA: {formatETA(torrent.eta)}</span>
                           )}
                         </div>
+                        
+                        {/* Second line: Down and Up speeds */}
+                        {(torrent.dlspeed > 0 || torrent.upspeed > 0) && (
+                          <div className="torrent-meta-line">
+                            {torrent.dlspeed > 0 && (
+                              <span style={{ color: '#4caf50' }}>
+                                ⬇ {formatSpeed(torrent.dlspeed)} MB/s
+                              </span>
+                            )}
+                            {torrent.upspeed > 0 && (
+                              <span style={{ color: '#2196f3' }}>
+                                ⬆ {formatSpeed(torrent.upspeed)} MB/s
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -378,14 +304,40 @@ function MyDownloads() {
         )}
       </div>
 
-      {/* Add Torrent FAB */}
-      <button 
-        className="fab" 
-        onClick={() => navigate('/add-torrent')}
-        title="Add Torrent"
-      >
-        ➕
-      </button>
+      {/* Dynamic FAB - Add Torrent or Bulk Actions */}
+      {selectedTorrents.size > 0 ? (
+        <div className="fab-group">
+          <button 
+            className="fab fab-bulk" 
+            onClick={() => handleBulkAction('resume')}
+            title="Resume Selected"
+          >
+            ▶️
+          </button>
+          <button 
+            className="fab fab-bulk" 
+            onClick={() => handleBulkAction('pause')}
+            title="Pause Selected"
+          >
+            ⏸️
+          </button>
+          <button 
+            className="fab fab-bulk fab-danger" 
+            onClick={() => handleBulkAction('delete')}
+            title="Delete Selected"
+          >
+            🗑️
+          </button>
+        </div>
+      ) : (
+        <button 
+          className="fab" 
+          onClick={() => navigate('/add-torrent')}
+          title="Add Torrent"
+        >
+          ➕
+        </button>
+      )}
 
       {/* Confirm Delete Modal */}
       {confirmDelete && (

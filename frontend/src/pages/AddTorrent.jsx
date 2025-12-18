@@ -196,6 +196,14 @@ function AddTorrent() {
 
   return (
     <div className="fade-in">
+      {/* Explanation Section */}
+      <div className="card" style={{ background: 'rgba(102, 126, 234, 0.05)', borderColor: 'rgba(102, 126, 234, 0.2)' }}>
+        <h2>➕ Manual Search</h2>
+        <p style={{ color: '#b0b0c0', fontSize: '0.875rem', lineHeight: '1.4', margin: 0 }}>
+          Manually search for TV shows and movies to be downloaded. Use the search function to find torrents or add magnet links directly.
+        </p>
+      </div>
+
       {/* Search Section */}
       <div className="card">
         <h2>🔍 Search Torrents</h2>

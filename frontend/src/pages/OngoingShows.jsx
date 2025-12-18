@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useToast } from '../App';
 import LoadingSkeleton from '../components/LoadingSkeleton';
+import QueuePopup from '../components/QueuePopup';
 
 function OngoingShows() {
   const [shows, setShows] = useState([]);
@@ -20,6 +21,9 @@ function OngoingShows() {
   const [downloadingSeason, setDownloadingSeason] = useState(null);
   const [autoCheckEnabled, setAutoCheckEnabled] = useState(false);
   const [queueStatus, setQueueStatus] = useState(null);
+  const [autoTrackingCollapsed, setAutoTrackingCollapsed] = useState(false);
+  const [trackedShowsCollapsed, setTrackedShowsCollapsed] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -255,80 +259,67 @@ function OngoingShows() {
 
       {/* Status & Controls */}
       <div className="card">
-        <h2>📡 Auto Tracking</h2>
+        <div 
+          className="collapsible-header"
+          onClick={() => setAutoTrackingCollapsed(!autoTrackingCollapsed)}
+        >
+          <h2>📡 Auto Tracking</h2>
+          <span className={`collapsible-icon ${autoTrackingCollapsed ? 'collapsed' : ''}`}>▼</span>
+        </div>
         
-        {/* Status Info */}
-        <div className="mobile-card mb-2">
-          <div className="stat-card">
-            <div className="stat-icon">
-              {autoCheckEnabled ? '✅' : '⏸️'}
-            </div>
-            <div className="stat-content">
-              <div className="stat-label">Auto Check Status</div>
-              <div className="stat-value">
-                {autoCheckEnabled ? 'Enabled' : 'Disabled'}
-              </div>
-            </div>
-          </div>
-          
-          {queueStatus && (
-            <div className="stat-card mt-1">
-              <div className="stat-icon">
-                {queueStatus.processing ? '🔄' : queueStatus.queueLength > 0 ? '⏳' : '✅'}
-              </div>
-              <div className="stat-content">
-                <div className="stat-label">Search Queue</div>
-                <div className="stat-value">
-                  {queueStatus.queueLength > 0 ? (
-                    `${queueStatus.queueLength} pending`
-                  ) : 'Empty'}
-                </div>
-                {queueStatus.processing && queueStatus.nextSearchIn > 0 && (
-                  <div className="stat-label">
-                    Next in {Math.round(queueStatus.nextSearchIn / 1000)}s
+        {!autoTrackingCollapsed && (
+          <div className="slide-up">
+            {/* Auto Check Toggle and Queue Info */}
+            <div className="mobile-card mb-2">
+              <div className="mobile-grid-2">
+                {/* Auto Check Toggle */}
+                <div>
+                  <div className="stat-label mb-1">Auto Check</div>
+                  <div 
+                    className={`toggle-switch ${autoCheckEnabled ? 'active' : ''}`}
+                    onClick={toggleAutoCheck}
+                  >
+                    <div className="toggle-slider"></div>
                   </div>
-                )}
+                </div>
+                
+                {/* Search Queue Info - Clickable */}
+                <div 
+                  className="queue-link"
+                  onClick={() => setShowQueue(true)}
+                >
+                  <div className="stat-label mb-1">Search Queue</div>
+                  <div className="stat-value text-small queue-clickable">
+                    {queueStatus ? (
+                      queueStatus.queueLength > 0 ? (
+                        `${queueStatus.queueLength} pending`
+                      ) : 'Empty'
+                    ) : 'Loading...'}
+                    <span className="queue-icon">📋</span>
+                  </div>
+                  {queueStatus && queueStatus.processing && queueStatus.nextSearchIn > 0 && (
+                    <div className="stat-label">
+                      Next in {Math.round(queueStatus.nextSearchIn / 1000)}s
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Control Buttons */}
-        <div className="mobile-grid">
-          <button 
-            className="button" 
-            onClick={toggleAutoCheck}
-            style={{ 
-              background: autoCheckEnabled 
-                ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
-                : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-            }}
-          >
-            <span>{autoCheckEnabled ? '⏸️' : '▶️'}</span>
-            <span>{autoCheckEnabled ? 'Disable' : 'Enable'}</span>
-          </button>
-          
-          <button 
-            className="button" 
-            onClick={checkForNewEpisodes}
-            disabled={checking}
-          >
-            <span>{checking ? '🔄' : '🔍'}</span>
-            <span>{checking ? 'Checking...' : 'Check Now'}</span>
-          </button>
-        </div>
-
-        <div className="mobile-grid mt-1">
-          {queueStatus && queueStatus.queueLength > 0 && (
-            <button 
-              className="button button-danger" 
-              onClick={clearSearchQueue}
-            >
-              <span>🗑️</span>
-              <span>Clear Queue ({queueStatus.queueLength})</span>
-            </button>
-          )}
-        </div>
+            {/* Clear Queue Button - Only when queue has items */}
+            {queueStatus && queueStatus.queueLength > 0 && (
+              <div className="mobile-grid mt-1">
+                <button 
+                  className="button button-danger" 
+                  onClick={clearSearchQueue}
+                >
+                  <span>🗑️</span>
+                  <span>Clear Queue ({queueStatus.queueLength})</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Add Show Form */}
@@ -461,72 +452,82 @@ function OngoingShows() {
 
       {/* Tracked Shows */}
       <div className="card">
-        <h2>📋 Tracked Shows ({shows.length})</h2>
+        <div 
+          className="collapsible-header"
+          onClick={() => setTrackedShowsCollapsed(!trackedShowsCollapsed)}
+        >
+          <h2>📋 Tracked Shows ({shows.length})</h2>
+          <span className={`collapsible-icon ${trackedShowsCollapsed ? 'collapsed' : ''}`}>▼</span>
+        </div>
         
-        {shows.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">📺</div>
-            <div className="empty-state-title">No shows tracked</div>
-            <p className="empty-state-message">
-              Add shows to automatically download new episodes
-            </p>
-          </div>
-        ) : (
-          <div className="mobile-grid">
-            {shows.map((show) => (
-              <div key={show.id} className="mobile-card">
-                {/* Show Info */}
-                <div className="mb-2">
-                  <div className="mobile-list-title text-wrap">{show.name}</div>
-                  <div className="mobile-list-subtitle">
-                    S{show.currentSeason.toString().padStart(2, '0')}E{show.currentEpisode.toString().padStart(2, '0')} • 
-                    <span style={{ color: show.status === 'active' ? '#4caf50' : '#ff9800' }}>
-                      {show.status}
-                    </span>
-                  </div>
-                  {show.nextEpisodeAirDate && (
-                    <div className="mobile-list-subtitle">
-                      Next: {new Date(show.nextEpisodeAirDate).toLocaleDateString()}
-                    </div>
-                  )}
-                  {show.downloadedEpisodes && show.downloadedEpisodes.length > 0 && (
-                    <div style={{ color: '#667eea', fontSize: '0.75rem' }}>
-                      Downloaded {show.downloadedEpisodes.length} episodes
-                    </div>
-                  )}
-                </div>
-                
-                {/* Actions */}
-                <div className="mobile-grid-3">
-                  <button
-                    className="button button-small"
-                    onClick={() => downloadSeason(show.id, show.currentSeason)}
-                    disabled={downloadingSeason === `${show.id}-${show.currentSeason}`}
-                  >
-                    {downloadingSeason === `${show.id}-${show.currentSeason}` ? '⬇️' : '📥'}
-                  </button>
-                  <button
-                    className="button button-small"
-                    onClick={() => updateShow(show.id, { 
-                      status: show.status === 'active' ? 'paused' : 'active' 
-                    })}
-                    style={{ 
-                      background: show.status === 'active' 
-                        ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' 
-                        : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-                    }}
-                  >
-                    {show.status === 'active' ? '⏸️' : '▶️'}
-                  </button>
-                  <button
-                    className="button button-small button-danger"
-                    onClick={() => deleteShow(show.id)}
-                  >
-                    🗑️
-                  </button>
-                </div>
+        {!trackedShowsCollapsed && (
+          <div className="slide-up">
+            {shows.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">📺</div>
+                <div className="empty-state-title">No shows tracked</div>
+                <p className="empty-state-message">
+                  Add shows to automatically download new episodes
+                </p>
               </div>
-            ))}
+            ) : (
+              <div className="mobile-grid">
+                {shows.map((show) => (
+                  <div key={show.id} className="mobile-card">
+                    {/* Show Info */}
+                    <div className="mb-2">
+                      <div className="mobile-list-title text-wrap">{show.name}</div>
+                      <div className="mobile-list-subtitle">
+                        S{show.currentSeason.toString().padStart(2, '0')}E{show.currentEpisode.toString().padStart(2, '0')} • 
+                        <span style={{ color: show.status === 'active' ? '#4caf50' : '#ff9800' }}>
+                          {show.status}
+                        </span>
+                      </div>
+                      {show.nextEpisodeAirDate && (
+                        <div className="mobile-list-subtitle">
+                          Next: {new Date(show.nextEpisodeAirDate).toLocaleDateString()}
+                        </div>
+                      )}
+                      {show.downloadedEpisodes && show.downloadedEpisodes.length > 0 && (
+                        <div style={{ color: '#667eea', fontSize: '0.75rem' }}>
+                          Downloaded {show.downloadedEpisodes.length} episodes
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="mobile-grid-3">
+                      <button
+                        className="button button-small"
+                        onClick={() => downloadSeason(show.id, show.currentSeason)}
+                        disabled={downloadingSeason === `${show.id}-${show.currentSeason}`}
+                      >
+                        {downloadingSeason === `${show.id}-${show.currentSeason}` ? '⬇️' : '📥'}
+                      </button>
+                      <button
+                        className="button button-small"
+                        onClick={() => updateShow(show.id, { 
+                          status: show.status === 'active' ? 'paused' : 'active' 
+                        })}
+                        style={{ 
+                          background: show.status === 'active' 
+                            ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' 
+                            : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
+                        }}
+                      >
+                        {show.status === 'active' ? '⏸️' : '▶️'}
+                      </button>
+                      <button
+                        className="button button-small button-danger"
+                        onClick={() => deleteShow(show.id)}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -541,6 +542,12 @@ function OngoingShows() {
           <p><strong style={{ color: '#667eea' }}>Selection:</strong> Picks torrents with most seeders</p>
         </div>
       </div>
+
+      {/* Queue Popup */}
+      <QueuePopup 
+        isOpen={showQueue} 
+        onClose={() => setShowQueue(false)} 
+      />
     </div>
   );
 }
