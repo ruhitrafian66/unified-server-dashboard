@@ -52,6 +52,26 @@ function MyDownloads() {
 
   const controlTorrent = async (action, hash, deleteFiles = true) => {
     try {
+      // Optimistically update the UI immediately
+      if (action === 'pause' || action === 'resume') {
+        setTorrents(prevTorrents => 
+          prevTorrents.map(torrent => {
+            if (torrent.hash === hash) {
+              const newState = action === 'pause' 
+                ? (torrent.state.includes('DL') ? 'pausedDL' : 'pausedUP')
+                : (torrent.progress >= 1 ? 'uploading' : 'downloading');
+              return {
+                ...torrent,
+                state: newState,
+                dlspeed: action === 'pause' ? 0 : torrent.dlspeed,
+                upspeed: action === 'pause' ? 0 : torrent.upspeed
+              };
+            }
+            return torrent;
+          })
+        );
+      }
+
       await axios.post(`/api/qbittorrent/torrents/${action}`, {
         hashes: hash,
         deleteFiles: deleteFiles
@@ -64,8 +84,14 @@ function MyDownloads() {
       };
       
       showToast(actionMessages[action] || 'Action completed', 'success');
-      setTimeout(fetchTorrents, 500);
+      
+      // Fetch updated data after a longer delay to ensure qBittorrent has processed the change
+      setTimeout(fetchTorrents, 1500);
     } catch (error) {
+      // If the API call failed, revert the optimistic update
+      if (action === 'pause' || action === 'resume') {
+        fetchTorrents();
+      }
       showToast('Error: ' + (error.response?.data?.error || error.message), 'error');
     }
   };
@@ -84,11 +110,37 @@ function MyDownloads() {
     }
     
     try {
+      // Optimistically update the UI for bulk actions
+      if (action === 'pause' || action === 'resume') {
+        setTorrents(prevTorrents => 
+          prevTorrents.map(torrent => {
+            if (selectedTorrents.has(torrent.hash)) {
+              const newState = action === 'pause' 
+                ? (torrent.state.includes('DL') ? 'pausedDL' : 'pausedUP')
+                : (torrent.progress >= 1 ? 'uploading' : 'downloading');
+              return {
+                ...torrent,
+                state: newState,
+                dlspeed: action === 'pause' ? 0 : torrent.dlspeed,
+                upspeed: action === 'pause' ? 0 : torrent.upspeed
+              };
+            }
+            return torrent;
+          })
+        );
+      }
+
       await axios.post(`/api/qbittorrent/torrents/${action}`, { hashes });
       showToast(`${selectedTorrents.size} torrent(s) ${action}d`, 'success');
       setSelectedTorrents(new Set());
-      setTimeout(fetchTorrents, 500);
+      
+      // Fetch updated data after a longer delay
+      setTimeout(fetchTorrents, 1500);
     } catch (error) {
+      // If the API call failed, revert the optimistic update
+      if (action === 'pause' || action === 'resume') {
+        fetchTorrents();
+      }
       showToast('Error: ' + error.message, 'error');
     }
   };
