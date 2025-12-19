@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToast } from '../App';
@@ -167,8 +167,6 @@ function MyDownloads() {
   }
 
   const sortedTorrents = getSortedTorrents();
-  const downloadingCount = torrents.filter(t => ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(t.state)).length;
-  const completedCount = torrents.filter(t => t.progress >= 1).length;
 
   return (
     <div className="fade-in">
