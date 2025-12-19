@@ -257,71 +257,6 @@ function OngoingShows() {
         </button>
       </div>
 
-      {/* Status & Controls */}
-      <div className="card">
-        <div 
-          className="collapsible-header"
-          onClick={() => setAutoTrackingCollapsed(!autoTrackingCollapsed)}
-        >
-          <h2>📡 Auto Tracking</h2>
-          <span className={`collapsible-icon ${autoTrackingCollapsed ? 'collapsed' : ''}`}>▼</span>
-        </div>
-        
-        {!autoTrackingCollapsed && (
-          <div className="slide-up">
-            {/* Auto Check Toggle and Queue Info */}
-            <div className="mobile-card mb-2">
-              <div className="mobile-grid-2">
-                {/* Auto Check Toggle */}
-                <div>
-                  <div className="stat-label mb-1">Auto Check</div>
-                  <div 
-                    className={`toggle-switch ${autoCheckEnabled ? 'active' : ''}`}
-                    onClick={toggleAutoCheck}
-                  >
-                    <div className="toggle-slider"></div>
-                  </div>
-                </div>
-                
-                {/* Search Queue Info - Clickable */}
-                <div 
-                  className="queue-link"
-                  onClick={() => setShowQueue(true)}
-                >
-                  <div className="stat-label mb-1">Search Queue</div>
-                  <div className="stat-value text-small queue-clickable">
-                    {queueStatus ? (
-                      queueStatus.queueLength > 0 ? (
-                        `${queueStatus.queueLength} pending`
-                      ) : 'Empty'
-                    ) : 'Loading...'}
-                    <span className="queue-icon">📋</span>
-                  </div>
-                  {queueStatus && queueStatus.processing && queueStatus.nextSearchIn > 0 && (
-                    <div className="stat-label">
-                      Next in {Math.round(queueStatus.nextSearchIn / 1000)}s
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Clear Queue Button - Only when queue has items */}
-            {queueStatus && queueStatus.queueLength > 0 && (
-              <div className="mobile-grid mt-1">
-                <button 
-                  className="button button-danger" 
-                  onClick={clearSearchQueue}
-                >
-                  <span>🗑️</span>
-                  <span>Clear Queue ({queueStatus.queueLength})</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* Add Show Form */}
       {showForm && (
         <div className="card" style={{ background: 'rgba(102, 126, 234, 0.1)', borderColor: '#667eea' }}>
@@ -449,6 +384,71 @@ function OngoingShows() {
           </div>
         </div>
       )}
+
+      {/* Status & Controls */}
+      <div className="card">
+        <div 
+          className="collapsible-header"
+          onClick={() => setAutoTrackingCollapsed(!autoTrackingCollapsed)}
+        >
+          <h2>📡 Auto Tracking</h2>
+          <span className={`collapsible-icon ${autoTrackingCollapsed ? 'collapsed' : ''}`}>▼</span>
+        </div>
+        
+        {!autoTrackingCollapsed && (
+          <div className="slide-up">
+            {/* Auto Check Toggle and Queue Info */}
+            <div className="mobile-card mb-2">
+              <div className="mobile-grid-2">
+                {/* Auto Check Toggle */}
+                <div>
+                  <div className="stat-label mb-1">Auto Check</div>
+                  <div 
+                    className={`toggle-switch ${autoCheckEnabled ? 'active' : ''}`}
+                    onClick={toggleAutoCheck}
+                  >
+                    <div className="toggle-slider"></div>
+                  </div>
+                </div>
+                
+                {/* Search Queue Info - Clickable */}
+                <div 
+                  className="queue-link"
+                  onClick={() => setShowQueue(true)}
+                >
+                  <div className="stat-label mb-1">Search Queue</div>
+                  <div className="stat-value text-small queue-clickable">
+                    {queueStatus ? (
+                      queueStatus.queueLength > 0 ? (
+                        `${queueStatus.queueLength} pending`
+                      ) : 'Empty'
+                    ) : 'Loading...'}
+                    <span className="queue-icon">📋</span>
+                  </div>
+                  {queueStatus && queueStatus.processing && queueStatus.nextSearchIn > 0 && (
+                    <div className="stat-label">
+                      Next in {Math.round(queueStatus.nextSearchIn / 1000)}s
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Clear Queue Button - Only when queue has items */}
+            {queueStatus && queueStatus.queueLength > 0 && (
+              <div className="mobile-grid mt-1">
+                <button 
+                  className="button button-danger" 
+                  onClick={clearSearchQueue}
+                >
+                  <span>🗑️</span>
+                  <span>Clear Queue ({queueStatus.queueLength})</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Tracked Shows */}
       <div className="card">
