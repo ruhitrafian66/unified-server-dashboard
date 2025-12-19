@@ -53,8 +53,8 @@ function App() {
                 <span className="nav-text">Downloads</span>
               </NavLink>
               <NavLink to="/add-torrent" className={({ isActive }) => isActive ? 'active' : ''}>
-                <span>➕</span>
-                <span className="nav-text">Add</span>
+                <span>🔍</span>
+                <span className="nav-text">Manual</span>
               </NavLink>
               <NavLink to="/vpn" className={({ isActive }) => isActive ? 'active' : ''}>
                 <span>🔒</span>

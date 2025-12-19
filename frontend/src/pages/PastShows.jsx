@@ -51,7 +51,8 @@ function PastShows() {
       const response = await axios.post('/api/shows/download-season', {
         tmdbId: selectedShow.id,
         showName: selectedShow.name,
-        season: seasonNumber
+        season: seasonNumber,
+        enableEpisodePriority: true  // Always enable for TV show seasons
       });
 
       if (response.data.success && response.data.sessionId) {

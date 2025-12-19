@@ -109,6 +109,39 @@ app.post('/api/qbittorrent/torrents/add-advanced', (req, res) => {
   res.json({ success: true });
 });
 
+app.post('/api/qbittorrent/torrents/add-with-priority', (req, res) => {
+  const { urls, sequentialDownload, enableEpisodePriority } = req.body;
+  console.log('🎬 POST /api/qbittorrent/torrents/add-with-priority', { 
+    urls, 
+    sequentialDownload, 
+    enableEpisodePriority 
+  });
+  
+  const newTorrent = {
+    hash: Math.random().toString(36).substring(7),
+    name: "TV.Show.S01.Complete.1080p.WEB-DL.x264-GROUP",
+    size: Math.floor(Math.random() * 20000000000), // Larger size for season pack
+    progress: 0,
+    dlspeed: 0,
+    upspeed: 0,
+    eta: 8640000,
+    state: "metaDL",
+    episodePriorityEnabled: enableEpisodePriority
+  };
+  
+  devTorrents.push(newTorrent);
+  
+  if (enableEpisodePriority) {
+    console.log('📺 Episode priority enabled for torrent:', newTorrent.name);
+  }
+  
+  res.json({ 
+    success: true, 
+    hash: newTorrent.hash,
+    episodePriorityApplied: enableEpisodePriority 
+  });
+});
+
 app.post('/api/qbittorrent/torrents/:action', (req, res) => {
   const { action } = req.params;
   const { hashes, deleteFiles } = req.body;
@@ -354,6 +387,36 @@ app.post('/api/wireguard/interface/:action', (req, res) => {
     success: true, 
     message: `Interface ${iface} ${action === 'up' ? 'started' : 'stopped'} (mock)`
   });
+});
+
+// qBittorrent file management endpoints
+app.get('/api/qbittorrent/torrents/:hash/files', (req, res) => {
+  const { hash } = req.params;
+  console.log(`📁 GET /api/qbittorrent/torrents/${hash}/files`);
+  
+  // Mock TV show season files
+  const mockFiles = [
+    { id: 0, name: "The.Bear.S03E01.1080p.WEB.H264-SUCCESSORS.mkv", size: 1073741824, priority: 7, progress: 0.0 },
+    { id: 1, name: "The.Bear.S03E02.1080p.WEB.H264-SUCCESSORS.mkv", size: 1073741824, priority: 6, progress: 0.0 },
+    { id: 2, name: "The.Bear.S03E03.1080p.WEB.H264-SUCCESSORS.mkv", size: 1073741824, priority: 6, progress: 0.0 },
+    { id: 3, name: "The.Bear.S03E04.1080p.WEB.H264-SUCCESSORS.mkv", size: 1073741824, priority: 5, progress: 0.0 },
+    { id: 4, name: "The.Bear.S03E05.1080p.WEB.H264-SUCCESSORS.mkv", size: 1073741824, priority: 4, progress: 0.0 },
+    { id: 5, name: "The.Bear.S03E06.1080p.WEB.H264-SUCCESSORS.mkv", size: 1073741824, priority: 1, progress: 0.0 },
+    { id: 6, name: "The.Bear.S03E07.1080p.WEB.H264-SUCCESSORS.mkv", size: 1073741824, priority: 1, progress: 0.0 },
+    { id: 7, name: "The.Bear.S03E08.1080p.WEB.H264-SUCCESSORS.mkv", size: 1073741824, priority: 1, progress: 0.0 },
+    { id: 8, name: "subtitles/The.Bear.S03E01.srt", size: 52428, priority: 1, progress: 0.0 },
+    { id: 9, name: "subtitles/The.Bear.S03E02.srt", size: 52428, priority: 1, progress: 0.0 }
+  ];
+  
+  res.json(mockFiles);
+});
+
+app.post('/api/qbittorrent/torrents/:hash/filePrio', (req, res) => {
+  const { hash } = req.params;
+  const { id, priority } = req.body;
+  console.log(`🎯 POST /api/qbittorrent/torrents/${hash}/filePrio`, { id, priority });
+  
+  res.json({ success: true });
 });
 
 // Queue API endpoints

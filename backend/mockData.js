@@ -70,7 +70,9 @@ const mockTorrents = [
     dlspeed: 5242880, // 5 MB/s in bytes
     upspeed: 1048576, // 1 MB/s in bytes
     eta: 1800, // 30 minutes
-    state: "downloading"
+    state: "downloading",
+    episodePriorityEnabled: false,
+    priority: 1
   },
   {
     hash: "def456ghi789", 
@@ -80,7 +82,9 @@ const mockTorrents = [
     dlspeed: 0,
     upspeed: 2097152, // 2 MB/s in bytes
     eta: 8640000,
-    state: "uploading"
+    state: "uploading",
+    episodePriorityEnabled: true,
+    priority: 7
   },
   {
     hash: "ghi789jkl012",
@@ -90,17 +94,21 @@ const mockTorrents = [
     dlspeed: 0,
     upspeed: 0,
     eta: 8640000,
-    state: "stalledDL"
+    state: "stalledDL",
+    episodePriorityEnabled: false,
+    priority: 1
   },
   {
     hash: "jkl012mno345",
-    name: "Inception.2010.2160p.UHD.BluRay.x265-TERMINAL",
-    size: 18253611008, // 17 GB in bytes
-    progress: 0.0,
-    dlspeed: 0,
+    name: "Stranger.Things.S04.COMPLETE.2160p.NF.WEB-DL.x265-MIXED",
+    size: 45000000000, // 42 GB in bytes
+    progress: 0.15,
+    dlspeed: 8388608, // 8 MB/s in bytes
     upspeed: 0,
-    eta: 8640000,
-    state: "pausedDL"
+    eta: 3600, // 1 hour
+    state: "downloading",
+    episodePriorityEnabled: true,
+    priority: 6
   }
 ];
 

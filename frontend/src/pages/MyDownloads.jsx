@@ -120,6 +120,20 @@ function MyDownloads() {
     return `${minutes}m`;
   };
 
+  const getPriorityIcon = (priority) => {
+    if (priority >= 7) return '🔥'; // Maximum priority
+    if (priority >= 6) return '⚡'; // High priority
+    if (priority >= 4) return '📈'; // Medium-high priority
+    return '📊'; // Normal priority
+  };
+
+  const getPriorityText = (priority) => {
+    if (priority >= 7) return 'Max Priority';
+    if (priority >= 6) return 'High Priority';
+    if (priority >= 4) return 'Medium Priority';
+    return 'Normal';
+  };
+
   const getStatusText = (state) => {
     const statusMap = {
       'downloading': 'Downloading',
@@ -226,8 +240,8 @@ function MyDownloads() {
                         {torrent.name}
                       </div>
                       
-                      {/* Status Badge */}
-                      <div style={{ marginBottom: '0.75rem' }}>
+                      {/* Status Badge and Priority */}
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
                         <span className={`status-badge ${
                           torrent.progress >= 1 ? 'status-active' : 
                           isPaused ? 'status-warning' : 
@@ -235,6 +249,19 @@ function MyDownloads() {
                         }`}>
                           {getStatusText(torrent.state)}
                         </span>
+                        
+                        {torrent.episodePriorityEnabled && (
+                          <span 
+                            className="status-badge"
+                            style={{ 
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              fontSize: '0.7rem'
+                            }}
+                            title={getPriorityText(torrent.priority || 1)}
+                          >
+                            {getPriorityIcon(torrent.priority || 1)} Episodes
+                          </span>
+                        )}
                       </div>
                       
                       {/* Progress Bar */}

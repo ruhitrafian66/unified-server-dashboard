@@ -14,7 +14,8 @@ function AddTorrent() {
   const [recentSearches, setRecentSearches] = useState([]);
   const [sortBy, setSortBy] = useState('seeders');
   const [advancedOptions, setAdvancedOptions] = useState({
-    sequentialDownload: true
+    sequentialDownload: true,
+    enableEpisodePriority: true
   });
 
   useEffect(() => {
@@ -165,9 +166,10 @@ function AddTorrent() {
     }
 
     try {
-      await axios.post('/api/qbittorrent/torrents/add-advanced', {
+      await axios.post('/api/qbittorrent/torrents/add-with-priority', {
         urls: url,
-        sequentialDownload: advancedOptions.sequentialDownload
+        sequentialDownload: advancedOptions.sequentialDownload,
+        enableEpisodePriority: advancedOptions.enableEpisodePriority
       });
       
       setSelectedTorrent(null);
@@ -370,6 +372,33 @@ function AddTorrent() {
                           </div>
                           <div style={{ color: '#b0b0c0', fontSize: '0.75rem' }}>
                             Recommended for videos
+                          </div>
+                        </div>
+                      </label>
+
+                      <label style={{ 
+                        display: 'flex', 
+                        alignItems: 'flex-start', 
+                        gap: '0.5rem', 
+                        marginBottom: '1rem',
+                        cursor: 'pointer'
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={advancedOptions.enableEpisodePriority}
+                          onChange={(e) => setAdvancedOptions({
+                            ...advancedOptions,
+                            enableEpisodePriority: e.target.checked
+                          })}
+                          className="touchable"
+                          style={{ marginTop: '0.25rem' }}
+                        />
+                        <div>
+                          <div style={{ color: '#e0e0e0', fontSize: '0.875rem' }}>
+                            📺 Prioritize episodes (S01E01 first)
+                          </div>
+                          <div style={{ color: '#b0b0c0', fontSize: '0.75rem' }}>
+                            Downloads first episodes first for TV shows
                           </div>
                         </div>
                       </label>
