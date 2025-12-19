@@ -149,6 +149,22 @@ ssh orangepi 'systemctl restart server-dashboard'
 
 ## Recent Updates
 
+### 🔧 Add Show Form Positioning Fix ✅
+**Date**: December 19, 2025  
+**Change**: Fixed the positioning of the "Add New Show" form in the Shows tab.
+
+**UI Improvement**:
+- ✅ **Logical Flow**: Add New Show form now appears directly below the "Add Show" button
+- ✅ **Better UX**: Form appears immediately when clicking "Add Show" instead of after Auto Tracking section
+- ✅ **Consistent Layout**: Maintains the expected visual hierarchy and user flow
+- ✅ **Removed Duplication**: Eliminated duplicate form that was appearing in wrong location
+
+**User Experience**:
+- Click "Add Show" button → Form appears immediately below
+- Search and select TV shows → Add to tracking
+- Form is positioned logically in the interface flow
+- No more confusion about form placement
+
 ### 📋 Queue System & Desktop Responsive Improvements ✅
 **Date**: December 18, 2025  
 **Change**: Added comprehensive task queue system and enhanced desktop responsive design.
