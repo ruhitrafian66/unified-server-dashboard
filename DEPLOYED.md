@@ -149,6 +149,28 @@ ssh orangepi 'systemctl restart server-dashboard'
 
 ## Recent Updates
 
+### 🔧 Torrent Pause/Resume Actions Fix ✅
+**Date**: December 19, 2025  
+**Change**: Fixed torrent pause and resume functionality for qBittorrent v5.1.4.
+
+**Issue Resolved**:
+- ✅ **API Endpoint Mapping**: qBittorrent v5.1.4 uses `/stop` and `/start` instead of `/pause` and `/resume`
+- ✅ **Backend Fix**: Added action mapping in qBittorrent routes to translate frontend actions to correct API calls
+- ✅ **Error Resolution**: Fixed 404 errors when trying to pause/resume torrents
+- ✅ **Backward Compatibility**: Frontend continues to use intuitive pause/resume terminology
+
+**Technical Details**:
+- Frontend sends `pause`/`resume` actions as before
+- Backend maps `pause` → `stop` and `resume` → `start` for qBittorrent API
+- Works with qBittorrent v5.1.4 running in Docker container
+- All torrent control actions now work correctly
+
+**User Experience**:
+- Pause/Resume buttons in Downloads tab now work properly
+- Bulk pause/resume actions work correctly
+- Toast notifications show correct action feedback
+- No changes needed in frontend interface
+
 ### 🔧 Add Show Form Positioning Fix ✅
 **Date**: December 19, 2025  
 **Change**: Fixed the positioning of the "Add New Show" form in the Shows tab.
