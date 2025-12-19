@@ -231,6 +231,14 @@ router.post('/torrents/:action', async (req, res) => {
     const { action } = req.params;
     const headers = await getHeaders();
     
+    // Map frontend actions to qBittorrent API endpoints
+    let qbAction = action;
+    if (action === 'pause') {
+      qbAction = 'stop';
+    } else if (action === 'resume') {
+      qbAction = 'start';
+    }
+    
     let params = `hashes=${hashes}`;
     
     // For delete action, add deleteFiles parameter
@@ -238,7 +246,7 @@ router.post('/torrents/:action', async (req, res) => {
       params += `&deleteFiles=${deleteFiles !== false ? 'true' : 'false'}`;
     }
     
-    const response = await axios.post(`${serverUrl}/api/v2/torrents/${action}`,
+    const response = await axios.post(`${serverUrl}/api/v2/torrents/${qbAction}`,
       params,
       { 
         headers,
