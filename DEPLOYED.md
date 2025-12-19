@@ -149,6 +149,30 @@ ssh orangepi 'systemctl restart server-dashboard'
 
 ## Recent Updates
 
+### 🚀 Torrent UI Responsiveness Improvement ✅
+**Date**: December 19, 2025  
+**Change**: Enhanced torrent pause/resume UI responsiveness with optimistic updates.
+
+**UI Improvements**:
+- ✅ **Instant Visual Feedback**: UI updates immediately when pause/resume buttons are clicked
+- ✅ **Optimistic Updates**: Torrent state changes instantly before API confirmation
+- ✅ **Extended Refresh Delay**: Increased from 500ms to 1500ms to allow qBittorrent processing time
+- ✅ **Error Handling**: Reverts optimistic updates if API calls fail
+- ✅ **Bulk Actions**: Same improvements applied to bulk pause/resume operations
+
+**Technical Details**:
+- Frontend immediately updates torrent state (downloading ↔ paused) on button click
+- API call happens in background while user sees instant feedback
+- After 1.5 seconds, fetches real data from qBittorrent to confirm state
+- If API call fails, UI reverts to previous state and shows error message
+- Works for both individual torrent controls and bulk selections
+
+**User Experience**:
+- No more waiting for UI to update after clicking pause/resume
+- Buttons immediately show correct state (pause ↔ resume)
+- Toast notifications provide action confirmation
+- Smooth, responsive interface that feels native
+
 ### 🔧 Torrent Pause/Resume Actions Fix ✅
 **Date**: December 19, 2025  
 **Change**: Fixed torrent pause and resume functionality for qBittorrent v5.1.4.
