@@ -247,14 +247,25 @@ function PastShows() {
             {/* Season Selection */}
             <div className="form-group">
               <label className="form-label">Season Number</label>
-              <input
-                className="input"
-                type="number"
-                min="1"
-                max="20"
-                value={seasonNumber}
-                onChange={(e) => setSeasonNumber(parseInt(e.target.value) || 1)}
-              />
+              <div className="number-picker">
+                <button 
+                  className="number-picker-btn" 
+                  onClick={() => setSeasonNumber(Math.max(1, seasonNumber - 1))}
+                  disabled={seasonNumber <= 1}
+                >
+                  −
+                </button>
+                <div className="number-picker-value">
+                  {seasonNumber}
+                </div>
+                <button 
+                  className="number-picker-btn" 
+                  onClick={() => setSeasonNumber(Math.min(20, seasonNumber + 1))}
+                  disabled={seasonNumber >= 20}
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             {/* Progress */}
