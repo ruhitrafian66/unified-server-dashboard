@@ -149,6 +149,51 @@ ssh orangepi 'systemctl restart server-dashboard'
 
 ## Recent Updates
 
+### 🖥️ Dashboard System Status & Desktop Responsiveness ✅
+**Date**: December 20, 2025  
+**Change**: Fixed Dashboard system status display and added comprehensive desktop responsive design.
+
+**System Status Fixes**:
+- ✅ **Memory Progress Bar**: Fixed memory usage progress bar display in System Status
+- ✅ **Storage Disk Change**: Changed from system disk to storage disk (/dev/sdb1) display
+- ✅ **Progress Bar Enhancement**: Added visual progress bar to storage usage with color coding
+- ✅ **Better Data Display**: Shows storage disk usage instead of generic disk usage
+
+**Desktop Responsive Design**:
+- ✅ **887px Max Width**: Consistent 887px layout across all desktop screen sizes
+- ✅ **Mobile-First Maintained**: Preserves mobile optimization while enhancing desktop
+- ✅ **Comprehensive Styling**: Enhanced spacing, sizing, and layout for desktop screens
+- ✅ **Responsive Breakpoints**: 
+  - Mobile: < 768px (original mobile-first design)
+  - Desktop: ≥ 768px (887px max width layout)
+  - Large Desktop: ≥ 1200px (maintains 887px max width)
+
+**Desktop Enhancements**:
+- **Navigation**: Centered navigation with proper spacing and larger touch targets
+- **Cards**: Increased padding and improved spacing for desktop viewing
+- **Buttons**: Enhanced sizing and typography for desktop interaction
+- **Progress Bars**: Improved height and visual appearance
+- **Grids**: Better spacing and alignment for desktop layouts
+- **Typography**: Optimized font sizes and line heights for desktop readability
+
+**Technical Implementation**:
+- **CSS Media Queries**: Comprehensive responsive design system
+- **Consistent Layout**: Same visual design across all screen sizes
+- **Performance Optimized**: Efficient CSS with mobile-first approach
+- **Cross-Device Compatibility**: Works seamlessly on mobile, tablet, and desktop
+
+**User Experience**:
+- **Desktop Users**: Enhanced experience with proper spacing and sizing
+- **Mobile Users**: Unchanged optimal mobile experience
+- **Tablet Users**: Smooth transition between mobile and desktop layouts
+- **Consistent Interface**: Same functionality across all devices
+
+**System Status Improvements**:
+- **Memory Usage**: Now displays correct progress bar with real-time updates
+- **Storage Focus**: Shows main storage disk (/dev/sdb1) instead of system disk
+- **Visual Indicators**: Color-coded progress bars (green < 60%, orange 60-80%, red > 80%)
+- **Better Information**: More relevant storage information for users
+
 ### 🔧 Manual Torrent Search 404 Error Fix ✅
 **Date**: December 20, 2025  
 **Change**: Fixed 404 error when adding torrents through Manual > Search Torrents functionality.
