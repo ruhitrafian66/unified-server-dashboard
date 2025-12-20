@@ -5,21 +5,21 @@ import { useToast } from '../App';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import ConfirmModal from '../components/ConfirmModal';
 import QueuePopup from '../components/QueuePopup';
+import SearchLogsPopup from '../components/SearchLogsPopup';
 
-function Dashboard({ serverUrl, setServerUrl }) {
+function Dashboard() {
   const navigate = useNavigate();
   const [systemInfo, setSystemInfo] = useState(null);
   const [services, setServices] = useState([]);
   const [disks, setDisks] = useState([]);
   const [containers, setContainers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [url, setUrl] = useState(serverUrl);
-  const [showConfig, setShowConfig] = useState(false);
   const [servicesCollapsed, setServicesCollapsed] = useState(true);
   const [disksCollapsed, setDisksCollapsed] = useState(true);
   const [containersCollapsed, setContainersCollapsed] = useState(true);
   const [confirmPower, setConfirmPower] = useState(null);
   const [showQueue, setShowQueue] = useState(false);
+  const [showSearchLogs, setShowSearchLogs] = useState(false);
 
   const { showToast } = useToast();
 
@@ -62,13 +62,6 @@ function Dashboard({ serverUrl, setServerUrl }) {
     } catch (error) {
       showToast('Error: ' + error.message, 'error');
     }
-  };
-
-  const saveSettings = () => {
-    localStorage.setItem('serverUrl', url);
-    setServerUrl(url);
-    setShowConfig(false);
-    showToast('Settings saved!', 'success');
   };
 
   const parsePercentage = (str) => {
@@ -117,10 +110,10 @@ function Dashboard({ serverUrl, setServerUrl }) {
         <div className="mobile-grid-2 mt-1">
           <button 
             className="button button-secondary" 
-            onClick={() => setShowConfig(!showConfig)}
+            onClick={() => setShowSearchLogs(true)}
           >
-            <span>⚙️</span>
-            <span>Settings</span>
+            <span>🔍</span>
+            <span>Search Logs</span>
           </button>
           <button 
             className="button button-secondary" 
@@ -371,36 +364,6 @@ function Dashboard({ serverUrl, setServerUrl }) {
         )}
       </div>
 
-      {/* Server Configuration */}
-      {showConfig && (
-        <div className="card" style={{ background: 'rgba(102, 126, 234, 0.1)', borderColor: '#667eea' }}>
-          <h2>⚙️ Server Configuration</h2>
-          <div className="form-group">
-            <label className="form-label">Backend Server URL</label>
-            <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-              Leave empty to use the current server
-            </p>
-            <input
-              className="input"
-              type="text"
-              placeholder="http://192.168.1.100:3001"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
-          </div>
-          <div className="mobile-grid-2">
-            <button className="button" onClick={saveSettings}>
-              <span>✓</span>
-              <span>Save</span>
-            </button>
-            <button className="button button-secondary" onClick={() => setShowConfig(false)}>
-              <span>✕</span>
-              <span>Cancel</span>
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Power Control */}
       <div className="card">
         <h2>⚡ Power Control</h2>
@@ -436,6 +399,12 @@ function Dashboard({ serverUrl, setServerUrl }) {
       <QueuePopup 
         isOpen={showQueue} 
         onClose={() => setShowQueue(false)} 
+      />
+
+      {/* Search Logs Popup */}
+      <SearchLogsPopup 
+        isOpen={showSearchLogs} 
+        onClose={() => setShowSearchLogs(false)} 
       />
     </div>
   );

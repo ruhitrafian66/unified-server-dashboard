@@ -176,12 +176,99 @@ app.post('/api/qbittorrent/torrents/:action', (req, res) => {
   res.json({ success: true });
 });
 
+// Mock search logs for development
+let devSearchLogs = [
+  {
+    id: Date.now() - 300000,
+    timestamp: new Date(Date.now() - 300000).toISOString(),
+    pattern: 'The Matrix 1999',
+    plugins: 'enabled',
+    category: 'movies',
+    status: 'completed',
+    searchId: 123,
+    resultCount: 15,
+    error: null,
+    duration: 2340
+  },
+  {
+    id: Date.now() - 180000,
+    timestamp: new Date(Date.now() - 180000).toISOString(),
+    pattern: 'Breaking Bad S01',
+    plugins: 'enabled',
+    category: 'tv',
+    status: 'completed',
+    searchId: 124,
+    resultCount: 8,
+    error: null,
+    duration: 1890
+  },
+  {
+    id: Date.now() - 60000,
+    timestamp: new Date(Date.now() - 60000).toISOString(),
+    pattern: 'Nonexistent Show',
+    plugins: 'enabled',
+    category: 'all',
+    status: 'failed',
+    searchId: 125,
+    resultCount: 0,
+    error: 'Search timeout',
+    duration: 5000
+  }
+];
+
+// qBittorrent search logs endpoints
+app.get('/api/qbittorrent/search/logs', (req, res) => {
+  const { limit = 50 } = req.query;
+  console.log(`📋 GET /api/qbittorrent/search/logs?limit=${limit}`);
+  
+  const logs = devSearchLogs.slice(0, parseInt(limit));
+  res.json({
+    logs,
+    total: devSearchLogs.length,
+    limit: parseInt(limit)
+  });
+});
+
+app.delete('/api/qbittorrent/search/logs', (req, res) => {
+  console.log('🗑️ DELETE /api/qbittorrent/search/logs');
+  
+  const clearedCount = devSearchLogs.length;
+  devSearchLogs = [];
+  res.json({
+    success: true,
+    message: `Cleared ${clearedCount} log entries`,
+    clearedCount
+  });
+});
+
 // qBittorrent search endpoints
 app.post('/api/qbittorrent/search/start', (req, res) => {
-  const { pattern } = req.body;
-  console.log('🔍 POST /api/qbittorrent/search/start', { pattern });
+  const { pattern, plugins, category } = req.body;
+  console.log('🔍 POST /api/qbittorrent/search/start', { pattern, plugins, category });
   
   const searchId = Math.floor(Math.random() * 1000);
+  
+  // Add to dev search logs
+  const logEntry = {
+    id: Date.now(),
+    timestamp: new Date().toISOString(),
+    pattern,
+    plugins: plugins || 'enabled',
+    category: category || 'all',
+    status: 'completed',
+    searchId,
+    resultCount: Math.floor(Math.random() * 20) + 1, // Random result count
+    error: null,
+    duration: Math.floor(Math.random() * 3000) + 1000 // Random duration 1-4 seconds
+  };
+  
+  devSearchLogs.unshift(logEntry);
+  
+  // Keep only last 100 logs
+  if (devSearchLogs.length > 100) {
+    devSearchLogs = devSearchLogs.slice(0, 100);
+  }
+  
   res.json({ id: searchId });
 });
 

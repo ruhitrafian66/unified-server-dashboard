@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useToast } from '../App';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 
-function WireGuard({ serverUrl }) {
+function WireGuard() {
   const { showToast } = useToast();
   const [interfaces, setInterfaces] = useState([]);
   const [selectedInterface, setSelectedInterface] = useState('');

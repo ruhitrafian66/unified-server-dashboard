@@ -3,6 +3,65 @@ import axios from 'axios';
 
 const router = express.Router();
 
+// In-memory search logs storage
+let searchLogs = [];
+const MAX_LOGS = 100; // Keep last 100 search logs
+
+// Helper function to add search log
+const addSearchLog = (pattern, plugins, category, status, error = null, searchId = null, resultCount = 0) => {
+  const logEntry = {
+    id: Date.now(),
+    timestamp: new Date().toISOString(),
+    pattern,
+    plugins: plugins || 'enabled',
+    category: category || 'all',
+    status, // 'started', 'completed', 'failed'
+    searchId,
+    resultCount,
+    error,
+    duration: null
+  };
+  
+  searchLogs.unshift(logEntry);
+  
+  // Keep only the last MAX_LOGS entries
+  if (searchLogs.length > MAX_LOGS) {
+    searchLogs = searchLogs.slice(0, MAX_LOGS);
+  }
+  
+  return logEntry;
+};
+
+// Get search logs
+router.get('/search/logs', async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+    const logs = searchLogs.slice(0, parseInt(limit));
+    res.json({ 
+      logs,
+      total: searchLogs.length,
+      limit: parseInt(limit)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Clear search logs
+router.delete('/search/logs', async (req, res) => {
+  try {
+    const clearedCount = searchLogs.length;
+    searchLogs = [];
+    res.json({ 
+      success: true, 
+      message: `Cleared ${clearedCount} log entries`,
+      clearedCount 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get server URL from environment or use localhost (qBittorrent runs on same server)
 const getServerUrl = () => {
   return process.env.QBITTORRENT_URL || 'http://localhost:8080';
@@ -278,14 +337,26 @@ router.post('/search/start', async (req, res) => {
     const serverUrl = getServerUrl();
     const { pattern, plugins, category } = req.body;
     
+    // Log the search start
+    const logEntry = addSearchLog(pattern, plugins, category, 'started');
+    
     const response = await makeAuthenticatedRequest(
       'POST',
       `${serverUrl}/api/v2/search/start`,
       `pattern=${encodeURIComponent(pattern)}&plugins=${plugins || 'enabled'}&category=${category || 'all'}`
     );
+    
+    // Update log with search ID
+    logEntry.searchId = response.data.id;
+    logEntry.status = 'running';
+    
     res.json(response.data);
   } catch (error) {
     console.error('Search start error:', error.response?.status, error.message);
+    
+    // Log the search failure
+    addSearchLog(pattern, plugins, category, 'failed', error.message);
+    
     res.status(error.response?.status || 500).json({ error: error.message });
   }
 });
@@ -326,8 +397,25 @@ router.get('/search/results/:id', async (req, res) => {
     if (offset) url += `&offset=${offset}`;
     
     const response = await makeAuthenticatedRequest('GET', url);
+    
+    // Update log entry with result count if this is the final results fetch
+    const logEntry = searchLogs.find(log => log.searchId === parseInt(id));
+    if (logEntry && response.data.results) {
+      logEntry.resultCount = response.data.results.length;
+      logEntry.status = 'completed';
+      logEntry.duration = Date.now() - new Date(logEntry.timestamp).getTime();
+    }
+    
     res.json(response.data);
   } catch (error) {
+    // Update log entry with error
+    const logEntry = searchLogs.find(log => log.searchId === parseInt(req.params.id));
+    if (logEntry) {
+      logEntry.status = 'failed';
+      logEntry.error = error.message;
+      logEntry.duration = Date.now() - new Date(logEntry.timestamp).getTime();
+    }
+    
     res.status(500).json({ error: error.message });
   }
 });

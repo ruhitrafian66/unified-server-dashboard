@@ -21,7 +21,6 @@ export const useToast = () => {
 };
 
 function App() {
-  const [serverUrl, setServerUrl] = useState(localStorage.getItem('serverUrl') || '');
   const [toasts, setToasts] = useState([]);
 
   const showToast = (message, type = 'info', duration = 3000) => {
@@ -65,11 +64,11 @@ function App() {
           
           <main className="main-content">
             <Routes>
-              <Route path="/" element={<Dashboard serverUrl={serverUrl} setServerUrl={setServerUrl} />} />
+              <Route path="/" element={<Dashboard />} />
               <Route path="/downloads" element={<MyDownloads />} />
               <Route path="/add-torrent" element={<AddTorrent />} />
               <Route path="/shows" element={<TVShows />} />
-              <Route path="/vpn" element={<WireGuard serverUrl={serverUrl} />} />
+              <Route path="/vpn" element={<WireGuard />} />
             </Routes>
           </main>
 
