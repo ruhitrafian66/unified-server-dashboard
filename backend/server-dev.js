@@ -91,8 +91,12 @@ app.post('/api/qbittorrent/torrents/add', (req, res) => {
 });
 
 app.post('/api/qbittorrent/torrents/add-advanced', (req, res) => {
-  const { urls, sequentialDownload } = req.body;
-  console.log('➕ POST /api/qbittorrent/torrents/add-advanced', { urls, sequentialDownload });
+  const { urls, sequentialDownload, enableEpisodePriority } = req.body;
+  console.log('➕ POST /api/qbittorrent/torrents/add-advanced', { 
+    urls, 
+    sequentialDownload, 
+    enableEpisodePriority 
+  });
   
   const newTorrent = {
     hash: Math.random().toString(36).substring(7),
@@ -102,7 +106,8 @@ app.post('/api/qbittorrent/torrents/add-advanced', (req, res) => {
     dlspeed: 0,
     upspeed: 0,
     eta: 8640000,
-    state: "metaDL"
+    state: "metaDL",
+    episodePriorityEnabled: enableEpisodePriority || false
   };
   
   devTorrents.push(newTorrent);

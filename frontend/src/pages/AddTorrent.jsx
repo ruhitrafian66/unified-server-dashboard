@@ -166,7 +166,7 @@ function AddTorrent() {
     }
 
     try {
-      await axios.post('/api/qbittorrent/torrents/add-with-priority', {
+      await axios.post('/api/qbittorrent/torrents/add-advanced', {
         urls: url,
         sequentialDownload: advancedOptions.sequentialDownload,
         enableEpisodePriority: advancedOptions.enableEpisodePriority

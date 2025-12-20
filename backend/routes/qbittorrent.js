@@ -228,7 +228,7 @@ router.post('/torrents/add-advanced', async (req, res) => {
     const serverUrl = getServerUrl();
     console.log('Server URL:', serverUrl);
     
-    const { urls, savepath, sequentialDownload } = req.body;
+    const { urls, savepath, sequentialDownload, enableEpisodePriority } = req.body;
     
     // Validate that we have a URL
     if (!urls || urls.trim() === '') {
@@ -269,6 +269,12 @@ router.post('/torrents/add-advanced', async (req, res) => {
         error: 'Invalid torrent link',
         details: 'The download link is not valid or the torrent is unavailable. Try a different search result.'
       });
+    }
+    
+    // Log episode priority setting for future implementation
+    if (enableEpisodePriority) {
+      console.log('Episode priority enabled for this torrent');
+      // TODO: Apply episode priority after torrent files are available
     }
     
     res.json({ success: true, data: response.data });
