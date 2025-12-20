@@ -178,8 +178,25 @@ function Dashboard() {
             <div className="mobile-grid-2">
               <div className="mobile-card text-center">
                 <div className="stat-icon" style={{ margin: '0 auto 0.5rem' }}>💾</div>
-                <div className="stat-label">Disk Usage</div>
-                <div className="stat-value text-small">{systemInfo.disk}</div>
+                <div className="stat-label">Storage Usage</div>
+                <div className="stat-value text-small">
+                  {disks.length > 1 ? disks[1].usePercent : (disks.length > 0 ? disks[0].usePercent : 'N/A')}
+                </div>
+                {disks.length > 1 && (
+                  <div className="progress-bar" style={{ marginTop: '0.5rem' }}>
+                    <div 
+                      className="progress-fill"
+                      style={{ 
+                        width: disks[1].usePercent,
+                        background: parseInt(disks[1].usePercent) > 80 
+                          ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
+                          : parseInt(disks[1].usePercent) > 60
+                          ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
+                          : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
+                      }} 
+                    />
+                  </div>
+                )}
               </div>
               
               <div className="mobile-card text-center">

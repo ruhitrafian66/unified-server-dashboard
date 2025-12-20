@@ -1246,3 +1246,192 @@
   align-items: center;
   justify-content: center;
 }
+/* Desktop Responsive Design - 887px width layout for all desktop sizes */
+@media (min-width: 768px) {
+  .main-content {
+    max-width: 887px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  
+  .app {
+    background: #0f0f0f;
+  }
+  
+  /* Desktop Navigation */
+  .navbar {
+    padding: 1rem 2rem;
+  }
+  
+  .navbar h1 {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .nav-links {
+    justify-content: center;
+    gap: 1rem;
+    max-width: 887px;
+    margin: 0 auto;
+  }
+  
+  .nav-links a {
+    padding: 0.75rem 1rem;
+    min-width: auto;
+    flex: none;
+  }
+  
+  .nav-text {
+    display: block;
+    white-space: nowrap;
+  }
+  
+  /* Desktop Cards */
+  .card {
+    margin-bottom: 1.5rem;
+    padding: 1.5rem;
+  }
+  
+  .card h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  
+  /* Desktop Grids */
+  .mobile-grid {
+    gap: 1rem;
+  }
+  
+  .mobile-grid-2 {
+    gap: 1rem;
+  }
+  
+  .mobile-grid-3 {
+    gap: 1rem;
+  }
+  
+  /* Desktop Buttons */
+  .button {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    min-height: 44px;
+  }
+  
+  .button-small {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    min-height: 36px;
+  }
+  
+  /* Desktop Stat Cards */
+  .stat-card {
+    padding: 1.5rem;
+  }
+  
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.5rem;
+  }
+  
+  .stat-label {
+    font-size: 0.875rem;
+  }
+  
+  .stat-value {
+    font-size: 1.25rem;
+  }
+  
+  /* Desktop Mobile Cards */
+  .mobile-card {
+    padding: 1.25rem;
+  }
+  
+  /* Desktop Progress Bars */
+  .progress-bar {
+    height: 8px;
+    margin-top: 0.75rem;
+  }
+  
+  /* Desktop List Items */
+  .mobile-list-item {
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .mobile-list-title {
+    font-size: 1rem;
+  }
+  
+  .mobile-list-subtitle {
+    font-size: 0.875rem;
+  }
+  
+  /* Desktop Inputs */
+  .input {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  /* Desktop Search */
+  .mobile-search-container {
+    max-width: none;
+  }
+  
+  .mobile-search-input {
+    padding: 0.75rem 1rem 0.75rem 3rem;
+    font-size: 0.875rem;
+  }
+  
+  .mobile-search-icon {
+    left: 1rem;
+    font-size: 1rem;
+  }
+  
+  /* Desktop Tabs */
+  .mobile-tabs {
+    gap: 0.5rem;
+  }
+  
+  .mobile-tab {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    min-width: auto;
+  }
+  
+  /* Desktop Collapsible */
+  .collapsible-header {
+    padding: 1rem 0;
+  }
+  
+  /* Desktop Number Picker */
+  .number-picker {
+    max-width: 180px;
+  }
+  
+  .number-picker-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+  }
+  
+  .number-picker-value {
+    height: 48px;
+    font-size: 1.125rem;
+  }
+}
+
+/* Large Desktop - maintain 887px max width */
+@media (min-width: 1200px) {
+  .main-content {
+    max-width: 887px;
+  }
+  
+  .navbar {
+    padding: 1rem;
+  }
+  
+  .nav-links {
+    max-width: 887px;
+  }
+}
