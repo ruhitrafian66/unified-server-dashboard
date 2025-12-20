@@ -149,6 +149,39 @@ ssh orangepi 'systemctl restart server-dashboard'
 
 ## Recent Updates
 
+### 🔧 Manual Torrent Search 404 Error Fix ✅
+**Date**: December 20, 2025  
+**Change**: Fixed 404 error when adding torrents through Manual > Search Torrents functionality.
+
+**Issue Resolved**:
+- ✅ **Incorrect API Endpoint**: Frontend was calling non-existent `/api/qbittorrent/torrents/add-with-priority`
+- ✅ **Fixed Endpoint**: Changed to correct `/api/qbittorrent/torrents/add-advanced` endpoint
+- ✅ **Backend Support**: Updated backend to properly handle `enableEpisodePriority` parameter
+- ✅ **Development Consistency**: Updated development server to match production behavior
+
+**Root Cause**:
+- Frontend component was using an outdated API endpoint name
+- Backend had the correct endpoint (`add-advanced`) but frontend was calling wrong one
+- This caused 404 errors when users tried to download torrents from search results
+
+**Technical Fix**:
+- **Frontend**: Updated `AddTorrent.jsx` to use `/api/qbittorrent/torrents/add-advanced`
+- **Backend**: Enhanced `add-advanced` endpoint to handle episode priority parameter
+- **Development**: Updated mock server to properly handle all parameters
+- **Logging**: Added proper logging for episode priority settings
+
+**User Experience**:
+- **Manual Search**: Now works correctly without 404 errors
+- **Advanced Options**: Sequential download and episode priority options work properly
+- **Error Handling**: Proper error messages instead of generic 404s
+- **Functionality Restored**: All torrent adding features now functional
+
+**Testing Verified**:
+- Search torrents functionality works correctly
+- Advanced options (sequential download, episode priority) are properly sent
+- Backend receives and processes all parameters correctly
+- No more 404 errors when adding torrents from search results
+
 ### 🎛️ Season Number Picker Enhancement ✅
 **Date**: December 20, 2025  
 **Change**: Converted season input field to intuitive number picker in Past Shows section.
