@@ -149,6 +149,46 @@ ssh orangepi 'systemctl restart server-dashboard'
 
 ## Recent Updates
 
+### 🔍 qBittorrent Search Logging Feature ✅
+**Date**: December 20, 2025  
+**Change**: Added comprehensive search logging system to track all qBittorrent search executions.
+
+**New Features**:
+- ✅ **Search Logging**: Automatically logs all qBittorrent search requests with detailed metadata
+- ✅ **Search Logs Popup**: New popup component accessible from Dashboard > Quick Actions
+- ✅ **Comprehensive Tracking**: Logs pattern, plugins, category, status, results count, duration, and errors
+- ✅ **Real-time Updates**: Tracks searches from start to completion with status updates
+- ✅ **Log Management**: View, refresh, and clear search logs with statistics
+
+**UI Changes**:
+- ✅ **Replaced Settings Button**: Removed Settings button from Dashboard Quick Actions
+- ✅ **Added Search Logs Button**: New "Search Logs" button with 🔍 icon
+- ✅ **Removed Server Configuration**: Simplified interface by removing unused settings functionality
+- ✅ **Clean Interface**: Streamlined Dashboard with focus on essential features
+
+**Technical Implementation**:
+- **Backend Logging**: In-memory storage for last 100 search executions
+- **API Endpoints**: 
+  - `GET /api/qbittorrent/search/logs` - Retrieve search logs
+  - `DELETE /api/qbittorrent/search/logs` - Clear all logs
+- **Search Tracking**: Automatic logging on search start, completion, and failure
+- **Development Support**: Mock data for testing and development
+
+**Search Log Data**:
+- Timestamp and unique ID
+- Search pattern and parameters (plugins, category)
+- Execution status (started, running, completed, failed)
+- Results count and search duration
+- Error messages for failed searches
+- qBittorrent search ID for correlation
+
+**User Experience**:
+- Access logs via Dashboard > Quick Actions > Search Logs
+- View search history with detailed information
+- Monitor search performance and success rates
+- Clear logs when needed for maintenance
+- Statistics showing total, completed, and failed searches
+
 ### 🚀 Torrent UI Responsiveness Improvement ✅
 **Date**: December 19, 2025  
 **Change**: Enhanced torrent pause/resume UI responsiveness with optimistic updates.
