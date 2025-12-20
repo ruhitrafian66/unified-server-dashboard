@@ -149,6 +149,33 @@ ssh orangepi 'systemctl restart server-dashboard'
 
 ## Recent Updates
 
+### 🎛️ Season Number Picker Enhancement ✅
+**Date**: December 20, 2025  
+**Change**: Converted season input field to intuitive number picker in Past Shows section.
+
+**UI Improvement**:
+- ✅ **Number Picker Component**: Replaced text input with increment/decrement buttons
+- ✅ **Touch-Friendly Design**: Large 44px touch targets for mobile optimization
+- ✅ **Visual Feedback**: Hover and active states for better user interaction
+- ✅ **Smart Limits**: Min/max constraints (1-20 seasons) with disabled button states
+- ✅ **Consistent Styling**: Matches app's design language with gradient themes
+
+**User Experience**:
+- **Easier Selection**: No need to type numbers - just tap +/- buttons
+- **Visual Clarity**: Current season number prominently displayed in center
+- **Prevented Errors**: Cannot go below 1 or above 20 seasons
+- **Mobile Optimized**: Perfect for touch interfaces on phones and tablets
+- **Accessible**: Clear visual indicators for disabled states
+
+**Technical Implementation**:
+- Custom CSS component with flexbox layout
+- Disabled state handling for boundary values
+- Smooth transitions and hover effects
+- Consistent with existing mobile-first design system
+- Maintains all existing functionality while improving UX
+
+**Location**: Shows > Past Shows > Selected Show > Season Number
+
 ### 🔍 qBittorrent Search Logging Feature ✅
 **Date**: December 20, 2025  
 **Change**: Added comprehensive search logging system to track all qBittorrent search executions.
