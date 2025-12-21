@@ -34,6 +34,15 @@ let devAutoCheckEnabled = true;
 let devQueueStatus = { queueLength: 0, processing: false, nextSearchIn: 0 };
 let devQueueItems = [...mockQueueItems];
 
+// Auto-stop seeding configuration for development
+let devAutoStopConfig = {
+  enabled: false,
+  delayMinutes: 0,
+  ratioLimit: null,
+  seedTimeLimit: null
+};
+let devProcessedTorrents = new Set();
+
 console.log('🚀 Starting Development Server with Mock Data...');
 
 // OMV API endpoints
@@ -322,6 +331,103 @@ app.post('/api/qbittorrent/search/stop', (req, res) => {
   const { id } = req.body;
   console.log(`⏹️ POST /api/qbittorrent/search/stop`, { id });
   res.json({ success: true });
+});
+
+// Auto-stop seeding endpoints
+app.get('/api/qbittorrent/auto-stop/config', (req, res) => {
+  console.log('⚙️ GET /api/qbittorrent/auto-stop/config');
+  res.json(devAutoStopConfig);
+});
+
+app.post('/api/qbittorrent/auto-stop/config', (req, res) => {
+  const { enabled, delayMinutes, ratioLimit, seedTimeLimit } = req.body;
+  console.log('⚙️ POST /api/qbittorrent/auto-stop/config', { enabled, delayMinutes, ratioLimit, seedTimeLimit });
+  
+  devAutoStopConfig = {
+    enabled: Boolean(enabled),
+    delayMinutes: Math.max(0, parseInt(delayMinutes) || 0),
+    ratioLimit: ratioLimit ? parseFloat(ratioLimit) : null,
+    seedTimeLimit: seedTimeLimit ? parseInt(seedTimeLimit) : null
+  };
+  
+  res.json({
+    success: true,
+    config: devAutoStopConfig,
+    message: enabled ? 'Auto-stop seeding enabled' : 'Auto-stop seeding disabled'
+  });
+});
+
+app.post('/api/qbittorrent/auto-stop/process', (req, res) => {
+  console.log('🔄 POST /api/qbittorrent/auto-stop/process');
+  
+  if (!devAutoStopConfig.enabled) {
+    return res.json({
+      success: true,
+      message: 'Auto-stop is disabled',
+      processed: 0
+    });
+  }
+  
+  let processedCount = 0;
+  const results = [];
+  
+  // Find completed torrents that are seeding
+  devTorrents.forEach(torrent => {
+    if (devProcessedTorrents.has(torrent.hash)) return;
+    
+    const isCompleted = torrent.progress >= 1;
+    const isSeeding = ['uploading', 'stalledUP'].includes(torrent.state);
+    
+    if (isCompleted && isSeeding) {
+      let shouldStop = false;
+      let reason = '';
+      
+      // Check ratio limit (mock ratio)
+      const mockRatio = 1.5 + Math.random() * 2; // Random ratio between 1.5-3.5
+      if (devAutoStopConfig.ratioLimit && mockRatio >= devAutoStopConfig.ratioLimit) {
+        shouldStop = true;
+        reason = `Ratio limit reached (${mockRatio.toFixed(2)})`;
+      }
+      
+      // If no specific limits, stop based on delay
+      if (!shouldStop && devAutoStopConfig.delayMinutes === 0) {
+        shouldStop = true;
+        reason = 'Immediate stop after completion';
+      }
+      
+      if (shouldStop) {
+        // Stop the torrent
+        torrent.state = 'pausedUP';
+        torrent.upspeed = 0;
+        
+        devProcessedTorrents.add(torrent.hash);
+        processedCount++;
+        
+        results.push({
+          name: torrent.name,
+          hash: torrent.hash,
+          reason,
+          success: true
+        });
+      }
+    }
+  });
+  
+  res.json({
+    success: true,
+    processed: processedCount,
+    results,
+    config: devAutoStopConfig
+  });
+});
+
+app.get('/api/qbittorrent/auto-stop/stats', (req, res) => {
+  console.log('📊 GET /api/qbittorrent/auto-stop/stats');
+  res.json({
+    config: devAutoStopConfig,
+    processedTorrents: devProcessedTorrents.size,
+    lastCheck: new Date().toISOString()
+  });
 });
 
 // TV Shows API endpoints

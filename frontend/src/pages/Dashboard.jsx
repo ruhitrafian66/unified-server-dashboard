@@ -20,11 +20,20 @@ function Dashboard() {
   const [confirmPower, setConfirmPower] = useState(null);
   const [showQueue, setShowQueue] = useState(false);
   const [showSearchLogs, setShowSearchLogs] = useState(false);
+  const [autoStopConfig, setAutoStopConfig] = useState({
+    enabled: false,
+    delayMinutes: 0,
+    ratioLimit: null,
+    seedTimeLimit: null
+  });
+  const [showAutoStopSettings, setShowAutoStopSettings] = useState(false);
+  const [autoStopStats, setAutoStopStats] = useState(null);
 
   const { showToast } = useToast();
 
   useEffect(() => {
     fetchData();
+    fetchAutoStopConfig();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -45,6 +54,42 @@ function Dashboard() {
     } catch (error) {
       console.error('Error fetching data:', error);
       setLoading(false);
+    }
+  };
+
+  const fetchAutoStopConfig = async () => {
+    try {
+      const response = await axios.get('/api/qbittorrent/auto-stop/config');
+      setAutoStopConfig(response.data);
+    } catch (error) {
+      console.error('Error fetching auto-stop config:', error);
+    }
+  };
+
+  const updateAutoStopConfig = async (newConfig) => {
+    try {
+      const response = await axios.post('/api/qbittorrent/auto-stop/config', newConfig);
+      setAutoStopConfig(response.data.config);
+      showToast(response.data.message, 'success');
+    } catch (error) {
+      showToast('Error updating auto-stop settings: ' + error.message, 'error');
+    }
+  };
+
+  const processAutoStop = async () => {
+    try {
+      const response = await axios.post('/api/qbittorrent/auto-stop/process');
+      if (response.data.processed > 0) {
+        showToast(`Auto-stopped ${response.data.processed} torrent(s)`, 'success');
+      } else {
+        showToast(response.data.message || 'No torrents to process', 'info');
+      }
+      
+      // Fetch updated stats
+      const statsRes = await axios.get('/api/qbittorrent/auto-stop/stats');
+      setAutoStopStats(statsRes.data);
+    } catch (error) {
+      showToast('Error processing auto-stop: ' + error.message, 'error');
     }
   };
 
@@ -121,6 +166,22 @@ function Dashboard() {
           >
             <span>📋</span>
             <span>Queue</span>
+          </button>
+        </div>
+        <div className="mobile-grid-2 mt-1">
+          <button 
+            className="button button-secondary" 
+            onClick={() => setShowAutoStopSettings(true)}
+          >
+            <span>⏹️</span>
+            <span>Auto-Stop</span>
+          </button>
+          <button 
+            className="button button-secondary" 
+            onClick={processAutoStop}
+          >
+            <span>🔄</span>
+            <span>Process Now</span>
           </button>
         </div>
       </div>
@@ -423,6 +484,150 @@ function Dashboard() {
         isOpen={showSearchLogs} 
         onClose={() => setShowSearchLogs(false)} 
       />
+
+      {/* Auto-Stop Settings Popup */}
+      {showAutoStopSettings && (
+        <div className="popup-overlay" onClick={() => setShowAutoStopSettings(false)}>
+          <div className="popup-content" onClick={(e) => e.stopPropagation()}>
+            <div className="popup-header">
+              <h3>⏹️ Auto-Stop Seeding Settings</h3>
+              <button 
+                className="popup-close" 
+                onClick={() => setShowAutoStopSettings(false)}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="popup-body">
+              <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                Automatically stop seeding torrents when download completes
+              </p>
+              
+              {/* Enable/Disable Toggle */}
+              <div className="form-group">
+                <label className="toggle-label">
+                  <input
+                    type="checkbox"
+                    checked={autoStopConfig.enabled}
+                    onChange={(e) => {
+                      const newConfig = { ...autoStopConfig, enabled: e.target.checked };
+                      setAutoStopConfig(newConfig);
+                      updateAutoStopConfig(newConfig);
+                    }}
+                    className="toggle-input"
+                  />
+                  <span className="toggle-slider"></span>
+                  <span className="toggle-text">
+                    {autoStopConfig.enabled ? 'Enabled' : 'Disabled'}
+                  </span>
+                </label>
+              </div>
+
+              {autoStopConfig.enabled && (
+                <>
+                  {/* Delay Settings */}
+                  <div className="form-group">
+                    <label className="form-label">Stop Delay (minutes)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1440"
+                      value={autoStopConfig.delayMinutes}
+                      onChange={(e) => {
+                        const newConfig = { ...autoStopConfig, delayMinutes: parseInt(e.target.value) || 0 };
+                        setAutoStopConfig(newConfig);
+                      }}
+                      onBlur={() => updateAutoStopConfig(autoStopConfig)}
+                      className="form-input"
+                      placeholder="0 = immediate"
+                    />
+                    <small style={{ color: '#b0b0c0', fontSize: '0.75rem' }}>
+                      0 = Stop immediately after completion
+                    </small>
+                  </div>
+
+                  {/* Ratio Limit */}
+                  <div className="form-group">
+                    <label className="form-label">Ratio Limit (optional)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={autoStopConfig.ratioLimit || ''}
+                      onChange={(e) => {
+                        const value = e.target.value ? parseFloat(e.target.value) : null;
+                        const newConfig = { ...autoStopConfig, ratioLimit: value };
+                        setAutoStopConfig(newConfig);
+                      }}
+                      onBlur={() => updateAutoStopConfig(autoStopConfig)}
+                      className="form-input"
+                      placeholder="e.g., 2.0"
+                    />
+                    <small style={{ color: '#b0b0c0', fontSize: '0.75rem' }}>
+                      Stop when upload/download ratio reaches this value
+                    </small>
+                  </div>
+
+                  {/* Seed Time Limit */}
+                  <div className="form-group">
+                    <label className="form-label">Seed Time Limit (minutes, optional)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={autoStopConfig.seedTimeLimit || ''}
+                      onChange={(e) => {
+                        const value = e.target.value ? parseInt(e.target.value) : null;
+                        const newConfig = { ...autoStopConfig, seedTimeLimit: value };
+                        setAutoStopConfig(newConfig);
+                      }}
+                      onBlur={() => updateAutoStopConfig(autoStopConfig)}
+                      className="form-input"
+                      placeholder="e.g., 60"
+                    />
+                    <small style={{ color: '#b0b0c0', fontSize: '0.75rem' }}>
+                      Stop after seeding for this many minutes
+                    </small>
+                  </div>
+
+                  {/* Statistics */}
+                  {autoStopStats && (
+                    <div className="form-group">
+                      <label className="form-label">Statistics</label>
+                      <div style={{ 
+                        background: 'rgba(255,255,255,0.05)', 
+                        padding: '0.75rem', 
+                        borderRadius: '8px',
+                        fontSize: '0.875rem'
+                      }}>
+                        <div>Processed Torrents: {autoStopStats.processedTorrents}</div>
+                        <div>Last Check: {new Date(autoStopStats.lastCheck).toLocaleTimeString()}</div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            
+            <div className="popup-footer">
+              <button 
+                className="button button-secondary" 
+                onClick={() => setShowAutoStopSettings(false)}
+              >
+                Close
+              </button>
+              {autoStopConfig.enabled && (
+                <button 
+                  className="button" 
+                  onClick={processAutoStop}
+                >
+                  Process Now
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

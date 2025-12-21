@@ -7,6 +7,17 @@ const router = express.Router();
 let searchLogs = [];
 const MAX_LOGS = 100; // Keep last 100 search logs
 
+// Auto-stop seeding configuration
+let autoStopConfig = {
+  enabled: false,
+  delayMinutes: 0, // 0 = immediate, >0 = delay after completion
+  ratioLimit: null, // Optional: stop after reaching ratio (e.g., 2.0)
+  seedTimeLimit: null // Optional: stop after seeding for X minutes
+};
+
+// Track torrents that have been processed for auto-stop
+let processedTorrents = new Set();
+
 // Helper function to add search log
 const addSearchLog = (pattern, plugins, category, status, error = null, searchId = null, resultCount = 0) => {
   const logEntry = {
@@ -441,6 +452,152 @@ router.post('/search/stop', async (req, res) => {
   } catch (error) {
     console.error('Search stop error:', error.response?.status, error.message);
     res.status(error.response?.status || 500).json({ error: error.message });
+  }
+});
+
+// Auto-stop seeding configuration endpoints
+router.get('/auto-stop/config', async (req, res) => {
+  try {
+    res.json(autoStopConfig);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/auto-stop/config', async (req, res) => {
+  try {
+    const { enabled, delayMinutes, ratioLimit, seedTimeLimit } = req.body;
+    
+    autoStopConfig = {
+      enabled: Boolean(enabled),
+      delayMinutes: Math.max(0, parseInt(delayMinutes) || 0),
+      ratioLimit: ratioLimit ? parseFloat(ratioLimit) : null,
+      seedTimeLimit: seedTimeLimit ? parseInt(seedTimeLimit) : null
+    };
+    
+    console.log('Auto-stop config updated:', autoStopConfig);
+    
+    res.json({ 
+      success: true, 
+      config: autoStopConfig,
+      message: enabled ? 'Auto-stop seeding enabled' : 'Auto-stop seeding disabled'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Check and process completed torrents for auto-stop
+router.post('/auto-stop/process', async (req, res) => {
+  try {
+    if (!autoStopConfig.enabled) {
+      return res.json({ 
+        success: true, 
+        message: 'Auto-stop is disabled',
+        processed: 0 
+      });
+    }
+
+    const serverUrl = getServerUrl();
+    
+    // Get all torrents
+    const response = await makeAuthenticatedRequest('GET', `${serverUrl}/api/v2/torrents/info`);
+    const torrents = response.data;
+    
+    let processedCount = 0;
+    const results = [];
+    
+    for (const torrent of torrents) {
+      // Skip if already processed
+      if (processedTorrents.has(torrent.hash)) {
+        continue;
+      }
+      
+      // Check if torrent is completed and seeding
+      const isCompleted = torrent.progress >= 1;
+      const isSeeding = ['uploading', 'stalledUP', 'queuedUP'].includes(torrent.state);
+      
+      if (!isCompleted || !isSeeding) {
+        continue;
+      }
+      
+      let shouldStop = false;
+      let reason = '';
+      
+      // Check ratio limit
+      if (autoStopConfig.ratioLimit && torrent.ratio >= autoStopConfig.ratioLimit) {
+        shouldStop = true;
+        reason = `Ratio limit reached (${torrent.ratio.toFixed(2)})`;
+      }
+      
+      // Check seed time limit (if available in torrent data)
+      if (autoStopConfig.seedTimeLimit && torrent.seeding_time >= (autoStopConfig.seedTimeLimit * 60)) {
+        shouldStop = true;
+        reason = `Seed time limit reached (${Math.floor(torrent.seeding_time / 60)}m)`;
+      }
+      
+      // If no specific limits, stop based on delay
+      if (!shouldStop && autoStopConfig.delayMinutes === 0) {
+        shouldStop = true;
+        reason = 'Immediate stop after completion';
+      }
+      
+      if (shouldStop) {
+        try {
+          // Stop the torrent
+          await makeAuthenticatedRequest(
+            'POST',
+            `${serverUrl}/api/v2/torrents/stop`,
+            `hashes=${torrent.hash}`
+          );
+          
+          processedTorrents.add(torrent.hash);
+          processedCount++;
+          
+          results.push({
+            name: torrent.name,
+            hash: torrent.hash,
+            reason,
+            success: true
+          });
+          
+          console.log(`Auto-stopped torrent: ${torrent.name} (${reason})`);
+        } catch (error) {
+          results.push({
+            name: torrent.name,
+            hash: torrent.hash,
+            reason,
+            success: false,
+            error: error.message
+          });
+          
+          console.error(`Failed to auto-stop torrent ${torrent.name}:`, error.message);
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      processed: processedCount,
+      results,
+      config: autoStopConfig
+    });
+  } catch (error) {
+    console.error('Auto-stop process error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get auto-stop statistics
+router.get('/auto-stop/stats', async (req, res) => {
+  try {
+    res.json({
+      config: autoStopConfig,
+      processedTorrents: processedTorrents.size,
+      lastCheck: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
