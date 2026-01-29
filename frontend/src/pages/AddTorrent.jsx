@@ -14,7 +14,6 @@ function AddTorrent() {
   const [recentSearches, setRecentSearches] = useState([]);
   const [sortBy, setSortBy] = useState('seeders');
   const [advancedOptions, setAdvancedOptions] = useState({
-    sequentialDownload: true,
     enableEpisodePriority: true
   });
 
@@ -168,7 +167,6 @@ function AddTorrent() {
     try {
       await axios.post('/api/qbittorrent/torrents/add-advanced', {
         urls: url,
-        sequentialDownload: advancedOptions.sequentialDownload,
         enableEpisodePriority: advancedOptions.enableEpisodePriority
       });
       
@@ -358,33 +356,6 @@ function AddTorrent() {
                       }}>
                         <input
                           type="checkbox"
-                          checked={advancedOptions.sequentialDownload}
-                          onChange={(e) => setAdvancedOptions({
-                            ...advancedOptions,
-                            sequentialDownload: e.target.checked
-                          })}
-                          className="touchable"
-                          style={{ marginTop: '0.25rem' }}
-                        />
-                        <div>
-                          <div style={{ color: '#e0e0e0', fontSize: '0.875rem' }}>
-                            ▶️ Download in order
-                          </div>
-                          <div style={{ color: '#b0b0c0', fontSize: '0.75rem' }}>
-                            Recommended for videos
-                          </div>
-                        </div>
-                      </label>
-
-                      <label style={{ 
-                        display: 'flex', 
-                        alignItems: 'flex-start', 
-                        gap: '0.5rem', 
-                        marginBottom: '1rem',
-                        cursor: 'pointer'
-                      }}>
-                        <input
-                          type="checkbox"
                           checked={advancedOptions.enableEpisodePriority}
                           onChange={(e) => setAdvancedOptions({
                             ...advancedOptions,
@@ -402,6 +373,18 @@ function AddTorrent() {
                           </div>
                         </div>
                       </label>
+
+                      <div style={{ 
+                        color: '#4caf50', 
+                        fontSize: '0.75rem', 
+                        marginBottom: '1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}>
+                        <span>✓</span>
+                        <span>Sequential download automatically enabled</span>
+                      </div>
 
                       <div className="mobile-grid-2">
                         <button
@@ -450,6 +433,11 @@ function AddTorrent() {
           <span>➕</span>
           <span>Add Download</span>
         </button>
+        
+        <p style={{ color: '#4caf50', fontSize: '0.75rem', marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span>✓</span>
+          <span>Sequential download automatically enabled</span>
+        </p>
       </div>
     </div>
   );

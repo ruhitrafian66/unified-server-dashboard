@@ -81,9 +81,9 @@ app.get('/api/qbittorrent/torrents', (req, res) => {
 
 app.post('/api/qbittorrent/torrents/add', (req, res) => {
   const { urls } = req.body;
-  console.log('➕ POST /api/qbittorrent/torrents/add', { urls });
+  console.log('➕ POST /api/qbittorrent/torrents/add (with sequential download)', { urls });
   
-  // Simulate adding a new torrent
+  // Simulate adding a new torrent with sequential download enabled
   const newTorrent = {
     hash: Math.random().toString(36).substring(7),
     name: "New.Torrent.Added.Via.Development.Server",
@@ -92,7 +92,8 @@ app.post('/api/qbittorrent/torrents/add', (req, res) => {
     dlspeed: 0,
     upspeed: 0,
     eta: 8640000,
-    state: "metaDL"
+    state: "metaDL",
+    sequentialDownload: true // Always enabled
   };
   
   devTorrents.push(newTorrent);
@@ -100,11 +101,11 @@ app.post('/api/qbittorrent/torrents/add', (req, res) => {
 });
 
 app.post('/api/qbittorrent/torrents/add-advanced', (req, res) => {
-  const { urls, sequentialDownload, enableEpisodePriority } = req.body;
-  console.log('➕ POST /api/qbittorrent/torrents/add-advanced', { 
+  const { urls, enableEpisodePriority } = req.body;
+  console.log('➕ POST /api/qbittorrent/torrents/add-advanced (with sequential download)', { 
     urls, 
-    sequentialDownload, 
-    enableEpisodePriority 
+    enableEpisodePriority,
+    sequentialDownload: true // Always enabled
   });
   
   const newTorrent = {
@@ -116,7 +117,8 @@ app.post('/api/qbittorrent/torrents/add-advanced', (req, res) => {
     upspeed: 0,
     eta: 8640000,
     state: "metaDL",
-    episodePriorityEnabled: enableEpisodePriority || false
+    episodePriorityEnabled: enableEpisodePriority || false,
+    sequentialDownload: true // Always enabled
   };
   
   devTorrents.push(newTorrent);
@@ -124,11 +126,11 @@ app.post('/api/qbittorrent/torrents/add-advanced', (req, res) => {
 });
 
 app.post('/api/qbittorrent/torrents/add-with-priority', (req, res) => {
-  const { urls, sequentialDownload, enableEpisodePriority } = req.body;
-  console.log('🎬 POST /api/qbittorrent/torrents/add-with-priority', { 
+  const { urls, enableEpisodePriority } = req.body;
+  console.log('🎬 POST /api/qbittorrent/torrents/add-with-priority (with sequential download)', { 
     urls, 
-    sequentialDownload, 
-    enableEpisodePriority 
+    enableEpisodePriority,
+    sequentialDownload: true // Always enabled
   });
   
   const newTorrent = {
@@ -140,7 +142,8 @@ app.post('/api/qbittorrent/torrents/add-with-priority', (req, res) => {
     upspeed: 0,
     eta: 8640000,
     state: "metaDL",
-    episodePriorityEnabled: enableEpisodePriority
+    episodePriorityEnabled: enableEpisodePriority,
+    sequentialDownload: true // Always enabled
   };
   
   devTorrents.push(newTorrent);

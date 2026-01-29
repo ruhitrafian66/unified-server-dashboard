@@ -194,12 +194,13 @@ router.post('/torrents/add', async (req, res) => {
     
     const headers = await getHeaders();
     
-    console.log('Adding torrent:', urls.substring(0, 50) + '...');
+    console.log('Adding torrent with sequential download:', urls.substring(0, 50) + '...');
     
     // Use URLSearchParams which properly handles encoding
     // This ensures & characters in the magnet URL are treated as part of the value
     const params = new URLSearchParams();
     params.set('urls', urls);
+    params.set('sequentialDownload', 'true'); // Always enable sequential download
     
     const response = await axios.post(`${serverUrl}/api/v2/torrents/add`,
       params,
@@ -239,7 +240,7 @@ router.post('/torrents/add-advanced', async (req, res) => {
     const serverUrl = getServerUrl();
     console.log('Server URL:', serverUrl);
     
-    const { urls, savepath, sequentialDownload, enableEpisodePriority } = req.body;
+    const { urls, savepath, enableEpisodePriority } = req.body;
     
     // Validate that we have a URL
     if (!urls || urls.trim() === '') {
@@ -256,13 +257,12 @@ router.post('/torrents/add-advanced', async (req, res) => {
       bodyComponents.push(`savepath=${encodeURIComponent(savepath)}`);
     }
     
-    if (sequentialDownload) {
-      bodyComponents.push('sequentialDownload=true');
-    }
+    // Always enable sequential download for all torrents
+    bodyComponents.push('sequentialDownload=true');
     
     const body = bodyComponents.join('&');
     
-    console.log('Adding torrent with body:', body.substring(0, 100) + '...');
+    console.log('Adding torrent with sequential download enabled:', body.substring(0, 100) + '...');
     
     const response = await axios.post(`${serverUrl}/api/v2/torrents/add`,
       body,
