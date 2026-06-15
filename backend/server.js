@@ -7,7 +7,6 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 import qbittorrentRoutes from './routes/qbittorrent.js';
-import wireguardRoutes from './routes/wireguard.js';
 import omvRoutes from './routes/omv.js';
 import dockerRoutes from './routes/docker.js';
 import showsRoutes from './routes/shows.js';
@@ -29,7 +28,6 @@ app.use(express.json());
 
 // Routes
 app.use('/api/qbittorrent', qbittorrentRoutes);
-app.use('/api/wireguard', wireguardRoutes);
 app.use('/api/omv', omvRoutes);
 app.use('/api/docker', dockerRoutes);
 app.use('/api/shows', showsRoutes);

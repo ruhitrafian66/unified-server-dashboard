@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import MyDownloads from './pages/MyDownloads';
 import AddTorrent from './pages/AddTorrent';
-import WireGuard from './pages/WireGuard';
 import TVShows from './pages/TVShows';
 
 import Toast from './components/Toast';
@@ -55,10 +54,6 @@ function App() {
                 <span>🔍</span>
                 <span className="nav-text">Manual</span>
               </NavLink>
-              <NavLink to="/vpn" className={({ isActive }) => isActive ? 'active' : ''}>
-                <span>🔒</span>
-                <span className="nav-text">VPN</span>
-              </NavLink>
             </div>
           </nav>
           
@@ -68,7 +63,6 @@ function App() {
               <Route path="/downloads" element={<MyDownloads />} />
               <Route path="/add-torrent" element={<AddTorrent />} />
               <Route path="/shows" element={<TVShows />} />
-              <Route path="/vpn" element={<WireGuard />} />
             </Routes>
           </main>
 
