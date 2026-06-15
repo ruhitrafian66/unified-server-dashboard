@@ -50,3 +50,10 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
+
+# VPN configs - never commit private keys or VPN configurations
+*.ovpn
+*.conf
+wg*.conf
+wireguard*.conf
+openvpn*.conf
