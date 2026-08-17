@@ -1,47 +1,40 @@
+# Dependencies
 node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build output
 dist/
 build/
+
 # Environment variables (contains secrets)
 .env
 .env.local
-.env.production
-.env.development
-backend/.env
-frontend/.env
+.env.*.local
+.env.docker
+
+# OS
 .DS_Store
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.vscode/
-.idea/
-
-# Build artifacts
-*.tar.gz
-*.tgz
-*.zip
-
-# macOS
 ._*
 .AppleDouble
 .LSOverride
 
-# Deployment specific
-frontend-dist/
-DEPLOYED.md
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # IDE
+.vscode/
+.idea/
 *.swp
 *.swo
 *~
 .project
 .settings/
 .classpath
-
-# Package manager
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
 
 # Testing
 coverage/
@@ -51,9 +44,9 @@ coverage/
 *.tmp
 *.temp
 
-# VPN configs - never commit private keys or VPN configurations
-*.ovpn
+# Sensitive configs (VPN, deployment)
 *.conf
-wg*.conf
-wireguard*.conf
-openvpn*.conf
+*.ovpn
+scripts/
+DEPLOYED.md
+server-dashboard.service

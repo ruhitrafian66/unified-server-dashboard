@@ -183,7 +183,10 @@ function AddTorrent() {
   };
 
   const getSortedResults = () => {
-    const sorted = [...searchResults];
+    const filtered = searchResults.filter(
+      r => r.fileUrl && (r.fileUrl.startsWith('magnet:') || r.fileUrl.endsWith('.torrent'))
+    );
+    const sorted = [...filtered];
     if (sortBy === 'seeders') {
       sorted.sort((a, b) => b.nbSeeders - a.nbSeeders);
     } else if (sortBy === 'size') {
@@ -268,7 +271,7 @@ function AddTorrent() {
       {searchResults.length > 0 && (
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2>📋 Results ({searchResults.length})</h2>
+            <h2>📋 Results ({getSortedResults().length})</h2>
           </div>
           
           {/* Sort Options */}
@@ -296,7 +299,6 @@ function AddTorrent() {
           {/* Results List */}
           <div className="mobile-grid">
             {getSortedResults().map((result, index) => {
-              const hasValidUrl = result.fileUrl && (result.fileUrl.startsWith('magnet:') || result.fileUrl.endsWith('.torrent'));
               const quality = result.nbSeeders > 50 ? 'Excellent' : result.nbSeeders > 10 ? 'Good' : 'Fair';
               const qualityColor = result.nbSeeders > 50 ? '#4caf50' : result.nbSeeders > 10 ? '#2196f3' : '#ff9800';
               
@@ -305,12 +307,11 @@ function AddTorrent() {
                   key={index}
                   className="mobile-card"
                   style={{
-                    cursor: hasValidUrl ? 'pointer' : 'not-allowed',
-                    opacity: hasValidUrl ? 1 : 0.5,
+                    cursor: 'pointer',
                     border: selectedTorrent === result ? '1px solid #667eea' : '1px solid #2a2a3e',
                     background: selectedTorrent === result ? 'rgba(102, 126, 234, 0.1)' : 'rgba(255,255,255,0.02)'
                   }}
-                  onClick={() => hasValidUrl && selectSearchResult(result)}
+                  onClick={() => selectSearchResult(result)}
                 >
                   <div className="mobile-list-title text-wrap" style={{ marginBottom: '0.75rem' }}>
                     {result.fileName}
@@ -328,12 +329,6 @@ function AddTorrent() {
                       </div>
                     </div>
                   </div>
-                  
-                  {!hasValidUrl && (
-                    <div style={{ color: '#f44336', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
-                      ✗ No download link available
-                    </div>
-                  )}
                   
                   {selectedTorrent === result && (
                     <div style={{ 

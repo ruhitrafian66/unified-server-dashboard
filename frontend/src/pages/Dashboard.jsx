@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToast } from '../App';
@@ -6,6 +6,7 @@ import LoadingSkeleton from '../components/LoadingSkeleton';
 import ConfirmModal from '../components/ConfirmModal';
 import QueuePopup from '../components/QueuePopup';
 import SearchLogsPopup from '../components/SearchLogsPopup';
+import CpuChart from '../components/CpuChart';
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -29,13 +30,41 @@ function Dashboard() {
   const [showAutoStopSettings, setShowAutoStopSettings] = useState(false);
   const [autoStopStats, setAutoStopStats] = useState(null);
 
+  // CPU history — fetched on demand, not on the main 10s polling loop
+  const CPU_RANGES = [
+    { label: '6h',  hours: 6   },
+    { label: '12h', hours: 12  },
+    { label: '24h', hours: 24  },
+    { label: '2d',  hours: 48  },
+    { label: '4d',  hours: 96  },
+  ];
+  const [cpuRange, setCpuRange]     = useState(CPU_RANGES[0]);
+  const [cpuSamples, setCpuSamples] = useState([]);
+  const [cpuLoading, setCpuLoading] = useState(false);
+
   const { showToast } = useToast();
+
+  const fetchCpuHistory = useCallback(async (hours) => {
+    setCpuLoading(true);
+    try {
+      const res = await axios.get(`/api/omv/cpu-history?hours=${hours}`);
+      setCpuSamples(res.data.samples || []);
+    } catch (e) {
+      console.error('CPU history fetch failed:', e.message);
+    } finally {
+      setCpuLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchData();
     fetchAutoStopConfig();
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
+    fetchCpuHistory(cpuRange.hours);
+    const dataInterval = setInterval(fetchData, 10000);
+    // Refresh chart every 60s — matches the server sample cadence
+    const cpuInterval  = setInterval(() => fetchCpuHistory(cpuRange.hours), 60_000);
+    return () => { clearInterval(dataInterval); clearInterval(cpuInterval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
@@ -274,6 +303,44 @@ function Dashboard() {
             <p className="empty-state-message">Unable to fetch system information</p>
           </div>
         )}
+      </div>
+
+      {/* CPU Usage History */}
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+          <h2 style={{ margin: 0 }}>📈 CPU History</h2>
+          {cpuSamples.length > 0 && (
+            <span style={{ color: '#666680', fontSize: '0.75rem' }}>
+              {cpuSamples.length} samples
+            </span>
+          )}
+        </div>
+
+        {/* Range tabs */}
+        <div className="mobile-tabs mb-2">
+          {CPU_RANGES.map((r) => (
+            <button
+              key={r.label}
+              className={`mobile-tab ${cpuRange.hours === r.hours ? 'active' : ''}`}
+              onClick={() => {
+                setCpuRange(r);
+                fetchCpuHistory(r.hours);
+              }}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Canvas chart */}
+        <CpuChart samples={cpuSamples} hours={cpuRange.hours} loading={cpuLoading} />
+
+        {/* Legend */}
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.7rem', color: '#666680' }}>
+          <span><span style={{ color: '#4caf50' }}>●</span> Normal (&lt;60%)</span>
+          <span><span style={{ color: '#ff9800' }}>●</span> High (60–80%)</span>
+          <span><span style={{ color: '#f44336' }}>●</span> Critical (&gt;80%)</span>
+        </div>
       </div>
 
       {/* External Services */}

@@ -1,0 +1,92 @@
+version: "3.8"
+
+# IMPORTANT: Create .env.docker from .env.docker.example before running docker-compose
+# This file uses environment variables for sensitive data (WireGuard keys)
+
+services:
+
+  # ─── VPN tunnel ───────────────────────────────────────────────────────────
+  # All traffic for qBittorrent passes through this container's network namespace.
+  # Ports for qBittorrent WebUI (8080) and P2P (6881) are declared here
+  # because qBittorrent shares this namespace via network_mode: service:gluetun.
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=custom
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
+      - WIREGUARD_PUBLIC_KEY=${WIREGUARD_PUBLIC_KEY}
+      - WIREGUARD_ADDRESSES=10.2.0.2/32
+      - WIREGUARD_ENDPOINT_IP=${WIREGUARD_ENDPOINT_IP}
+      - WIREGUARD_ENDPOINT_PORT=51820
+      - WIREGUARD_PERSISTENT_KEEPALIVE_INTERVAL=25s
+      - WIREGUARD_ALLOWED_IPS=0.0.0.0/0
+      # Disable Gluetun's built-in DNS server entirely.
+      # The container will use the host resolver (8.8.8.8 via the bridge gateway).
+      # qBittorrent doesn't need DNS inside the VPN namespace — it uses IPs from trackers.
+      - DNS_SERVER=off
+      - DNS_UPSTREAM_RESOLVER_TYPE=plain
+      - DNS_UPSTREAM_PLAIN_ADDRESSES=8.8.8.8:53
+      - HEALTH_TARGET_ADDRESSES=1.1.1.1:443
+      - HEALTH_SMALL_CHECK_TYPE=icmp
+      # Do NOT restart the VPN on healthcheck failure — the restart loop was
+      # tearing down the namespace before qBittorrent could attach.
+      - HEALTH_RESTART_VPN=off
+      - TZ=Europe/Oslo
+      # Allow inbound on the P2P port so peers can reach us.
+      - FIREWALL_VPN_INPUT_PORTS=6881
+      # Allow the dashboard / local subnet to reach qBittorrent WebUI.
+      - FIREWALL_OUTBOUND_SUBNETS=192.168.0.0/24
+      - HTTPPROXY=off
+      - SHADOWSOCKS=off
+      - LOG_LEVEL=info
+    ports:
+      - "8080:8080"       # qBittorrent WebUI (served from Gluetun's namespace)
+      - "6881:6881/tcp"   # BitTorrent TCP
+      - "6881:6881/udp"   # BitTorrent UDP / DHT
+    volumes:
+      - /mnt/storage/config/gluetun:/gluetun
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    restart: unless-stopped
+
+  # ─── Torrent client ───────────────────────────────────────────────────────
+  # Shares Gluetun's network namespace — has NO network of its own.
+  # All traffic (WebUI, DHT, peer connections) flows through tun0.
+  qbittorrent:
+    image: linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: "service:gluetun"
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Oslo
+      - WEBUI_PORT=8080
+    volumes:
+      - /mnt/storage/config/qbittorrent:/config
+      - /mnt/storage/Server:/downloads
+    restart: unless-stopped
+
+  # ─── Media server ─────────────────────────────────────────────────────────
+  # Host network — Plex needs mDNS/DLNA discovery on the LAN.
+  plex:
+    image: linuxserver/plex:latest
+    container_name: plex
+    network_mode: host
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - VERSION=docker
+      - TZ=Europe/Oslo
+    volumes:
+      - /mnt/storage/config/plex:/config
+      - /mnt/storage/Server:/media
+    restart: unless-stopped

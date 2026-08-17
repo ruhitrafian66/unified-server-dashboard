@@ -201,6 +201,7 @@ router.post('/torrents/add', async (req, res) => {
     const params = new URLSearchParams();
     params.set('urls', urls);
     params.set('sequentialDownload', 'true'); // Always enable sequential download
+    params.set('firstLastPiecePrio', 'true'); // Always prioritize first and last piece
     
     const response = await axios.post(`${serverUrl}/api/v2/torrents/add`,
       params,
@@ -259,6 +260,7 @@ router.post('/torrents/add-advanced', async (req, res) => {
     
     // Always enable sequential download for all torrents
     bodyComponents.push('sequentialDownload=true');
+    bodyComponents.push('firstLastPiecePrio=true'); // Always prioritize first and last piece
     
     const body = bodyComponents.join('&');
     
