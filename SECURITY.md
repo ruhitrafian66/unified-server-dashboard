@@ -12,12 +12,25 @@ Copy `backend/.env.example` to `backend/.env` and configure the following:
 # qBittorrent Configuration
 QBITTORRENT_URL=http://localhost:8080
 QBITTORRENT_USERNAME=admin
-QBITTORRENT_PASSWORD=your-actual-password-here
+QBITTORRENT_PASSWORD=your-qbittorrent-password-here
 
 # TMDB API Configuration
 # Get your API key from: https://www.themoviedb.org/settings/api
-TMDB_API_KEY=your-actual-tmdb-api-key-here
+TMDB_API_KEY=your-tmdb-api-key-here
 ```
+
+### Docker Compose Environment Variables
+
+If using Docker Compose, also create `.env.docker` from `.env.docker.example`:
+
+```bash
+# WireGuard Configuration (from your VPN provider)
+WIREGUARD_PRIVATE_KEY=your-wireguard-private-key-here
+WIREGUARD_PUBLIC_KEY=your-wireguard-public-key-here
+WIREGUARD_ENDPOINT_IP=your-vpn-endpoint-ip-here
+```
+
+**IMPORTANT**: These keys are sensitive VPN credentials. Never commit `.env.docker` to version control.
 
 ### Setting Up Credentials
 
