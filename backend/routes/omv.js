@@ -151,4 +151,29 @@ router.get('/disks', async (req, res) => {
   }
 });
 
+// Get SSD storage info (at /mnt/storage)
+router.get('/storage', async (req, res) => {
+  try {
+    const { stdout } = await execAsync("df -h /mnt/storage");
+    const lines = stdout.trim().split('\n');
+    if (lines.length < 2) {
+      return res.status(404).json({ error: 'SSD mount point not found' });
+    }
+    
+    const parts = lines[1].split(/\s+/);
+    const storage = {
+      device: parts[0],
+      size: parts[1],
+      used: parts[2],
+      available: parts[3],
+      usePercent: parts[4],
+      mountPoint: parts[5]
+    };
+    
+    res.json(storage);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

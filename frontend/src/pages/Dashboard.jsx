@@ -13,6 +13,7 @@ function Dashboard() {
   const [systemInfo, setSystemInfo] = useState(null);
   const [services, setServices] = useState([]);
   const [disks, setDisks] = useState([]);
+  const [ssdStorage, setSsdStorage] = useState(null);
   const [containers, setContainers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [servicesCollapsed, setServicesCollapsed] = useState(true);
@@ -69,16 +70,18 @@ function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const [systemRes, servicesRes, disksRes, containersRes] = await Promise.all([
+      const [systemRes, servicesRes, disksRes, containersRes, storageRes] = await Promise.all([
         axios.get('/api/omv/system'),
         axios.get('/api/omv/services'),
         axios.get('/api/omv/disks'),
-        axios.get('/api/docker/containers')
+        axios.get('/api/docker/containers'),
+        axios.get('/api/omv/storage')
       ]);
       setSystemInfo(systemRes.data);
       setServices(servicesRes.data.services || []);
       setDisks(disksRes.data.disks || []);
       setContainers(containersRes.data.containers || []);
+      setSsdStorage(storageRes.data);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -264,28 +267,33 @@ function Dashboard() {
               </div>
             </div>
             
-            {/* Disk & Uptime */}
+            {/* Storage & Uptime */}
             <div className="mobile-grid-2">
               <div className="mobile-card text-center">
                 <div className="stat-icon" style={{ margin: '0 auto 0.5rem' }}>💾</div>
-                <div className="stat-label">Storage Usage</div>
+                <div className="stat-label">SSD Storage</div>
                 <div className="stat-value text-small">
-                  {disks.length > 1 ? disks[1].usePercent : (disks.length > 0 ? disks[0].usePercent : 'N/A')}
+                  {ssdStorage ? ssdStorage.usePercent : 'N/A'}
                 </div>
-                {disks.length > 1 && (
-                  <div className="progress-bar" style={{ marginTop: '0.5rem' }}>
-                    <div 
-                      className="progress-fill"
-                      style={{ 
-                        width: disks[1].usePercent,
-                        background: parseInt(disks[1].usePercent) > 80 
-                          ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
-                          : parseInt(disks[1].usePercent) > 60
-                          ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
-                          : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-                      }} 
-                    />
-                  </div>
+                {ssdStorage && (
+                  <>
+                    <div className="progress-bar" style={{ marginTop: '0.5rem' }}>
+                      <div 
+                        className="progress-fill"
+                        style={{ 
+                          width: ssdStorage.usePercent,
+                          background: parseInt(ssdStorage.usePercent) > 80 
+                            ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
+                            : parseInt(ssdStorage.usePercent) > 60
+                            ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
+                            : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
+                        }} 
+                      />
+                    </div>
+                    <div className="text-small" style={{ marginTop: '0.5rem', color: '#b0b0c0' }}>
+                      {ssdStorage.available} free
+                    </div>
+                  </>
                 )}
               </div>
               
@@ -457,52 +465,96 @@ function Dashboard() {
         )}
       </div>
 
-      {/* Disk Usage */}
+      {/* Storage Section */}
       <div className="card">
         <div 
           className="collapsible-header"
           onClick={() => setDisksCollapsed(!disksCollapsed)}
         >
-          <h2>💾 Storage ({disks.length})</h2>
+          <h2>💾 Storage</h2>
           <span className={`collapsible-icon ${disksCollapsed ? 'collapsed' : ''}`}>▼</span>
         </div>
         {!disksCollapsed && (
           <div className="slide-up">
-            {disks.length > 0 ? disks.map((disk) => {
-              const usePercent = parseInt(disk.usePercent);
-              return (
-                <div key={disk.device} className="mobile-card mb-1">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <div>
-                      <div className="mobile-list-title">💾 {disk.device}</div>
-                      <div className="mobile-list-subtitle">{disk.mountPoint}</div>
-                    </div>
-                    <div className="text-small text-center">
-                      <div>{disk.usePercent}</div>
-                    </div>
+            {ssdStorage && (
+              <div className="mobile-card mb-1" style={{ borderColor: '#667eea', borderWidth: '2px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <div>
+                    <div className="mobile-list-title">📦 SSD Storage</div>
+                    <div className="mobile-list-subtitle">{ssdStorage.device} • {ssdStorage.mountPoint}</div>
                   </div>
-                  <div className="text-small mb-1" style={{ color: '#b0b0c0' }}>
-                    {disk.used} / {disk.size} ({disk.available} free)
-                  </div>
-                  <div className="progress-bar">
-                    <div 
-                      className="progress-fill"
-                      style={{ 
-                        width: disk.usePercent,
-                        background: usePercent > 80 
-                          ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
-                          : usePercent > 60
-                          ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
-                          : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-                      }} 
-                    />
+                  <div className="text-small text-center">
+                    <div style={{ color: '#667eea', fontWeight: '600' }}>{ssdStorage.usePercent}</div>
                   </div>
                 </div>
-              );
-            }) : (
+                <div className="text-small mb-1" style={{ color: '#b0b0c0' }}>
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <strong>Used:</strong> {ssdStorage.used} / {ssdStorage.size}
+                  </div>
+                  <div style={{ color: '#4caf50', fontWeight: '600' }}>
+                    <strong>Available:</strong> {ssdStorage.available}
+                  </div>
+                </div>
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill"
+                    style={{ 
+                      width: ssdStorage.usePercent,
+                      background: parseInt(ssdStorage.usePercent) > 80 
+                        ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
+                        : parseInt(ssdStorage.usePercent) > 60
+                        ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
+                        : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
+                    }} 
+                  />
+                </div>
+              </div>
+            )}
+            
+            {disks.length > 0 && (
+              <>
+                <div style={{ fontSize: '0.75rem', color: '#666680', marginTop: '1rem', marginBottom: '0.5rem' }}>
+                  <strong>Other Disks:</strong>
+                </div>
+                {disks.map((disk) => {
+                  const usePercent = parseInt(disk.usePercent);
+                  return (
+                    <div key={disk.device} className="mobile-card mb-1">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <div>
+                          <div className="mobile-list-title">💾 {disk.device}</div>
+                          <div className="mobile-list-subtitle">{disk.mountPoint}</div>
+                        </div>
+                        <div className="text-small text-center">
+                          <div>{disk.usePercent}</div>
+                        </div>
+                      </div>
+                      <div className="text-small mb-1" style={{ color: '#b0b0c0' }}>
+                        {disk.used} / {disk.size} ({disk.available} free)
+                      </div>
+                      <div className="progress-bar">
+                        <div 
+                          className="progress-fill"
+                          style={{ 
+                            width: disk.usePercent,
+                            background: usePercent > 80 
+                              ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
+                              : usePercent > 60
+                              ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
+                              : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
+                          }} 
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+            
+            {!ssdStorage && disks.length === 0 && (
               <div className="empty-state">
                 <div className="empty-state-icon">💾</div>
-                <p className="empty-state-message">No disk data available</p>
+                <p className="empty-state-message">No storage data available</p>
               </div>
             )}
           </div>
