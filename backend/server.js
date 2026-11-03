@@ -4,7 +4,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
-// Load environment variables
 dotenv.config();
 import qbittorrentRoutes from './routes/qbittorrent.js';
 import omvRoutes from './routes/omv.js';
@@ -17,7 +16,6 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// CORS configuration - allow local network access
 const corsOptions = {
   origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
   credentials: true
@@ -26,26 +24,24 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Routes
 app.use('/api/qbittorrent', qbittorrentRoutes);
 app.use('/api/omv', omvRoutes);
 app.use('/api/docker', dockerRoutes);
 app.use('/api/shows', showsRoutes);
 
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     platform: process.platform,
     nodeVersion: process.version
   });
 });
 
-// Serve static frontend files in production
 if (process.env.NODE_ENV === 'production') {
   const frontendPath = path.join(__dirname, '../frontend/dist');
   app.use(express.static(frontendPath));
-  
+
   app.get('*', (req, res) => {
     if (!req.path.startsWith('/api')) {
       res.sendFile(path.join(frontendPath, 'index.html'));

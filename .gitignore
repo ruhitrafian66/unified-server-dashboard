@@ -50,3 +50,10 @@ coverage/
 scripts/
 DEPLOYED.md
 server-dashboard.service
+
+# Telegram agent (Python) — secrets & virtualenv
+telegram-agent/.env
+telegram-agent/.venv/
+**/__pycache__/
+*.pyc
+*.pyo

@@ -1,7 +1,7 @@
 {
   "name": "Unified Server Dashboard",
   "short_name": "Server Dashboard",
-  "description": "Manage qBittorrent, WireGuard, and OMV servers",
+  "description": "Manage qBittorrent downloads, Plex media, and server resources",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f0f0f",

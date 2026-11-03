@@ -3,80 +3,40 @@ import fs from 'fs/promises';
 import axios from 'axios';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { getServerUrl as getQBittorrentServerUrl, makeRequest as makeQBittorrentRequest } from './qbAuth.js';
 
 const router = express.Router();
-const SHOWS_DB_PATH = '/opt/server-dashboard/data/shows.json';
+const DATA_DIR = process.env.DATA_DIR || '/opt/server-dashboard/data';
+const SHOWS_DB_PATH = DATA_DIR + '/shows.json';
+const CONFIG_PATH = DATA_DIR + '/config.json';
 const execAsync = promisify(exec);
 
-// TMDB API configuration - loaded dynamically to ensure dotenv is initialized
-const getTMDBApiKey = () => process.env.TMDB_API_KEY;
+// TMDB API configuration — persisted to CONFIG_PATH, falls back to env var
+let _tmdbApiKeyOverride = null;
 
-// qBittorrent API helpers (to avoid self-referencing HTTP calls)
-const getQBittorrentServerUrl = () => {
-  return process.env.QBITTORRENT_URL || 'http://localhost:8080';
-};
-
-let qbSessionCookie = null;
-let qbSessionExpiry = null;
-
-const authenticateQBittorrent = async (forceNew = false) => {
-  if (qbSessionCookie && qbSessionExpiry && Date.now() < qbSessionExpiry && !forceNew) {
-    return qbSessionCookie;
-  }
-  
+const loadConfig = async () => {
   try {
-    const serverUrl = getQBittorrentServerUrl();
-    const username = process.env.QBITTORRENT_USERNAME || 'admin';
-    const password = process.env.QBITTORRENT_PASSWORD;
-    
-    const response = await axios.post(
-      `${serverUrl}/api/v2/auth/login`,
-      `username=${username}&password=${password}`,
-      {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        timeout: 5000,
-        maxRedirects: 0,
-        validateStatus: (status) => status >= 200 && status < 400
-      }
-    );
-    
-    if (response.headers['set-cookie']) {
-      qbSessionCookie = response.headers['set-cookie'][0];
-      qbSessionExpiry = Date.now() + (10 * 60 * 1000); // 10 minutes
-      return qbSessionCookie;
-    }
-  } catch (error) {
-    console.error('qBittorrent authentication error:', error.message);
+    const raw = await fs.readFile(CONFIG_PATH, 'utf8');
+    const cfg = JSON.parse(raw);
+    if (cfg.tmdbApiKey) _tmdbApiKeyOverride = cfg.tmdbApiKey;
+  } catch {
+    // File doesn't exist yet — that's fine
   }
-  
-  return null;
 };
 
-const makeQBittorrentRequest = async (method, url, data = null, retryCount = 0) => {
-  const cookie = await authenticateQBittorrent();
-  const config = {
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      ...(cookie && { 'Cookie': cookie })
-    },
-    timeout: 10000
-  };
-  
+const saveConfig = async (cfg) => {
   try {
-    if (method === 'GET') {
-      return await axios.get(url, config);
-    } else {
-      return await axios.post(url, data, config);
-    }
-  } catch (error) {
-    if ([401, 403, 404].includes(error.response?.status) && retryCount === 0) {
-      qbSessionCookie = null;
-      qbSessionExpiry = null;
-      return makeQBittorrentRequest(method, url, data, 1);
-    }
-    throw error;
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(CONFIG_PATH, JSON.stringify(cfg, null, 2));
+  } catch (e) {
+    console.error('Failed to save config:', e.message);
   }
 };
+
+// Load config at startup
+loadConfig();
+
+const getTMDBApiKey = () => _tmdbApiKeyOverride || process.env.TMDB_API_KEY;
 
 // Scheduled episode checks (targeted by air time)
 let scheduledChecks = new Map(); // Map of showId -> timeout
@@ -521,7 +481,7 @@ setTimeout(() => {
 // Ensure data directory exists
 const ensureDataDir = async () => {
   try {
-    await fs.mkdir('/opt/server-dashboard/data', { recursive: true });
+    await fs.mkdir(DATA_DIR, { recursive: true });
   } catch (error) {
     // Directory already exists
   }
@@ -690,15 +650,22 @@ const shouldTryNextSeason = async (tmdbId, currentSeason, currentEpisode) => {
 // Check available disk space
 const checkDiskSpace = async () => {
   try {
-    const { stdout } = await execAsync('df -h /media | tail -1');
+    const mountPath = process.env.DOWNLOAD_PATH || '/mnt/storage';
+    const { stdout } = await execAsync(`df -h "${mountPath}" | tail -1`);
     const parts = stdout.trim().split(/\s+/);
     const available = parts[3];
+    // Handle both GB (e.g. "22G") and TB (e.g. "1.2T") values
+    if (available.endsWith('T')) {
+      return parseFloat(available) * 1024 > 5; // TB → always > 5GB
+    }
+    if (available.endsWith('M')) {
+      return parseFloat(available) / 1024 > 5; // MB → rarely > 5GB
+    }
     const availableGB = parseFloat(available.replace('G', ''));
-    
-    return availableGB > 5; // Require at least 5GB free space
+    return !isNaN(availableGB) && availableGB > 5;
   } catch (error) {
     console.error('Error checking disk space:', error);
-    return false;
+    return true; // Fail open — don't block downloads on check error
   }
 };
 
@@ -1442,8 +1409,9 @@ router.post('/config/tmdb', async (req, res) => {
     });
 
     if (testResponse.status === 200) {
-      // Update the environment variable
-      process.env.TMDB_API_KEY = apiKey;
+      // Persist the key to disk (survives restarts) and update in-memory override
+      _tmdbApiKeyOverride = apiKey;
+      await saveConfig({ tmdbApiKey: apiKey });
       res.json({ success: true, message: 'TMDB API key configured successfully' });
     } else {
       res.status(400).json({ error: 'Invalid API key' });

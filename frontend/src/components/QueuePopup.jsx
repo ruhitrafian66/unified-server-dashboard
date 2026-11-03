@@ -3,6 +3,7 @@ import axios from 'axios';
 
 function QueuePopup({ isOpen, onClose }) {
   const [queueItems, setQueueItems] = useState([]);
+  const [queueMeta, setQueueMeta] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,8 +16,17 @@ function QueuePopup({ isOpen, onClose }) {
 
   const fetchQueueItems = async () => {
     try {
-      const response = await axios.get('/api/queue');
-      setQueueItems(response.data.items || []);
+      const response = await axios.get('/api/shows/queue/status');
+      // The endpoint returns { queuedItems: [...], queueLength, processing, nextSearchIn }
+      const data = response.data;
+      const items = (data.queuedItems || []).map((item, i) => ({
+        id: `${item.showName}-${item.season}-${item.episode}-${i}`,
+        title: `${item.showName} S${String(item.season).padStart(2,'0')}E${String(item.episode).padStart(2,'0')}`,
+        description: item.searchType === 'season' ? 'Season pack search' : 'Episode search',
+        status: data.processing && i === 0 ? 'processing' : 'pending',
+      }));
+      setQueueItems(items);
+      setQueueMeta({ processing: data.processing, queueLength: data.queueLength, nextSearchIn: data.nextSearchIn });
       setLoading(false);
     } catch (error) {
       console.error('Error fetching queue:', error);
@@ -55,6 +65,12 @@ function QueuePopup({ isOpen, onClose }) {
         </div>
         
         <div className="modal-body">
+          {queueMeta && (
+            <div style={{ color: '#b0b0c0', fontSize: '0.8rem', marginBottom: '0.75rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <span>{queueMeta.processing ? '🔄 Processing' : '⏸️ Idle'}</span>
+              {queueMeta.nextSearchIn > 0 && <span>Next search in {Math.round(queueMeta.nextSearchIn / 1000)}s</span>}
+            </div>
+          )}
           {loading ? (
             <div className="text-center" style={{ padding: '2rem', color: '#b0b0c0' }}>
               Loading queue...

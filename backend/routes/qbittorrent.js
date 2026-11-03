@@ -1,22 +1,33 @@
 import express from 'express';
 import axios from 'axios';
+import { getServerUrl, authenticate, makeRequest as makeAuthenticatedRequest } from './qbAuth.js';
+
+const getHeaders = async () => {
+  const cookie = await authenticate();
+  return {
+    'Content-Type': 'application/x-www-form-urlencoded',
+    ...(cookie && { Cookie: cookie }),
+  };
+};
 
 const router = express.Router();
 
 // In-memory search logs storage
 let searchLogs = [];
-const MAX_LOGS = 100; // Keep last 100 search logs
+const MAX_LOGS = 100;
 
 // Auto-stop seeding configuration
 let autoStopConfig = {
   enabled: false,
-  delayMinutes: 0, // 0 = immediate, >0 = delay after completion
-  ratioLimit: null, // Optional: stop after reaching ratio (e.g., 2.0)
-  seedTimeLimit: null // Optional: stop after seeding for X minutes
+  delayMinutes: 0,
+  ratioLimit: null,
+  seedTimeLimit: null
 };
 
-// Track torrents that have been processed for auto-stop
+// Track torrents that have been processed for auto-stop (stopped already)
 let processedTorrents = new Set();
+// Track completion timestamps for delayMinutes: hash -> Date.now() when first seen seeding
+const torrentCompletionTimes = new Map();
 
 // Helper function to add search log
 const addSearchLog = (pattern, plugins, category, status, error = null, searchId = null, resultCount = 0) => {
@@ -26,20 +37,14 @@ const addSearchLog = (pattern, plugins, category, status, error = null, searchId
     pattern,
     plugins: plugins || 'enabled',
     category: category || 'all',
-    status, // 'started', 'completed', 'failed'
+    status,
     searchId,
     resultCount,
     error,
     duration: null
   };
-  
   searchLogs.unshift(logEntry);
-  
-  // Keep only the last MAX_LOGS entries
-  if (searchLogs.length > MAX_LOGS) {
-    searchLogs = searchLogs.slice(0, MAX_LOGS);
-  }
-  
+  if (searchLogs.length > MAX_LOGS) searchLogs = searchLogs.slice(0, MAX_LOGS);
   return logEntry;
 };
 
@@ -47,12 +52,7 @@ const addSearchLog = (pattern, plugins, category, status, error = null, searchId
 router.get('/search/logs', async (req, res) => {
   try {
     const { limit = 50 } = req.query;
-    const logs = searchLogs.slice(0, parseInt(limit));
-    res.json({ 
-      logs,
-      total: searchLogs.length,
-      limit: parseInt(limit)
-    });
+    res.json({ logs: searchLogs.slice(0, parseInt(limit)), total: searchLogs.length, limit: parseInt(limit) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -63,108 +63,11 @@ router.delete('/search/logs', async (req, res) => {
   try {
     const clearedCount = searchLogs.length;
     searchLogs = [];
-    res.json({ 
-      success: true, 
-      message: `Cleared ${clearedCount} log entries`,
-      clearedCount 
-    });
+    res.json({ success: true, message: `Cleared ${clearedCount} log entries`, clearedCount });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-
-// Get server URL from environment or use localhost (qBittorrent runs on same server)
-const getServerUrl = () => {
-  return process.env.QBITTORRENT_URL || 'http://localhost:8080';
-};
-
-// Session cookie storage with expiry tracking
-let sessionCookie = null;
-let sessionExpiry = null;
-
-// Authenticate with qBittorrent
-const authenticate = async (forceNew = false) => {
-  // Check if we have a valid session (not expired)
-  if (sessionCookie && sessionExpiry && Date.now() < sessionExpiry && !forceNew) {
-    return sessionCookie;
-  }
-  
-  try {
-    const serverUrl = getServerUrl();
-    const username = process.env.QBITTORRENT_USERNAME || 'admin';
-    const password = process.env.QBITTORRENT_PASSWORD;
-    
-    console.log('Authenticating with qBittorrent...');
-    
-    const response = await axios.post(
-      `${serverUrl}/api/v2/auth/login`,
-      `username=${username}&password=${password}`,
-      {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        timeout: 5000,
-        maxRedirects: 0,
-        validateStatus: (status) => status >= 200 && status < 400
-      }
-    );
-    
-    console.log('Auth response status:', response.status);
-    console.log('Auth response headers:', response.headers);
-    console.log('Auth response data:', response.data);
-    
-    if (response.headers['set-cookie']) {
-      sessionCookie = response.headers['set-cookie'][0];
-      // Set expiry to 10 minutes from now (qBittorrent default is 15 minutes)
-      sessionExpiry = Date.now() + (10 * 60 * 1000);
-      console.log('Got session cookie:', sessionCookie);
-      console.log('Session expires at:', new Date(sessionExpiry).toISOString());
-      return sessionCookie;
-    }
-    
-    console.log('No set-cookie header in response');
-  } catch (error) {
-    console.error('Authentication error:', error.message, error.response?.status);
-  }
-  
-  return null;
-};
-
-// Get headers with authentication
-const getHeaders = async () => {
-  const cookie = await authenticate();
-  return {
-    'Content-Type': 'application/x-www-form-urlencoded',
-    ...(cookie && { 'Cookie': cookie })
-  };
-};
-
-// Make authenticated request with automatic retry on auth failure
-const makeAuthenticatedRequest = async (method, url, data = null, retryCount = 0) => {
-  const cookie = await authenticate();
-  const config = {
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      ...(cookie && { 'Cookie': cookie })
-    },
-    timeout: 5000
-  };
-  
-  try {
-    if (method === 'GET') {
-      return await axios.get(url, config);
-    } else {
-      return await axios.post(url, data, config);
-    }
-  } catch (error) {
-    // If we get 401/403/404 and haven't retried yet, re-authenticate and try again
-    if ([401, 403, 404].includes(error.response?.status) && retryCount === 0) {
-      console.log('Auth may have expired, re-authenticating...');
-      sessionCookie = null;
-      sessionExpiry = null;
-      return makeAuthenticatedRequest(method, url, data, 1);
-    }
-    throw error;
-  }
-};
 
 // Get torrent list
 router.get('/torrents', async (req, res) => {
@@ -514,7 +417,14 @@ router.post('/auto-stop/process', async (req, res) => {
       const isSeeding = ['uploading', 'stalledUP', 'queuedUP'].includes(torrent.state);
       
       if (!isCompleted || !isSeeding) {
+        // Clean up completion time tracking if torrent is no longer seeding
+        if (!isSeeding) torrentCompletionTimes.delete(torrent.hash);
         continue;
+      }
+
+      // Record when we first saw this torrent seeding (for delayMinutes)
+      if (!torrentCompletionTimes.has(torrent.hash)) {
+        torrentCompletionTimes.set(torrent.hash, Date.now());
       }
       
       let shouldStop = false;
@@ -526,16 +436,25 @@ router.post('/auto-stop/process', async (req, res) => {
         reason = `Ratio limit reached (${torrent.ratio.toFixed(2)})`;
       }
       
-      // Check seed time limit (if available in torrent data)
+      // Check seed time limit
       if (autoStopConfig.seedTimeLimit && torrent.seeding_time >= (autoStopConfig.seedTimeLimit * 60)) {
         shouldStop = true;
         reason = `Seed time limit reached (${Math.floor(torrent.seeding_time / 60)}m)`;
       }
       
-      // If no specific limits, stop based on delay
-      if (!shouldStop && autoStopConfig.delayMinutes === 0) {
-        shouldStop = true;
-        reason = 'Immediate stop after completion';
+      // Check delay minutes — stop if enough time has passed since completion
+      if (!shouldStop) {
+        if (autoStopConfig.delayMinutes === 0) {
+          shouldStop = true;
+          reason = 'Immediate stop after completion';
+        } else {
+          const completedAt = torrentCompletionTimes.get(torrent.hash) || Date.now();
+          const elapsedMinutes = (Date.now() - completedAt) / 60000;
+          if (elapsedMinutes >= autoStopConfig.delayMinutes) {
+            shouldStop = true;
+            reason = `Delay elapsed (${autoStopConfig.delayMinutes}m after completion)`;
+          }
+        }
       }
       
       if (shouldStop) {
@@ -548,6 +467,7 @@ router.post('/auto-stop/process', async (req, res) => {
           );
           
           processedTorrents.add(torrent.hash);
+          torrentCompletionTimes.delete(torrent.hash);
           processedCount++;
           
           results.push({

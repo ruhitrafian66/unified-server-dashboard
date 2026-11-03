@@ -11,7 +11,7 @@ export default defineConfig({
       manifest: {
         name: 'Unified Server Dashboard',
         short_name: 'Server Dashboard',
-        description: 'Manage qBittorrent, WireGuard, and OMV servers',
+        description: 'Manage qBittorrent downloads, Plex media, and server resources',
         theme_color: '#1a1a2e',
         background_color: '#0f0f0f',
         display: 'standalone',

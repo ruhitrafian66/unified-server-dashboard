@@ -1,6 +1,6 @@
 # Unified Server Dashboard
 
-A Progressive Web App (PWA) dashboard for managing media server infrastructure: qBittorrent torrents, Plex media library, system resources, and VPN status — all in one unified interface.
+A Progressive Web App (PWA) dashboard for managing media server infrastructure: qBittorrent torrents, Plex media library, TV-show automation, system resources, and Docker status — all in one unified interface.
 
 ## Features
 
@@ -27,15 +27,11 @@ A Progressive Web App (PWA) dashboard for managing media server infrastructure: 
 git clone <repo-url>
 cd "Unified Server Dashboard"
 
-# Frontend build
-cd frontend
+# Install all workspace dependencies (npm workspaces handles frontend + backend)
 npm install
-npm run build
 
-# Backend setup
-cd ../backend
-npm install
-npm install dotenv  # Add dotenv if not in package.json
+# Build the frontend
+npm run build
 ```
 
 ### Deployment
@@ -60,6 +56,10 @@ QBITTORRENT_USERNAME=admin
 QBITTORRENT_PASSWORD=<password>
 DOCKER_SOCKET_PATH=/var/run/docker.sock
 ALLOWED_ORIGINS=*
+# Where TV-automation data (shows.json, config.json) is written
+DATA_DIR=/opt/dashboard/data
+# Mount used for the disk-space check before downloads (omit to default to /mnt/storage)
+DOWNLOAD_PATH=/mnt/storage
 EOF
 
 # Start as systemd service

@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToast } from '../App';
+import { useSettings } from '../contexts/SettingsContext';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import ConfirmModal from '../components/ConfirmModal';
 import QueuePopup from '../components/QueuePopup';
@@ -10,12 +11,17 @@ import CpuChart from '../components/CpuChart';
 
 function Dashboard() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const { serviceHost } = useSettings();
   const [systemInfo, setSystemInfo] = useState(null);
   const [services, setServices] = useState([]);
   const [disks, setDisks] = useState([]);
   const [ssdStorage, setSsdStorage] = useState(null);
   const [containers, setContainers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [serverOnline, setServerOnline] = useState(null);
   const [servicesCollapsed, setServicesCollapsed] = useState(true);
   const [disksCollapsed, setDisksCollapsed] = useState(true);
   const [containersCollapsed, setContainersCollapsed] = useState(true);
@@ -43,8 +49,6 @@ function Dashboard() {
   const [cpuSamples, setCpuSamples] = useState([]);
   const [cpuLoading, setCpuLoading] = useState(false);
 
-  const { showToast } = useToast();
-
   const fetchCpuHistory = useCallback(async (hours) => {
     setCpuLoading(true);
     try {
@@ -70,21 +74,27 @@ function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const [systemRes, servicesRes, disksRes, containersRes, storageRes] = await Promise.all([
+      const [systemRes, servicesRes, disksRes, containersRes, storageRes, healthRes] = await Promise.all([
         axios.get('/api/omv/system'),
         axios.get('/api/omv/services'),
         axios.get('/api/omv/disks'),
         axios.get('/api/docker/containers'),
-        axios.get('/api/omv/storage')
+        axios.get('/api/omv/storage'),
+        axios.get('/api/health'),
       ]);
       setSystemInfo(systemRes.data);
       setServices(servicesRes.data.services || []);
       setDisks(disksRes.data.disks || []);
       setContainers(containersRes.data.containers || []);
       setSsdStorage(storageRes.data);
+      setServerOnline(healthRes.data.status === 'ok');
+      setLastUpdated(new Date());
+      setFetchError(null);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setFetchError(error.message);
+      setServerOnline(false);
       setLoading(false);
     }
   };
@@ -163,11 +173,27 @@ function Dashboard() {
 
   return (
     <div className="fade-in">
+      {/* Health Banner */}
+      <div className={`health-banner ${serverOnline === true ? 'health-online' : serverOnline === false ? 'health-offline' : 'health-unknown'}`}>
+        <span className="health-banner-icon">
+          {serverOnline === true ? '✅' : serverOnline === false ? '❌' : '⚠️'}
+        </span>
+        <span className="health-banner-text">
+          {serverOnline === true ? 'Server online' : serverOnline === false ? 'Server offline' : 'Connecting…'}
+        </span>
+        {lastUpdated && (
+          <span className="health-banner-updated">
+            Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+        {fetchError && <span className="health-banner-error" title={fetchError}>⚠️</span>}
+      </div>
+
       {/* Quick Actions - Moved to first position */}
       <div className="card">
         <h2>⚡ Quick Actions</h2>
         <div className="mobile-grid-2">
-          <button className="button" onClick={() => navigate('/shows')}>
+          <button className="button" onClick={() => navigate('/media?tab=tracked')}>
             <span>📺</span>
             <span>TV Shows</span>
           </button>
@@ -175,13 +201,13 @@ function Dashboard() {
             <span>📥</span>
             <span>Downloads</span>
           </button>
-          <button className="button" onClick={() => navigate('/add-torrent')}>
-            <span>➕</span>
-            <span>Add Torrent</span>
+          <button className="button" onClick={() => navigate('/downloads?tab=search')}>
+            <span>🔍</span>
+            <span>Search</span>
           </button>
-          <button className="button" onClick={() => navigate('/vpn')}>
-            <span>🔒</span>
-            <span>VPN</span>
+          <button className="button button-secondary" onClick={() => navigate('/media')}>
+            <span>🎬</span>
+            <span>Media</span>
           </button>
         </div>
         <div className="mobile-grid-2 mt-1">
@@ -356,7 +382,7 @@ function Dashboard() {
         <h2>🔗 External Services</h2>
         <div className="mobile-grid-2">
           <a 
-            href="http://192.168.0.30:9696" 
+            href={`http://${serviceHost}:9696`}
             target="_blank" 
             rel="noopener noreferrer" 
             className="button"
@@ -366,7 +392,7 @@ function Dashboard() {
             <span>Prowlarr</span>
           </a>
           <a 
-            href="http://192.168.0.30:8989" 
+            href={`http://${serviceHost}:8989`}
             target="_blank" 
             rel="noopener noreferrer" 
             className="button"
@@ -376,7 +402,7 @@ function Dashboard() {
             <span>Sonarr</span>
           </a>
           <a 
-            href="http://192.168.0.30:7878" 
+            href={`http://${serviceHost}:7878`}
             target="_blank" 
             rel="noopener noreferrer" 
             className="button"
@@ -386,7 +412,7 @@ function Dashboard() {
             <span>Radarr</span>
           </a>
           <a 
-            href="http://192.168.0.30:8080" 
+            href={`http://${serviceHost}:8080`}
             target="_blank" 
             rel="noopener noreferrer" 
             className="button"

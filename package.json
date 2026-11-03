@@ -1,14 +1,14 @@
 {
   "name": "unified-server-dashboard",
   "version": "1.0.0",
-  "description": "Unified PWA for managing qBittorrent, WireGuard, and OMV servers",
+  "description": "Unified PWA for managing qBittorrent, Plex media, and server resources",
   "private": true,
   "workspaces": [
     "frontend",
     "backend"
   ],
   "scripts": {
-    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "install:all": "npm install",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && node server.js",
     "dev:frontend": "cd frontend && npm run dev",
