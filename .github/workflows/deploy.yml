@@ -1,5 +1,17 @@
 name: CI / CD
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Pull-based deployment for a LAN-only self-hosted server.
+#
+# The dashboard server is NOT reachable from the internet (SSH ports closed),
+# so GitHub Actions cannot push to it. Instead:
+#   - CI builds & validates every change.
+#   - When the build is green on `master`, the `release` job advances a rolling
+#     "deploy-ready" tag and publishes a GitHub Release.
+#   - The server runs a systemd timer that polls `deploy-ready` (via outbound
+#     `git fetch`) and redeploys only when it moves. NO inbound ports required.
+# ─────────────────────────────────────────────────────────────────────────────
+
 on:
   push:
     branches:
@@ -12,13 +24,17 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch to deploy
+        description: Branch to release/deploy
         required: true
         default: master
 
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
+
+# The rolling tag the server watches. Kept in one place for clarity.
+env:
+  DEPLOY_TAG: deploy-ready
 
 jobs:
   # ─── CI: validate the change is buildable before anything else ───────────
@@ -49,56 +65,54 @@ jobs:
       - name: Smoke-test backend syntax
         run: node --check backend/server.js
 
-      - name: Upload build artifact (for debugging/rollback)
+      - name: Upload build artifact (consumed by the release job)
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: frontend/dist
 
-  # ─── CD: deploy to the self-hosted media server via SSH ─────────────────
-  deploy:
-    name: Deploy to server
+  # ─── CD: only green builds get marked deployable ─────────────────────────
+  release:
+    name: Mark deploy-ready (rolling tag + release)
     needs: ci
-    # Deploy on push to the main branch or when manually triggered.
-    # We do NOT deploy from PRs.
+    # Only on push to the main branch, or manual dispatch. Never from PRs.
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch || github.ref }}
+          fetch-depth: 0
 
-      - name: Set up SSH key
+      - name: Download built frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - name: Advance the deploy-ready tag to this commit
+        # Force a moving tag so the server's poll sees a new marker when this
+        # commit is a green build. This is the only signal the server needs.
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          # Suppress host-key prompt for first connection.
-          cat >> ~/.ssh/config <<'EOF'
-          Host deploy-server
-            HostName ${{ secrets.DEPLOY_HOST }}
-            User ${{ secrets.DEPLOY_USER }}
-            IdentityFile ~/.ssh/id_deploy
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-          EOF
-          chmod 600 ~/.ssh/config
+          git tag -f "${DEPLOY_TAG}"
+          git push --force origin "${DEPLOY_TAG}"
 
-      - name: Test SSH connection
-        run: ssh deploy-server 'echo "SSH OK on $(hostname)"'
-
-      - name: Deploy via scripts/deploy.sh
-        env:
-          DASHBOARD_DIR: ${{ secrets.DEPLOY_DIR }}
-          DASHBOARD_SERVICE: ${{ secrets.DEPLOY_SERVICE }}
-          DASHBOARD_BRANCH: ${{ github.event.inputs.branch || 'master' }}
-        run: |
-          ssh deploy-server "DASHBOARD_DIR='${DASHBOARD_DIR}' DASHBOARD_SERVICE='${DASHBOARD_SERVICE}' DASHBOARD_BRANCH='${DASHBOARD_BRANCH}' bash -s" < scripts/deploy.sh
-
-      - name: Verify deployment health
-        run: |
-          ssh deploy-server "curl -fsS http://localhost:${DEPLOY_PORT:-3001}/api/health || echo 'WARN: health check failed (service may still be starting)'"
-        env:
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      - name: Publish / update GitHub Release for the deploy-ready tag
+        # A rolling release: re-running updates the same release rather than
+        # accumulating one per deploy. The built frontend is attached so you
+        # can grab a known-good build for manual rollback.
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.DEPLOY_TAG }}
+          name: Deploy-ready build
+          body: |
+            Latest build that passed CI on `${{ github.ref_name }}`.
+            Auto-built from commit `${{ github.sha }}`.
+            The server auto-deploys when this tag moves.
+          files: frontend/dist/**
+          draft: false
+          prerelease: false

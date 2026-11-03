@@ -36,15 +36,17 @@ npm run build
 
 ### Deployment (GitHub Actions CI/CD)
 
-The deployment is fully automated with **GitHub Actions**. On every push to `master`,
-CI builds the frontend, validates the backend, then SSHes into your media server to
-pull the latest code, rebuild, and restart the `dashboard` systemd service.
+The deployment is fully automated with **GitHub Actions** and is **pull-based**, so it
+works even though this server is LAN-only (SSH/remote ports not exposed to the internet).
 
-See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full guide, required GitHub Secrets
-(`DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_DIR`, `DEPLOY_SERVICE`,
-`DEPLOY_PORT`), and one-time server bootstrap.
+On every push to `master`, CI builds the frontend and validates the backend. When CI is
+green, the `release` job advances a rolling `deploy-ready` tag and publishes a GitHub
+Release. On the server, a systemd timer polls that tag (via outbound `git fetch`) and
+redeploys only when it moves — **no inbound ports or SSH from GitHub are required**.
 
-**One-time server bootstrap** (creates the Git checkout the pipeline deploys to):
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full guide.
+
+**One-time server setup:**
 
 ```bash
 sudo mkdir -p /opt/dashboard
@@ -52,10 +54,17 @@ sudo chown -R $USER /opt/dashboard
 git clone <repo-url> /opt/dashboard
 cd /opt/dashboard
 cp backend/.env.example backend/.env   # fill in real credentials
+mkdir -p /opt/dashboard/data
+
+# Enable the pull-based deploy timer (see DEPLOYMENT.md)
+sudo cp scripts/dashboard-deploy.service /etc/systemd/system/
+sudo cp scripts/dashboard-deploy.timer  /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now dashboard-deploy.timer
 ```
 
-**Configure secrets** in GitHub -> **Settings -> Secrets and variables -> Actions**,
-then push to `master` (or trigger **Actions -> CI/CD -> Run workflow** manually).
+Then just **push to `master`** — the server picks up green builds automatically
+(or trigger **Actions -> CI/CD -> Run workflow** manually).
 
 **Systemd service file** (`/etc/systemd/system/dashboard.service`):
 

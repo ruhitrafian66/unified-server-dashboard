@@ -1,154 +1,168 @@
-# Deployment — GitHub Actions CI/CD
+# Deployment — GitHub Actions CI/CD (pull-based, LAN-only server)
 
-The Unified Server Dashboard is deployed to a **self-hosted Linux media server** using a
-modern GitHub Actions pipeline. Every push to `master` automatically builds the frontend,
-validates the backend, then SSHes into your server, pulls the latest code, rebuilds, and
-restarts the `dashboard` systemd service.
+The Unified Server Dashboard is deployed to a **self-hosted Linux media server** that
+**only has LAN access — its SSH/remote ports are NOT exposed to the internet.** So the
+pipeline is **pull-based**: the server reaches *out* to GitHub (which it can do, via HTTPS)
+and pulls a green build, instead of GitHub reaching *in* over SSH.
 
 ```
-push to master  -->  GitHub Actions  -->  SSH  -->  self-hosted server
-                        |                           |- git pull
-                        |- npm ci                   |- npm ci
-                        |- npm run build            |- npm run build
-                        `- node --check             `- systemctl restart dashboard
+GitHub (cloud)                          LAN-only server (no inbound ports)
++--------------+                        +------------------------------+
+| push master  |                        | systemd timer (every 2 min)  |
+|   v          |                        |   v                          |
+| CI job       |                        | scripts/deploy.sh            |
+|  build/test  |   --outbound HTTPS-->  |   git fetch deploy-ready <---+
+|   v          |   or the server's own  |   tag moved? --no--> exit    |
+| release job  |   `git fetch`          |        |yes                  |
+|  tag: deploy |                        |        v                     |
+|  -ready      |                        |   npm ci -> build -> restart  |
++--------------+                        +------------------------------+
 ```
+
+The key idea: GitHub marks a commit as "deploy-ready" by advancing a rolling `deploy-ready`
+tag **only when CI passes.** The server polls that tag and redeploys when it moves. No SSH, no
+inbound firewall rules, no secrets on GitHub needed for server access.
 
 ---
 
-## Prerequisites
+## How it works
 
-1. **The repo must be on GitHub** with a matching remote (already configured as `origin`).
-2. **The server must have a Git checkout** of the repo at the deploy directory
-   (default `/opt/dashboard`) and be able to reach GitHub over the network.
-3. **A systemd unit** for the backend already exists (see the existing systemd service
-   described in `README.md` — `dashboard.service`).
-4. **An SSH key pair** that GitHub Actions can use to log into the server as a user with
-   permissions to restart the service.
+1. **Push to `master`** → the `ci` job builds the frontend, syntax-checks the backend, and
+   uploads `frontend/dist` as an artifact.
+2. **Only if CI is green** does the `release` job run. It force-advances a rolling
+   `deploy-ready` tag to that commit and publishes/updates a GitHub **Release** (with the
+   built `frontend/dist` attached for manual rollback).
+3. **On the server**, a `systemd timer` runs `scripts/deploy.sh` every 2 minutes. That script
+   does an outbound `git fetch origin deploy-ready`; if the tag moved since the last deploy, it
+   resets to that commit, runs `npm ci` + `npm run build`, restarts the `dashboard` service,
+   and records the new SHA. If the tag hasn't moved, it exits without touching anything.
 
----
-
-## GitHub Actions secrets to configure
-
-Add these in **Settings → Secrets and variables → Actions** on GitHub (repo scope):
-
-| Secret               | Description                                                              | Example                       |
-|----------------------|--------------------------------------------------------------------------|-------------------------------|
-| `DEPLOY_SSH_KEY`     | **Private** SSH key (PEM) used to log into the server.                   | `-----BEGIN OPENSSH PRIVATE KEY-----` |
-| `DEPLOY_HOST`        | Hostname or IP of the server.                                            | `192.168.1.100`               |
-| `DEPLOY_USER`        | SSH user to log in as (must be able to `systemctl restart dashboard`).   | `root`                        |
-| `DEPLOY_PORT`        | Backend port to health-check after deploy (default `3001`).              | `3001`                        |
-| `DEPLOY_DIR`         | Absolute path where the repo is checked out on the server (default `/opt/dashboard`). | `/opt/dashboard` |
-| `DEPLOY_SERVICE`     | systemd unit name for the backend (default `dashboard`).                 | `dashboard`                   |
-
-> **Important:** the deploy user must be able to restart the service without an
-> interactive password (e.g. logged in as `root`, or a sudo-less user with a
-> `systemctl` permission override). If the user needs `sudo`, grant a
-> passwordless sudo rule via `/etc/sudoers.d/dashboard`:
->
-> ```bash
-> deployuser ALL=(root) NOPASSWD: /usr/bin/systemctl restart dashboard
-> ```
-
-### Add the deploy SSH key to the server
-
-On the server, place the **public** key in the target user's `authorized_keys`:
-
-```bash
-# On the server, as the deploy user:
-mkdir -p ~/.ssh && chmod 700 ~/.ssh
-echo "<paste DEPLOY public key here>" >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-```
+Because only `git fetch` (outbound HTTPS to GitHub) is used, the server needs **no** inbound
+ports and **no** SSH access from GitHub.
 
 ---
 
-## Setting up the server checkout (one-time bootstrap)
+## One-time server setup
 
-The deploy script refuses to run if there is no Git checkout, so bootstrap it once:
+### 1. Clone the repo (first deployment only)
 
 ```bash
 sudo mkdir -p /opt/dashboard
 sudo chown -R $USER /opt/dashboard
 git clone https://github.com/<your-org>/unified-server-dashboard.git /opt/dashboard
 cd /opt/dashboard
-cp backend/.env.example backend/.env    # fill in real credentials
-# Ensure the systemd unit exists (see README) and the DATA_DIR is writable.
+cp backend/.env.example backend/.env   # fill in real credentials
+mkdir -p /opt/dashboard/data            # DATA_DIR for shows.json / config.json
 ```
 
-> **Note:** `backend/.env` and other runtime files are **not** touched by the deploy
-> script (`git reset --hard` only resets tracked files; ignored runtime files like
-> `.env` persist). If you ever need first-time env setup, do it once here.
+### 2. Install the backend service
+
+The backend runs as a systemd service (see `README.md`). Make sure `dashboard.service`
+exists and is enabled:
+
+```bash
+sudo systemctl enable --now dashboard
+```
+
+### 3. Install the deploy timer + oneshot service
+
+Copy the two units from `scripts/` into systemd and start the timer:
+
+```bash
+sudo cp /opt/dashboard/scripts/dashboard-deploy.service /etc/systemd/system/
+sudo cp /opt/dashboard/scripts/dashboard-deploy.timer  /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now dashboard-deploy.timer
+```
+
+Trigger a check immediately (optional):
+
+```bash
+sudo systemctl start dashboard-deploy.service
+```
+### 4. Verify
+
+```bash
+sudo systemctl status dashboard-deploy.timer       # active, "waiting"
+journalctl -u dashboard-deploy.service -f          # watch the deploy log
+```
 
 ---
 
-## The CI/CD workflow
+## Environment overrides
 
-`.github/workflows/deploy.yml` has two jobs:
+The deploy script respects these (all optional; defaults in parentheses):
 
-### 1. `ci` — Build & validate (runs on every push/PR)
-- Checks out the code, installs deps with `npm ci` (uses committed `package-lock.json`).
-- Builds the frontend (`npm run build`).
-- Verifies `frontend/dist/index.html` exists.
-- Syntax-checks the backend (`node --check backend/server.js`).
-- Uploads the build as an artifact.
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `DASHBOARD_DIR` | `/opt/dashboard` | Path to the checkout on the server |
+| `DASHBOARD_SERVICE` | `dashboard` | systemd unit to restart |
+| `DASHBOARD_BRANCH` | `master` | Branch to deploy |
+| `DASHBOARD_TAG` | `deploy-ready` | Rolling tag that marks a green build |
+| `DEPLOYED_SHA_FILE` | `${DASHBOARD_DIR}/.deploy-sha` | File remembering the last-deployed SHA |
 
-### 2. `deploy` — Deploy to server
-- Runs **only** on pushes to `master`/`main` **or** on manual `workflow_dispatch`.
-- Never runs from pull requests.
-- Sets up the SSH key from secrets, tests connectivity, then streams
-  `scripts/deploy.sh` to the server with the required environment variables.
-- Health-checks `http://localhost:<port>/api/health` afterwards.
+To set these, create a systemd override:
 
-### Manual trigger
+```bash
+sudo systemctl edit dashboard-deploy.service
+```
 
-You can deploy a specific branch from the GitHub UI: **Actions → CI/CD → Run workflow**,
-then pick the branch.
+```ini
+[Service]
+Environment="DASHBOARD_DIR=/opt/dashboard"
+Environment="DASHBOARD_SERVICE=dashboard"
+Environment="DASHBOARD_TAG=deploy-ready"
+```
 
 ---
 
-## The deploy script — `scripts/deploy.sh`
+## Manual trigger / immediate deploy
 
-Runs **on the server** (invoked remotely by the workflow, or manually via
-`npm run deploy`). It:
+Two ways to force a deploy without waiting for the timer:
 
-1. `git fetch --prune origin` and `reset --hard origin/<branch>`.
-2. `npm ci --no-audit --no-fund` — deterministic install from the lockfile.
-3. `npm run build` — builds the frontend into `frontend/dist`.
-4. `systemctl restart <service>`.
-5. Health-checks the running service.
-
-Environment overrides: `DASHBOARD_DIR`, `DASHBOARD_SERVICE`, `DASHBOARD_BRANCH`.
+- **Re-run the pipeline in GitHub:** Actions -> CI/CD -> Run workflow (pick a branch). If the
+  `release` job runs and the tag advances, the server picks it up on its next poll.
+- **On the server:**
+  ```bash
+  sudo systemctl start dashboard-deploy.service
+  ```
 
 ---
 
 ## Rollback
 
-Because the checkout on the server is a Git repo, rollback is a one-liner on the server:
+Because the server checkout is a Git repo, roll back to the previous build on the server:
 
 ```bash
 cd /opt/dashboard
-git reset --hard origin/master~1   # previous commit
+git fetch --prune origin master
+git reset --hard origin/master~1
 npm ci && npm run build
-systemctl restart dashboard
+sudo systemctl restart dashboard
 ```
 
-(Or re-run the prior workflow run from the Actions tab.)
+To **prevent** the timer from re-deploying the bad tag, either (a) revert on GitHub so the
+`deploy-ready` tag moves back to an older green commit and push again, or (b) temporarily
+stop the timer:
+
+```bash
+sudo systemctl stop dashboard-deploy.timer
+# ... fix on GitHub, push a green build ...
+sudo systemctl start dashboard-deploy.timer
+```
+
+For an exact known-good build, you can also grab the attached `frontend/dist` from the
+latest GitHub Release and serve it manually.
 
 ---
 
 ## Notes & tips
 
-- **Lockfile is committed** now — `package-lock.json` is no longer in `.gitignore`, so
-  `npm ci` gives reproducible builds both locally and in CI.
-- **`scripts/` is tracked** now — only sensitive artifacts (keys, `server-dashboard.service`,
-  `DEPLOYED.md`) remain ignored.
-- **Concurrency** is enforced so two rapid deploys don't race (`concurrency` group keyed on ref).
-- Best practice: add **branch protection** on `master` requiring the `ci` job to pass before merge.
-
----
-
-## TODO / customization
-
-- If you later prefer containers, a `Dockerfile` + GHCR push flow can be layered on top of
-  the same SSH deployment (the workflow is structured so a `docker` job is easy to add).
+- **No inbound ports / no SSH from GitHub** — the server only ever makes outbound `git fetch`.
+- **`package-lock.json` is committed** so `npm ci` gives reproducible builds.
+- **`frontend/dist` is built on the server**, so the built files are never committed.
+- **Latency:** the timer default polls every 2 minutes; lower it if you want faster deploys
+  (add `OnUnitActiveSec=1min` in the timer).
+- The `ci` job still gates changes; add **branch protection** on `master` requiring CI to
+  pass so only green code reaches the `deploy-ready` tag.
 
