@@ -52,9 +52,9 @@ without overwriting, sets up `data/`, installs the backend `dashboard.service` a
 deploy timer, and enables everything:
 
 ```bash
-# From the server, with the repo checked out (e.g. /opt/dashboard):
-sudo bash /opt/dashboard/scripts/install-server.sh
-# ...then edit /opt/dashboard/backend/.env with real credentials and restart:
+# From the server, with the repo checked out (e.g. /opt/server-dashboard):
+sudo bash /opt/server-dashboard/scripts/install-server.sh
+# ...then edit /opt/server-dashboard/backend/.env with real credentials and restart:
 sudo systemctl restart dashboard
 ```
 
@@ -73,7 +73,7 @@ Wants=docker.service
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/dashboard/backend
+WorkingDirectory=/opt/server-dashboard/backend
 Environment="NODE_ENV=production"
 ExecStart=/usr/bin/node server.js
 Restart=always

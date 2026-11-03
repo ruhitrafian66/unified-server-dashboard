@@ -61,12 +61,12 @@ ports and **no** SSH access from GitHub.
 ### 1. Clone the repo (first deployment only)
 
 ```bash
-sudo mkdir -p /opt/dashboard
-sudo chown -R $USER /opt/dashboard
-git clone https://github.com/<your-org>/unified-server-dashboard.git /opt/dashboard
-cd /opt/dashboard
+sudo mkdir -p /opt/server-dashboard
+sudo chown -R $USER /opt/server-dashboard
+git clone https://github.com/<your-org>/unified-server-dashboard.git /opt/server-dashboard
+cd /opt/server-dashboard
 cp backend/.env.example backend/.env   # fill in real credentials
-mkdir -p /opt/dashboard/data            # DATA_DIR for shows.json / config.json
+mkdir -p /opt/server-dashboard/data            # DATA_DIR for shows.json / config.json
 ```
 
 ### 2. Install the backend service
@@ -83,8 +83,8 @@ sudo systemctl enable --now dashboard
 Copy the two units from `scripts/` into systemd and start the timer:
 
 ```bash
-sudo cp /opt/dashboard/scripts/dashboard-deploy.service /etc/systemd/system/
-sudo cp /opt/dashboard/scripts/dashboard-deploy.timer  /etc/systemd/system/
+sudo cp /opt/server-dashboard/scripts/dashboard-deploy.service /etc/systemd/system/
+sudo cp /opt/server-dashboard/scripts/dashboard-deploy.timer  /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now dashboard-deploy.timer
 ```
@@ -109,7 +109,7 @@ The deploy script respects these (all optional; defaults in parentheses):
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `DASHBOARD_DIR` | `/opt/dashboard` | Path to the checkout on the server |
+| `DASHBOARD_DIR` | `/opt/server-dashboard` | Path to the checkout on the server |
 | `DASHBOARD_SERVICE` | `dashboard` | systemd unit to restart |
 | `DASHBOARD_BRANCH` | `master` | Branch to deploy |
 | `DASHBOARD_TAG` | `deploy-ready` | Rolling tag that marks a green build |
@@ -123,7 +123,7 @@ sudo systemctl edit dashboard-deploy.service
 
 ```ini
 [Service]
-Environment="DASHBOARD_DIR=/opt/dashboard"
+Environment="DASHBOARD_DIR=/opt/server-dashboard"
 Environment="DASHBOARD_SERVICE=dashboard"
 Environment="DASHBOARD_TAG=deploy-ready"
 ```
@@ -148,7 +148,7 @@ Two ways to force a deploy without waiting for the timer:
 Because the server checkout is a Git repo, roll back to the previous build on the server:
 
 ```bash
-cd /opt/dashboard
+cd /opt/server-dashboard
 git fetch --prune origin master
 git reset --hard origin/master~1
 npm ci && npm run build

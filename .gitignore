@@ -7,6 +7,10 @@ dist/
 build/
 # NOTE: frontend/dist is generated during CI/CD and on the server — never commit it.
 
+# Runtime data (user data written by the backend — never commit it)
+data/
+backend/data/
+
 # Environment variables (contains secrets)
 .env
 .env.local

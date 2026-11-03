@@ -8,7 +8,7 @@ Wants=docker.service
 # systemctl/system commands used by the dashboard. Adjust if desired.
 Type=simple
 User=root
-WorkingDirectory=/opt/dashboard/backend
+WorkingDirectory=/opt/server-dashboard/backend
 Environment="NODE_ENV=production"
 # backend/.env is loaded by the app via dotenv; PORT defaults to 3001.
 ExecStart=/usr/bin/node server.js

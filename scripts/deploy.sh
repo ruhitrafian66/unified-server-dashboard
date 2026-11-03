@@ -13,7 +13,7 @@
 #
 # Environment overrides (all optional, sensible defaults provided):
 #   DASHBOARD_DIR       Absolute path to the deployed checkout on the server.
-#                       Default: /opt/dashboard
+#                       Default: /opt/server-dashboard
 #   DASHBOARD_SERVICE   systemd unit name for the backend.
 #                       Default: dashboard
 #   DASHBOARD_BRANCH    Branch to deploy. Default: master
@@ -29,7 +29,7 @@
 set -euo pipefail
 
 # ─── Configuration ───────────────────────────────────────────────────────────
-REPO_DIR="${DASHBOARD_DIR:-/opt/dashboard}"
+REPO_DIR="${DASHBOARD_DIR:-/opt/server-dashboard}"
 SERVICE="${DASHBOARD_SERVICE:-dashboard}"
 BRANCH="${DASHBOARD_BRANCH:-master}"
 DEPLOY_TAG="${DASHBOARD_TAG:-deploy-ready}"

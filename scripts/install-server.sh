@@ -6,17 +6,17 @@
 # pull-based deployment: it installs the backend systemd service, the deploy
 # timer that polls GitHub for new green builds, and prepares the runtime dirs.
 #
-# Requires the repo to be cloned to /opt/dashboard (or set DASHBOARD_DIR).
+# Requires the repo to be cloned to /opt/server-dashboard (or set DASHBOARD_DIR).
 #
 # Usage (as root, or via sudo):
-#   bash /opt/dashboard/scripts/install-server.sh
+#   bash /opt/server-dashboard/scripts/install-server.sh
 #
 # Idempotent: safe to re-run to repair the install.
 #
 set -euo pipefail
 
 # Shell is only for reference. When run interactively as root, adjust if needed.
-REPO_DIR="${DASHBOARD_DIR:-/opt/dashboard}"
+REPO_DIR="${DASHBOARD_DIR:-/opt/server-dashboard}"
 SERVICE="${DASHBOARD_SERVICE:-dashboard}"
 DEPLOY_SERVICE="${DASHBOARD_DEPLOY_SERVICE:-dashboard-deploy}"
 DEPLOY_TIMER="${DASHBOARD_DEPLOY_TIMER:-dashboard-deploy}"
@@ -35,8 +35,11 @@ if [ ! -d "${REPO_DIR}/.git" ]; then
 fi
 
 # ─── 2. Runtime directories ───────────────────────────────────────────────────
-DATA_DIR="${DATA_DIR:-${REPO_DIR}/backend/data}"
-mkdir -p "${DATA_DIR}" || true
+# The backend reads/writes TV-automation data from ${REPO_DIR}/data by default
+# (see backend/routes/shows.js DATA_DIR). Keep that location so existing data is
+# preserved across deploys. Plex/archival runtime dirs live under backend/data.
+DATA_DIR="${DATA_DIR:-${REPO_DIR}/data}"
+mkdir -p "${DATA_DIR}" "${REPO_DIR}/backend/data" || true
 log "Data dir: ${DATA_DIR}"
 
 # ─── 3. .env from example (never overwrite an existing .env) ─────────────────
@@ -54,14 +57,14 @@ fi
 log "Installing ${SERVICE}.service..."
 cp "${REPO_DIR}/scripts/dashboard.service" "/etc/systemd/system/${SERVICE}.service"
 # Fix the WorkingDirectory, ExecStart, and any placeholder paths to match REPO_DIR.
-sed -i "s|/opt/dashboard|${REPO_DIR}|g" "/etc/systemd/system/${SERVICE}.service"
+sed -i "s|/opt/server-dashboard|${REPO_DIR}|g" "/etc/systemd/system/${SERVICE}.service"
 
 # ─── 5. Deploy oneshot + timer units ─────────────────────────────────────────
 log "Installing ${DEPLOY_SERVICE}.service + ${DEPLOY_TIMER}.timer..."
 cp "${REPO_DIR}/scripts/dashboard-deploy.service" "/etc/systemd/system/${DEPLOY_SERVICE}.service"
 cp "${REPO_DIR}/scripts/dashboard-deploy.timer"  "/etc/systemd/system/${DEPLOY_TIMER}.timer"
 # Point the deploy service's ExecStart at this checkout.
-sed -i "s|/opt/dashboard|${REPO_DIR}|g" "/etc/systemd/system/${DEPLOY_SERVICE}.service"
+sed -i "s|/opt/server-dashboard|${REPO_DIR}|g" "/etc/systemd/system/${DEPLOY_SERVICE}.service"
 sed -i "s|Unit=dashboard-deploy.service|Unit=${DEPLOY_SERVICE}.service|" \
   "/etc/systemd/system/${DEPLOY_TIMER}.timer"
 
