@@ -1,0 +1,19 @@
+[Unit]
+Description=Unified Server Dashboard
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+# Run as root so the backend can read /proc, the Docker socket, and run
+# systemctl/system commands used by the dashboard. Adjust if desired.
+Type=simple
+User=root
+WorkingDirectory=/opt/dashboard/backend
+Environment="NODE_ENV=production"
+# backend/.env is loaded by the app via dotenv; PORT defaults to 3001.
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -46,25 +46,21 @@ redeploys only when it moves — **no inbound ports or SSH from GitHub are requi
 
 See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full guide.
 
-**One-time server setup:**
+**One-time server setup** — run the bundled installer on the server (root required,
+idempotent). It clones the repo if needed, creates `backend/.env` from the example
+without overwriting, sets up `data/`, installs the backend `dashboard.service` and the
+deploy timer, and enables everything:
 
 ```bash
-sudo mkdir -p /opt/dashboard
-sudo chown -R $USER /opt/dashboard
-git clone <repo-url> /opt/dashboard
-cd /opt/dashboard
-cp backend/.env.example backend/.env   # fill in real credentials
-mkdir -p /opt/dashboard/data
-
-# Enable the pull-based deploy timer (see DEPLOYMENT.md)
-sudo cp scripts/dashboard-deploy.service /etc/systemd/system/
-sudo cp scripts/dashboard-deploy.timer  /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now dashboard-deploy.timer
+# From the server, with the repo checked out (e.g. /opt/dashboard):
+sudo bash /opt/dashboard/scripts/install-server.sh
+# ...then edit /opt/dashboard/backend/.env with real credentials and restart:
+sudo systemctl restart dashboard
 ```
 
 Then just **push to `master`** — the server picks up green builds automatically
-(or trigger **Actions -> CI/CD -> Run workflow** manually).
+(or trigger **Actions -> CI/CD -> Run workflow** manually). See **DEPLOYMENT.md**
+for the manual equivalent of each step and for rollback guidance.
 
 **Systemd service file** (`/etc/systemd/system/dashboard.service`):
 

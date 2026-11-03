@@ -43,6 +43,20 @@ ports and **no** SSH access from GitHub.
 ---
 
 ## One-time server setup
+> **Easiest path — run the bundled installer on the server.** Everything below is
+> automated by `scripts/install-server.sh` (idempotent, root required). It clones the
+> repo if needed, creates `backend/.env` from the example (without overwriting), sets up
+> `data/`, installs the `dashboard.service` backend unit and the deploy oneshot+timer,
+> and enables everything:
+>
+> ```bash
+> sudo bash <repo>/scripts/install-server.sh
+> ```
+>
+> The manual steps below document exactly what it does, so you can follow along or
+> customise.
+
+
 
 ### 1. Clone the repo (first deployment only)
 
