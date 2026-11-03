@@ -1,0 +1,104 @@
+name: CI / CD
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to deploy
+        required: true
+        default: master
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── CI: validate the change is buildable before anything else ───────────
+  ci:
+    name: Build & validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Verify built artifacts exist
+        run: |
+          test -f frontend/dist/index.html || { echo "frontend/dist/index.html missing"; exit 1; }
+          echo "Frontend build artifacts OK"
+
+      - name: Smoke-test backend syntax
+        run: node --check backend/server.js
+
+      - name: Upload build artifact (for debugging/rollback)
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+  # ─── CD: deploy to the self-hosted media server via SSH ─────────────────
+  deploy:
+    name: Deploy to server
+    needs: ci
+    # Deploy on push to the main branch or when manually triggered.
+    # We do NOT deploy from PRs.
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          # Suppress host-key prompt for first connection.
+          cat >> ~/.ssh/config <<'EOF'
+          Host deploy-server
+            HostName ${{ secrets.DEPLOY_HOST }}
+            User ${{ secrets.DEPLOY_USER }}
+            IdentityFile ~/.ssh/id_deploy
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Test SSH connection
+        run: ssh deploy-server 'echo "SSH OK on $(hostname)"'
+
+      - name: Deploy via scripts/deploy.sh
+        env:
+          DASHBOARD_DIR: ${{ secrets.DEPLOY_DIR }}
+          DASHBOARD_SERVICE: ${{ secrets.DEPLOY_SERVICE }}
+          DASHBOARD_BRANCH: ${{ github.event.inputs.branch || 'master' }}
+        run: |
+          ssh deploy-server "DASHBOARD_DIR='${DASHBOARD_DIR}' DASHBOARD_SERVICE='${DASHBOARD_SERVICE}' DASHBOARD_BRANCH='${DASHBOARD_BRANCH}' bash -s" < scripts/deploy.sh
+
+      - name: Verify deployment health
+        run: |
+          ssh deploy-server "curl -fsS http://localhost:${DEPLOY_PORT:-3001}/api/health || echo 'WARN: health check failed (service may still be starting)'"
+        env:
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}

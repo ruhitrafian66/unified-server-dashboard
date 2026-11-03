@@ -1,18 +1,19 @@
 # Dependencies
 node_modules/
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
+# NOTE: package-lock.json is intentionally committed for reproducible CI/CD builds.
 
 # Build output
 dist/
 build/
+# NOTE: frontend/dist is generated during CI/CD and on the server — never commit it.
 
 # Environment variables (contains secrets)
 .env
 .env.local
 .env.*.local
+.env.production
 .env.docker
+.env.production.local
 
 # OS
 .DS_Store
@@ -44,12 +45,12 @@ coverage/
 *.tmp
 *.temp
 
-# Sensitive configs (VPN, deployment)
-*.conf
-*.ovpn
-scripts/
+# Sensitive configs (VPN, deployment) — keep paths we WANT to commit out of this block.
+# Only the following sensitive artifacts are ignored; scripts/ and .vscode/ are tracked.
 DEPLOYED.md
 server-dashboard.service
+*.pem
+*.key
 
 # Telegram agent (Python) — secrets & virtualenv
 telegram-agent/.env

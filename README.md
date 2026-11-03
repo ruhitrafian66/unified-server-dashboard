@@ -34,38 +34,28 @@ npm install
 npm run build
 ```
 
-### Deployment
+### Deployment (GitHub Actions CI/CD)
 
-Copy `frontend/dist` and `backend` to your server:
+The deployment is fully automated with **GitHub Actions**. On every push to `master`,
+CI builds the frontend, validates the backend, then SSHes into your media server to
+pull the latest code, rebuild, and restart the `dashboard` systemd service.
+
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full guide, required GitHub Secrets
+(`DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_DIR`, `DEPLOY_SERVICE`,
+`DEPLOY_PORT`), and one-time server bootstrap.
+
+**One-time server bootstrap** (creates the Git checkout the pipeline deploys to):
 
 ```bash
-rsync -az frontend/dist/ user@server:/opt/dashboard/frontend/dist/
-rsync -az --exclude=node_modules backend/ user@server:/opt/dashboard/backend/
+sudo mkdir -p /opt/dashboard
+sudo chown -R $USER /opt/dashboard
+git clone <repo-url> /opt/dashboard
+cd /opt/dashboard
+cp backend/.env.example backend/.env   # fill in real credentials
 ```
 
-On the server:
-
-```bash
-cd /opt/dashboard/backend
-npm install
-cat > .env << EOF
-NODE_ENV=production
-PORT=3001
-QBITTORRENT_URL=http://localhost:8080
-QBITTORRENT_USERNAME=admin
-QBITTORRENT_PASSWORD=<password>
-DOCKER_SOCKET_PATH=/var/run/docker.sock
-ALLOWED_ORIGINS=*
-# Where TV-automation data (shows.json, config.json) is written
-DATA_DIR=/opt/dashboard/data
-# Mount used for the disk-space check before downloads (omit to default to /mnt/storage)
-DOWNLOAD_PATH=/mnt/storage
-EOF
-
-# Start as systemd service
-sudo systemctl start dashboard
-sudo systemctl enable dashboard
-```
+**Configure secrets** in GitHub -> **Settings -> Secrets and variables -> Actions**,
+then push to `master` (or trigger **Actions -> CI/CD -> Run workflow** manually).
 
 **Systemd service file** (`/etc/systemd/system/dashboard.service`):
 
