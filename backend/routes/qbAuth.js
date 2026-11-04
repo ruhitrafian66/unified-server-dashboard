@@ -25,7 +25,13 @@ export const authenticate = async (forceNew = false) => {
       `${serverUrl}/api/v2/auth/login`,
       `username=${username}&password=${password}`,
       {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          // qBittorrent v5+ requires Referer/Origin to match the WebUI host
+          // to prevent CSRF. Without these the login returns 403.
+          'Referer': serverUrl,
+          'Origin': serverUrl,
+        },
         timeout: 5000,
         maxRedirects: 0,
         validateStatus: (s) => s >= 200 && s < 400,
