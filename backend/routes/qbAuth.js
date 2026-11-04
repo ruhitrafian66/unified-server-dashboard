@@ -11,9 +11,21 @@ export const getServerUrl = () =>
 let sessionCookie = null;
 let sessionExpiry = null;
 
+// Ban backoff: if qBittorrent returns 403 (IP banned), stop retrying for a
+// while so we don't extend the ban window with repeated failed attempts.
+let banUntil = 0;
+const BAN_BACKOFF_MS = 60 * 1000; // wait 60s before retrying after a ban
+
 export const authenticate = async (forceNew = false) => {
   if (sessionCookie && sessionExpiry && Date.now() < sessionExpiry && !forceNew) {
     return sessionCookie;
+  }
+
+  // Don't hammer qBittorrent while we know we're banned
+  if (Date.now() < banUntil) {
+    const remaining = Math.ceil((banUntil - Date.now()) / 1000);
+    console.error(`qBittorrent auth skipped: IP still banned, retrying in ${remaining}s`);
+    return null;
   }
 
   try {
@@ -34,15 +46,30 @@ export const authenticate = async (forceNew = false) => {
         },
         timeout: 5000,
         maxRedirects: 0,
-        validateStatus: (s) => s >= 200 && s < 400,
+        // Accept all statuses so we can inspect 403 (banned) without throwing
+        validateStatus: () => true,
       }
     );
+
+    if (response.status === 403) {
+      banUntil = Date.now() + BAN_BACKOFF_MS;
+      console.error(`qBittorrent auth error: IP banned (403), backing off for ${BAN_BACKOFF_MS / 1000}s`);
+      return null;
+    }
+
+    if (response.status === 401) {
+      console.error('qBittorrent auth error: wrong username or password (401)');
+      return null;
+    }
 
     if (response.headers['set-cookie']) {
       sessionCookie = response.headers['set-cookie'][0];
       sessionExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+      banUntil = 0; // clear any previous ban state on success
       return sessionCookie;
     }
+
+    console.error(`qBittorrent auth error: no cookie in response (status ${response.status})`);
   } catch (error) {
     console.error('qBittorrent auth error:', error.message);
   }
@@ -65,7 +92,7 @@ export const makeRequest = async (method, url, data = null, retryCount = 0) => {
       ? await axios.get(url, config)
       : await axios.post(url, data, config);
   } catch (error) {
-    if ([401, 403, 404].includes(error.response?.status) && retryCount === 0) {
+    if ([401, 403].includes(error.response?.status) && retryCount === 0) {
       sessionCookie = null;
       sessionExpiry = null;
       return makeRequest(method, url, data, 1);
