@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSettings } from '../contexts/SettingsContext';
 
-const TMDB_BASE = 'https://api.themoviedb.org/3';
+const TMDB_BASE = '/api/tmdb';
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342';
 const TMDB_IMG_BG = 'https://image.tmdb.org/t/p/w780';
 
 export default function MediaDetailModal({ item, onClose, onFindSources }) {
-  const { tmdbApiKey, omdbApiKey } = useSettings();
+  const { omdbApiKey } = useSettings();
   const [detail, setDetail] = useState(null);
   const [imdbRating, setImdbRating] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +26,7 @@ export default function MediaDetailModal({ item, onClose, onFindSources }) {
           ? `${TMDB_BASE}/movie/${item.id}`
           : `${TMDB_BASE}/tv/${item.id}`;
         const res = await axios.get(url, {
-          params: { api_key: tmdbApiKey, append_to_response: 'external_ids' },
+          params: { append_to_response: 'external_ids' },
         });
         setDetail(res.data);
 
@@ -38,6 +38,8 @@ export default function MediaDetailModal({ item, onClose, onFindSources }) {
           try {
             const omdbRes = await axios.get('https://www.omdbapi.com/', {
               params: { apikey: omdbApiKey, i: imdbId },
+              // Cross-origin: don't send our CSRF header (it would force a CORS preflight).
+              transformRequest: [(data, headers) => { headers.delete?.('X-Requested-With'); return data; }],
             });
             if (omdbRes.data.Response === 'True') setImdbRating(omdbRes.data);
           } catch {
@@ -45,13 +47,13 @@ export default function MediaDetailModal({ item, onClose, onFindSources }) {
           }
         }
       } catch (e) {
-        setError(e.response?.data?.status_message || e.message);
+        setError(e.response?.data?.error || e.message);
       } finally {
         setIsLoading(false);
       }
     };
     load();
-  }, [item.id, isMovie, tmdbApiKey, omdbApiKey]);
+  }, [item.id, isMovie, omdbApiKey]);
 
   const title = detail?.title || detail?.name || item.title || item.name || '';
   const year = (detail?.release_date || detail?.first_air_date || '').slice(0, 4);

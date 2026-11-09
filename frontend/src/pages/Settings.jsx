@@ -3,16 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useSettings } from '../contexts/SettingsContext';
 import { useToast } from '../App';
+import Toggle from '../components/Toggle';
+import { apiError } from '../lib/format';
 
 function SectionHeader({ title }) {
   return (
     <h3 style={{
-      color: '#b0b0c0',
-      fontSize: '0.75rem',
-      fontWeight: 600,
-      textTransform: 'uppercase',
-      letterSpacing: '0.08em',
-      padding: '1rem 1rem 0.5rem',
+      color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase',
+      letterSpacing: '0.08em', padding: '1rem 1rem 0.5rem',
     }}>
       {title}
     </h3>
@@ -20,9 +18,17 @@ function SectionHeader({ title }) {
 }
 
 function SettingsCard({ children }) {
+  return <div className="card" style={{ marginBottom: 0 }}>{children}</div>;
+}
+
+function ToggleRow({ title, description, checked, onChange, disabled }) {
   return (
-    <div className="card" style={{ marginBottom: 0 }}>
-      {children}
+    <div className="settings-toggle-row">
+      <div>
+        <div className="settings-toggle-label">{title}</div>
+        <div className="settings-toggle-desc">{description}</div>
+      </div>
+      <Toggle checked={checked} onChange={onChange} disabled={disabled} label={title} />
     </div>
   );
 }
@@ -30,81 +36,51 @@ function SettingsCard({ children }) {
 export default function Settings() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const {
-    tmdbApiKey, omdbApiKey, serverUrl, serviceHost,
-    setTmdbApiKey, setOmdbApiKey, setServerUrl, setServiceHost,
-    saveTmdbToBackend,
-  } = useSettings();
+  const { omdbApiKey, setOmdbApiKey, tmdbConfigured, saveTmdbKey } = useSettings();
 
-  const [urlInput, setUrlInput] = useState(serverUrl);
-  const [serviceHostInput, setServiceHostInput] = useState(serviceHost);
-  const [tmdbInput, setTmdbInput] = useState(tmdbApiKey);
-  const [omdbInput, setOmdbInput] = useState(omdbApiKey);
+  const [tmdbInput, setTmdbInput] = useState('');
   const [tmdbVisible, setTmdbVisible] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
   const [isSavingTmdb, setIsSavingTmdb] = useState(false);
+  const [omdbInput, setOmdbInput] = useState(omdbApiKey);
 
-  // Auto-stop
+  // Seeding limits (stored in qBittorrent itself)
+  const [limitsLoaded, setLimitsLoaded] = useState(false);
+  const [limitsError, setLimitsError] = useState(null);
   const [autoStopEnabled, setAutoStopEnabled] = useState(false);
-  const [delayMinutes, setDelayMinutes] = useState('0');
-  const [ratioLimit, setRatioLimit] = useState('1.00');
+  const [seedMinutes, setSeedMinutes] = useState('');
+  const [ratioLimit, setRatioLimit] = useState('');
   const [isSavingAutoStop, setIsSavingAutoStop] = useState(false);
 
   // Auto-check
-  const [autoCheckEnabled, setAutoCheckEnabled] = useState(false);
+  const [autoCheck, setAutoCheck] = useState(null);
   const [isSavingAutoCheck, setIsSavingAutoCheck] = useState(false);
 
+  const [health, setHealth] = useState(null);
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [stopRes, checkRes] = await Promise.all([
-          axios.get('/api/qbittorrent/auto-stop/config'),
-          axios.get('/api/shows/config/auto-check'),
-        ]);
-        const cfg = stopRes.data;
-        setAutoStopEnabled(!!cfg.enabled);
-        setDelayMinutes(String(cfg.delayMinutes ?? 0));
-        setRatioLimit(cfg.ratioLimit != null ? String(cfg.ratioLimit) : '1.00');
-        setAutoCheckEnabled(!!checkRes.data.enabled);
-      } catch {
-        // Non-fatal
-      }
-    };
-    load();
+    axios.get('/api/qbittorrent/auto-stop/config')
+      .then((res) => {
+        const cfg = res.data;
+        setAutoStopEnabled(Boolean(cfg.enabled));
+        setSeedMinutes(cfg.seedTimeLimit != null ? String(cfg.seedTimeLimit) : '');
+        setRatioLimit(cfg.ratioLimit != null ? String(cfg.ratioLimit) : '');
+        setLimitsLoaded(true);
+      })
+      .catch((err) => setLimitsError(apiError(err)));
+    axios.get('/api/shows/config/auto-check').then((res) => setAutoCheck(res.data)).catch(() => {});
+    axios.get('/api/health').then((res) => setHealth(res.data)).catch(() => {});
   }, []);
-
-  const testAndSaveServer = async () => {
-    const url = urlInput.trim().replace(/\/$/, '');
-    if (!url) { showToast('Enter a server URL', 'error'); return; }
-    setIsTesting(true);
-    try {
-      await axios.get(`${url}/api/health`, { timeout: 6000 });
-      setServerUrl(url);
-      showToast('Server saved and connected ✓', 'success');
-    } catch (e) {
-      showToast('Could not reach server: ' + (e.message || 'timeout'), 'error');
-    } finally {
-      setIsTesting(false);
-    }
-  };
-
-  const saveServiceHost = () => {
-    const host = serviceHostInput.trim();
-    if (!host) { showToast('Enter a host or IP', 'error'); return; }
-    setServiceHost(host);
-    showToast('Service host saved ✓', 'success');
-  };
 
   const saveTmdb = async () => {
     const key = tmdbInput.trim();
     if (!key) { showToast('Enter a TMDB key', 'error'); return; }
     setIsSavingTmdb(true);
     try {
-      setTmdbApiKey(key);
-      await saveTmdbToBackend(key);
-      showToast('TMDB key saved ✓', 'success');
-    } catch {
-      showToast('Saved locally but could not sync to server', 'warning');
+      await saveTmdbKey(key);
+      setTmdbInput('');
+      showToast('TMDB key verified and saved on the server', 'success');
+    } catch (err) {
+      showToast(apiError(err), 'error');
     } finally {
       setIsSavingTmdb(false);
     }
@@ -112,32 +88,37 @@ export default function Settings() {
 
   const saveOmdb = () => {
     setOmdbApiKey(omdbInput.trim());
-    showToast('OMDb key saved ✓', 'success');
+    showToast('OMDb key saved on this device', 'success');
   };
 
   const saveAutoStop = async () => {
     setIsSavingAutoStop(true);
     try {
-      await axios.post('/api/qbittorrent/auto-stop/config', {
+      const res = await axios.post('/api/qbittorrent/auto-stop/config', {
         enabled: autoStopEnabled,
-        delayMinutes: parseInt(delayMinutes) || 0,
-        ratioLimit: ratioLimit ? parseFloat(ratioLimit) : null,
+        seedTimeLimit: seedMinutes === '' ? null : parseInt(seedMinutes, 10),
+        ratioLimit: ratioLimit === '' ? null : parseFloat(ratioLimit),
       });
-      showToast('Auto-stop config saved ✓', 'success');
-    } catch (e) {
-      showToast('Failed to save: ' + e.message, 'error');
+      const cfg = res.data.config;
+      setAutoStopEnabled(Boolean(cfg.enabled));
+      setSeedMinutes(cfg.seedTimeLimit != null ? String(cfg.seedTimeLimit) : '');
+      setRatioLimit(cfg.ratioLimit != null ? String(cfg.ratioLimit) : '');
+      showToast(res.data.message, 'success');
+    } catch (err) {
+      showToast('Failed to save: ' + apiError(err), 'error');
     } finally {
       setIsSavingAutoStop(false);
     }
   };
 
-  const saveAutoCheck = async () => {
+  const toggleAutoCheck = async (enabled) => {
     setIsSavingAutoCheck(true);
     try {
-      await axios.post('/api/shows/config/auto-check', { enabled: autoCheckEnabled });
-      showToast('Auto-check saved ✓', 'success');
-    } catch (e) {
-      showToast('Failed to save: ' + e.message, 'error');
+      await axios.post('/api/shows/config/auto-check', { enabled });
+      setAutoCheck((prev) => ({ ...(prev || {}), enabled }));
+      showToast(enabled ? 'Automatic episode checks on' : 'Automatic episode checks off', 'success');
+    } catch (err) {
+      showToast('Failed to save: ' + apiError(err), 'error');
     } finally {
       setIsSavingAutoCheck(false);
     }
@@ -151,196 +132,119 @@ export default function Settings() {
         <h2 style={{ fontSize: '1.1rem' }}>⚙️ Settings</h2>
       </div>
 
-      {/* Server */}
-      <SectionHeader title="Server" />
+      {/* TV automation */}
+      <SectionHeader title="TV Show Automation" />
       <SettingsCard>
-        <div className="settings-field">
-          <label className="settings-label">Server URL</label>
-          <input
-            className="input"
-            placeholder="http://192.168.0.30:3001"
-            value={urlInput}
-            onChange={e => setUrlInput(e.target.value)}
-          />
-          <button
-            className="button"
-            style={{ width: '100%', marginTop: '0.75rem' }}
-            onClick={testAndSaveServer}
-            disabled={isTesting || !urlInput.trim()}
-          >
-            {isTesting ? 'Testing connection…' : 'Test and save server'}
-          </button>
-          {serverUrl && (
-            <p style={{ color: '#4caf50', fontSize: '0.8rem', marginTop: '0.5rem' }}>
-              ✓ Connected to {serverUrl}
-            </p>
-          )}
-        </div>
+        <ToggleRow
+          title="Check for new episodes automatically"
+          description={autoCheck
+            ? `Searches at each episode's air time, retries every ${autoCheck.sweepIntervalHours ?? 6}h for up to ${autoCheck.retryWindowDays ?? 7} days.`
+            : 'Loading…'}
+          checked={Boolean(autoCheck?.enabled)}
+          onChange={toggleAutoCheck}
+          disabled={!autoCheck || isSavingAutoCheck}
+        />
+        {autoCheck?.lastSweep && (
+          <p className="hint" style={{ marginTop: '0.75rem' }}>
+            Last run {new Date(autoCheck.lastSweep.at).toLocaleString()} · {autoCheck.lastSweep.downloads?.length || 0} downloaded
+          </p>
+        )}
       </SettingsCard>
 
-      {/* Service Host */}
-      <SectionHeader title="External Services Host" />
+      {/* Seeding limits */}
+      <SectionHeader title="Seeding Limits" />
       <SettingsCard>
-        <p style={{ color: '#b0b0c0', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
-          LAN IP or hostname where Prowlarr, Sonarr, Radarr and qBittorrent run.
+        <p className="hint" style={{ marginBottom: '0.75rem' }}>
+          Saved directly in qBittorrent, so limits apply even when this dashboard is closed.
         </p>
-        <div className="settings-field">
-          <label className="settings-label">Host / IP</label>
-          <input
-            className="input"
-            placeholder="192.168.0.30"
-            value={serviceHostInput}
-            onChange={e => setServiceHostInput(e.target.value)}
-          />
-          <button
-            className="button button-secondary"
-            style={{ width: '100%', marginTop: '0.75rem' }}
-            onClick={saveServiceHost}
-          >
-            Save Host
-          </button>
-        </div>
+        {limitsError && <div className="inline-alert inline-alert-bad">Couldn&apos;t load limits: {limitsError}</div>}
+        <ToggleRow
+          title="Stop seeding automatically"
+          description="Stops a torrent once it reaches either limit below."
+          checked={autoStopEnabled}
+          onChange={setAutoStopEnabled}
+          disabled={!limitsLoaded}
+        />
+        {autoStopEnabled && (
+          <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div className="settings-field">
+              <label className="settings-label" htmlFor="seed-minutes">Seed for (minutes)</label>
+              <input id="seed-minutes" className="input" type="number" inputMode="numeric" min="0" placeholder="0 = stop at once"
+                value={seedMinutes} onChange={(e) => setSeedMinutes(e.target.value.replace(/\D/g, ''))} />
+            </div>
+            <div className="settings-field">
+              <label className="settings-label" htmlFor="ratio-limit">Or until ratio</label>
+              <input id="ratio-limit" className="input" type="number" inputMode="decimal" step="0.1" min="0" placeholder="e.g. 1.0"
+                value={ratioLimit} onChange={(e) => setRatioLimit(e.target.value)} />
+            </div>
+          </div>
+        )}
+        <button className="button" style={{ width: '100%', marginTop: '1rem' }}
+          onClick={saveAutoStop} disabled={isSavingAutoStop || !limitsLoaded}>
+          {isSavingAutoStop ? 'Saving…' : 'Save seeding limits'}
+        </button>
       </SettingsCard>
 
       {/* TMDB */}
-      <SectionHeader title="TMDB Integration" />
+      <SectionHeader title="TMDB (movie & TV data)" />
       <SettingsCard>
-        <p style={{ color: '#b0b0c0', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
-          Required for Movies, TV discovery, and tracked shows. Saved to device and server.
+        <p className="hint" style={{ marginBottom: '0.75rem' }}>
+          {tmdbConfigured === true && <span style={{ color: 'var(--success)' }}>✓ Configured on the server — works on every device. </span>}
+          {tmdbConfigured === false && <span style={{ color: 'var(--warning)' }}>Not configured — Media and TV tracking need it. </span>}
+          Enter a new key to replace it. Get one free at themoviedb.org → Settings → API.
         </p>
         <div className="settings-field">
-          <label className="settings-label">TMDB API Key</label>
+          <label className="settings-label" htmlFor="tmdb-key">TMDB API key (v3)</label>
           <div className="input-with-toggle">
-            <input
-              className="input"
-              placeholder="Your TMDB v3 API key"
-              type={tmdbVisible ? 'text' : 'password'}
-              value={tmdbInput}
-              onChange={e => setTmdbInput(e.target.value)}
-            />
-            <button className="toggle-visibility" onClick={() => setTmdbVisible(v => !v)}>
+            <input id="tmdb-key" className="input" placeholder={tmdbConfigured ? '•••••••• (saved)' : 'Your TMDB v3 API key'}
+              type={tmdbVisible ? 'text' : 'password'} autoComplete="off"
+              value={tmdbInput} onChange={(e) => setTmdbInput(e.target.value)} />
+            <button className="toggle-visibility" aria-label={tmdbVisible ? 'Hide key' : 'Show key'}
+              onClick={() => setTmdbVisible((v) => !v)}>
               {tmdbVisible ? '🙈' : '👁️'}
             </button>
           </div>
-          <button
-            className="button"
-            style={{ width: '100%', marginTop: '0.75rem' }}
-            onClick={saveTmdb}
-            disabled={isSavingTmdb}
-          >
-            {isSavingTmdb ? 'Saving…' : 'Save TMDB Key'}
+          <button className="button" style={{ width: '100%', marginTop: '0.75rem' }}
+            onClick={saveTmdb} disabled={isSavingTmdb || !tmdbInput.trim()}>
+            {isSavingTmdb ? 'Verifying…' : 'Verify and save'}
           </button>
         </div>
       </SettingsCard>
 
       {/* OMDb */}
-      <SectionHeader title="Optional IMDb Ratings (OMDb)" />
+      <SectionHeader title="IMDb Ratings (optional)" />
       <SettingsCard>
-        <p style={{ color: '#b0b0c0', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
-          Enables IMDb ratings in media detail. Get a free key at omdbapi.com.
+        <p className="hint" style={{ marginBottom: '0.75rem' }}>
+          Shows IMDb ratings in media details. Free key at omdbapi.com. Stored on this device only.
         </p>
         <div className="settings-field">
-          <label className="settings-label">OMDb API Key (optional)</label>
-          <input
-            className="input"
-            placeholder="Your OMDb API key"
-            type="password"
-            value={omdbInput}
-            onChange={e => setOmdbInput(e.target.value)}
-          />
-          <button
-            className="button button-secondary"
-            style={{ width: '100%', marginTop: '0.75rem' }}
-            onClick={saveOmdb}
-          >
-            Save OMDb Key
+          <label className="settings-label" htmlFor="omdb-key">OMDb API key</label>
+          <input id="omdb-key" className="input" placeholder="Your OMDb API key" type="password" autoComplete="off"
+            value={omdbInput} onChange={(e) => setOmdbInput(e.target.value)} />
+          <button className="button button-secondary" style={{ width: '100%', marginTop: '0.75rem' }} onClick={saveOmdb}>
+            Save OMDb key
           </button>
         </div>
-      </SettingsCard>
-
-      {/* Auto-Stop Seeding */}
-      <SectionHeader title="Auto-Stop Seeding" />
-      <SettingsCard>
-        <div className="settings-toggle-row">
-          <div>
-            <div className="settings-toggle-label">Enable Auto-Stop</div>
-            <div className="settings-toggle-desc">Automatically stop seeding based on limits</div>
-          </div>
-          <label className="toggle-switch">
-            <input type="checkbox" checked={autoStopEnabled} onChange={e => setAutoStopEnabled(e.target.checked)} />
-            <span className="toggle-slider" />
-          </label>
-        </div>
-        {autoStopEnabled && (
-          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div className="settings-field">
-              <label className="settings-label">Stop delay after completion (minutes, 0 = immediate)</label>
-              <input
-                className="input"
-                type="number"
-                min="0"
-                value={delayMinutes}
-                onChange={e => setDelayMinutes(e.target.value.replace(/\D/g, ''))}
-              />
-            </div>
-            <div className="settings-field">
-              <label className="settings-label">Ratio limit</label>
-              <input
-                className="input"
-                type="number"
-                step="0.1"
-                min="0"
-                value={ratioLimit}
-                onChange={e => setRatioLimit(e.target.value)}
-              />
-            </div>
-          </div>
-        )}
-        <button
-          className="button"
-          style={{ width: '100%', marginTop: '1rem' }}
-          onClick={saveAutoStop}
-          disabled={isSavingAutoStop}
-        >
-          {isSavingAutoStop ? 'Saving…' : 'Save Auto-Stop Config'}
-        </button>
-      </SettingsCard>
-
-      {/* Auto-Check Episodes */}
-      <SectionHeader title="TV Show Auto-Check" />
-      <SettingsCard>
-        <div className="settings-toggle-row">
-          <div>
-            <div className="settings-toggle-label">Auto-check Episodes</div>
-            <div className="settings-toggle-desc">Automatically search for new episodes on a schedule</div>
-          </div>
-          <label className="toggle-switch">
-            <input type="checkbox" checked={autoCheckEnabled} onChange={e => setAutoCheckEnabled(e.target.checked)} />
-            <span className="toggle-slider" />
-          </label>
-        </div>
-        <button
-          className="button"
-          style={{ width: '100%', marginTop: '1rem' }}
-          onClick={saveAutoCheck}
-          disabled={isSavingAutoCheck}
-        >
-          {isSavingAutoCheck ? 'Saving…' : 'Save Auto-Check'}
-        </button>
       </SettingsCard>
 
       {/* About */}
       <SectionHeader title="About" />
       <SettingsCard>
         <div className="settings-info-row">
-          <span>Dashboard</span>
-          <span style={{ color: '#b0b0c0' }}>Unified Server Dashboard</span>
+          <span>Server</span>
+          <span style={{ color: health ? 'var(--success)' : 'var(--danger)' }}>
+            {health ? `Online · ${window.location.host}` : 'Unreachable'}
+          </span>
         </div>
         <div className="settings-info-row">
-          <span>Connection</span>
-          <span style={{ color: serverUrl ? '#4caf50' : '#f44336' }}>
-            {serverUrl || 'Not configured'}
+          <span>Build</span>
+          <span style={{ color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace', fontSize: '0.8rem' }}>
+            {health?.commit || '—'}
           </span>
+        </div>
+        <div className="settings-info-row">
+          <span>Node</span>
+          <span style={{ color: 'var(--text-muted)' }}>{health?.nodeVersion || '—'}</span>
         </div>
       </SettingsCard>
 

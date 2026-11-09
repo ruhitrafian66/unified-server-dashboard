@@ -1,9 +1,28 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useToast } from '../App';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import ConfirmModal from '../components/ConfirmModal';
+import usePolling from '../hooks/usePolling';
+import { apiError } from '../lib/format';
+
+// Common shape of malware posing as a video release.
+const SUSPICIOUS_NAME = /\.(exe|scr|bat|cmd|msi|lnk|vbs|jar|apk)\b|\bpassword\b/i;
+
+const ACTIVE_STATES = ['downloading', 'stalledDL', 'metaDL', 'forcedDL', 'forcedMetaDL', 'checkingDL', 'allocating'];
+// qBittorrent 5 renamed paused* → stopped*; accept both.
+const STOPPED_STATES = ['stoppedDL', 'stoppedUP', 'pausedDL', 'pausedUP'];
+const STATE_LABELS = {
+  downloading: 'Downloading', stalledDL: 'Waiting for peers', metaDL: 'Getting metadata',
+  forcedDL: 'Downloading (forced)', forcedMetaDL: 'Getting metadata', allocating: 'Allocating',
+  stoppedDL: 'Stopped', pausedDL: 'Stopped', stoppedUP: 'Completed', pausedUP: 'Completed',
+  uploading: 'Seeding', stalledUP: 'Seeding (idle)', forcedUP: 'Seeding (forced)',
+  queuedDL: 'Queued', queuedUP: 'Queued to seed',
+  checkingDL: 'Checking', checkingUP: 'Checking', checkingResumeData: 'Checking',
+  queuedForChecking: 'Queued for check', moving: 'Moving files',
+  error: 'Error', missingFiles: 'Missing files', unknown: 'Unknown',
+};
 
 // ─── Torrent list tab ─────────────────────────────────────────────────────────
 
@@ -14,30 +33,27 @@ function TorrentList() {
   const [error, setError] = useState(null);
   const [selectedTorrents, setSelectedTorrents] = useState(new Set());
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleteFiles, setDeleteFiles] = useState(true);
 
-  useEffect(() => {
-    fetchTorrents();
-    const interval = setInterval(fetchTorrents, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchTorrents = async () => {
+  const fetchTorrents = useCallback(async () => {
     try {
-      const response = await axios.get('/api/qbittorrent/torrents');
+      const response = await axios.get('/api/qbittorrent/torrents', { timeout: 10000 });
       setTorrents(response.data);
       setError(null);
-      setLoading(false);
-    } catch (error) {
-      setError(error.response?.data?.error || error.message);
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  usePolling(fetchTorrents, 5000);
 
   const getSortedTorrents = () => {
     const sorted = [...torrents];
     sorted.sort((a, b) => {
-      const aActive = ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(a.state);
-      const bActive = ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(b.state);
+      const aActive = ACTIVE_STATES.includes(a.state);
+      const bActive = ACTIVE_STATES.includes(b.state);
       if (aActive && !bActive) return -1;
       if (!aActive && bActive) return 1;
       if (a.progress < 1 && b.progress >= 1) return -1;
@@ -55,7 +71,7 @@ function TorrentList() {
           return {
             ...t,
             state: action === 'pause'
-              ? (t.state.includes('DL') ? 'pausedDL' : 'pausedUP')
+              ? (t.progress >= 1 ? 'stoppedUP' : 'stoppedDL')
               : (t.progress >= 1 ? 'uploading' : 'downloading'),
             dlspeed: action === 'pause' ? 0 : t.dlspeed,
             upspeed: action === 'pause' ? 0 : t.upspeed,
@@ -63,11 +79,11 @@ function TorrentList() {
         }));
       }
       await axios.post(`/api/qbittorrent/torrents/${action}`, { hashes: hash, deleteFiles });
-      showToast({ pause: 'Torrent paused', resume: 'Torrent resumed', delete: 'Torrent removed' }[action] || 'Done', 'success');
+      showToast({ pause: 'Torrent stopped', resume: 'Torrent started', delete: deleteFiles ? 'Torrent and files removed' : 'Torrent removed (files kept)' }[action] || 'Done', 'success');
       setTimeout(fetchTorrents, 1500);
     } catch (error) {
       if (action === 'pause' || action === 'resume') fetchTorrents();
-      showToast('Error: ' + (error.response?.data?.error || error.message), 'error');
+      showToast('Error: ' + apiError(error), 'error');
     }
   };
 
@@ -82,7 +98,7 @@ function TorrentList() {
           return {
             ...t,
             state: action === 'pause'
-              ? (t.state.includes('DL') ? 'pausedDL' : 'pausedUP')
+              ? (t.progress >= 1 ? 'stoppedUP' : 'stoppedDL')
               : (t.progress >= 1 ? 'uploading' : 'downloading'),
             dlspeed: action === 'pause' ? 0 : t.dlspeed,
             upspeed: action === 'pause' ? 0 : t.upspeed,
@@ -90,12 +106,12 @@ function TorrentList() {
         }));
       }
       await axios.post(`/api/qbittorrent/torrents/${action}`, { hashes });
-      showToast(`${selectedTorrents.size} torrent(s) ${action}d`, 'success');
+      showToast(`${selectedTorrents.size} torrent(s) ${action === 'pause' ? 'stopped' : 'started'}`, 'success');
       setSelectedTorrents(new Set());
       setTimeout(fetchTorrents, 1500);
     } catch (error) {
       if (action === 'pause' || action === 'resume') fetchTorrents();
-      showToast('Error: ' + error.message, 'error');
+      showToast('Error: ' + apiError(error), 'error');
     }
   };
 
@@ -113,15 +129,7 @@ function TorrentList() {
       const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
       return h > 0 ? `${h}h ${m}m` : `${m}m`;
     },
-    status: state => ({
-      downloading: 'Downloading', stalledDL: 'Waiting for peers',
-      pausedDL: 'Paused', pausedUP: 'Paused',
-      uploading: 'Seeding', stalledUP: 'Completed',
-      queuedDL: 'Queued', queuedUP: 'Queued',
-      checkingDL: 'Checking', checkingUP: 'Checking',
-      metaDL: 'Getting metadata', forcedDL: 'Force DL',
-      error: 'Error', missingFiles: 'Missing files', allocating: 'Allocating',
-    })[state] || state,
+    status: state => STATE_LABELS[state] || state,
   };
 
   if (loading) return <div className="card"><LoadingSkeleton count={3} height="100px" /></div>;
@@ -148,8 +156,9 @@ function TorrentList() {
         ) : (
           <div className="mobile-grid">
             {sortedTorrents.map(torrent => {
-              const isActive = ['downloading', 'stalledDL', 'metaDL', 'forcedDL'].includes(torrent.state);
-              const isPaused = torrent.state === 'pausedDL' || torrent.state === 'pausedUP';
+              const isActive = ACTIVE_STATES.includes(torrent.state);
+              const isPaused = STOPPED_STATES.includes(torrent.state);
+              const isError = torrent.state === 'error' || torrent.state === 'missingFiles';
               const isSelected = selectedTorrents.has(torrent.hash);
               return (
                 <div
@@ -167,7 +176,7 @@ function TorrentList() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="mobile-list-title text-wrap" style={{ marginBottom: '0.5rem' }}>{torrent.name}</div>
                       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-                        <span className={`status-badge ${torrent.progress >= 1 ? 'status-active' : isPaused ? 'status-warning' : isActive ? 'status-active' : 'status-inactive'}`}>
+                        <span className={`status-badge ${isError ? 'status-inactive' : torrent.progress >= 1 ? 'status-active' : isPaused ? 'status-warning' : isActive ? 'status-active' : 'status-inactive'}`}>
                           {fmt.status(torrent.state)}
                         </span>
                       </div>
@@ -196,8 +205,8 @@ function TorrentList() {
                   </div>
                   <div className="mobile-grid-2">
                     <button className="button button-small" onClick={() => controlTorrent(isPaused ? 'resume' : 'pause', torrent.hash)}>
-                      <span>{isPaused ? '▶️' : '⏸️'}</span>
-                      <span>{isPaused ? 'Resume' : 'Pause'}</span>
+                      <span>{isPaused ? '▶️' : '⏹️'}</span>
+                      <span>{isPaused ? 'Start' : 'Stop'}</span>
                     </button>
                     <button className="button button-small button-danger" onClick={() => setConfirmDelete({ hashes: torrent.hash, name: torrent.name })}>
                       <span>🗑️</span><span>Remove</span>
@@ -213,22 +222,27 @@ function TorrentList() {
       {/* Bulk action FAB */}
       {selectedTorrents.size > 0 && (
         <div className="fab-group">
-          <button className="fab fab-bulk" onClick={() => handleBulkAction('resume')} title="Resume Selected">▶️</button>
-          <button className="fab fab-bulk" onClick={() => handleBulkAction('pause')} title="Pause Selected">⏸️</button>
-          <button className="fab fab-bulk fab-danger" onClick={() => handleBulkAction('delete')} title="Delete Selected">🗑️</button>
+          <button className="fab fab-bulk" onClick={() => handleBulkAction('resume')} title="Start selected" aria-label="Start selected">▶️</button>
+          <button className="fab fab-bulk" onClick={() => handleBulkAction('pause')} title="Stop selected" aria-label="Stop selected">⏹️</button>
+          <button className="fab fab-bulk fab-danger" onClick={() => handleBulkAction('delete')} title="Remove selected" aria-label="Remove selected">🗑️</button>
         </div>
       )}
 
       {confirmDelete && (
         <ConfirmModal
-          title="Remove Torrent"
+          title="Remove torrent"
           message={confirmDelete.name
-            ? `Remove "${confirmDelete.name}"? This will delete the downloaded files.`
-            : `Remove ${confirmDelete.count} torrent(s)? This will delete the downloaded files.`}
-          confirmText="Remove" cancelText="Cancel" type="danger"
-          onConfirm={() => { controlTorrent('delete', confirmDelete.hashes); setConfirmDelete(null); setSelectedTorrents(new Set()); }}
+            ? `Remove "${confirmDelete.name}" from qBittorrent?`
+            : `Remove ${confirmDelete.count} torrent(s) from qBittorrent?`}
+          confirmText={deleteFiles ? 'Remove + delete files' : 'Remove'} cancelText="Cancel" type="danger"
+          onConfirm={() => { controlTorrent('delete', confirmDelete.hashes, deleteFiles); setConfirmDelete(null); setSelectedTorrents(new Set()); }}
           onCancel={() => setConfirmDelete(null)}
-        />
+        >
+          <label className="check-row">
+            <input type="checkbox" checked={deleteFiles} onChange={(e) => setDeleteFiles(e.target.checked)} />
+            Also delete the downloaded files (Plex will lose them)
+          </label>
+        </ConfirmModal>
       )}
     </>
   );
@@ -247,7 +261,6 @@ function TorrentSearch({ initialQuery }) {
     try { return JSON.parse(localStorage.getItem('recentSearches') || '[]'); } catch { return []; }
   });
   const [sortBy, setSortBy] = useState('seeders');
-  const [advancedOptions, setAdvancedOptions] = useState({ enableEpisodePriority: true });
   const pollRef = useRef(null);
 
   // Auto-run search if initialQuery was supplied (handoff from Media)
@@ -344,13 +357,13 @@ function TorrentSearch({ initialQuery }) {
       showToast('Invalid download link', 'error'); return;
     }
     try {
-      await axios.post('/api/qbittorrent/torrents/add-advanced', { urls: url, enableEpisodePriority: advancedOptions.enableEpisodePriority });
+      await axios.post('/api/qbittorrent/torrents/add', { urls: url });
       setSelectedTorrent(null);
       setSearchResults([]);
       setSearchQuery('');
       showToast('Torrent added!', 'success');
     } catch (error) {
-      showToast('Error: ' + (error.response?.data?.error || error.message), 'error');
+      showToast('Error: ' + apiError(error), 'error');
     }
   };
 
@@ -379,7 +392,7 @@ function TorrentSearch({ initialQuery }) {
             placeholder="Breaking Bad, The Matrix, etc..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            onKeyPress={e => e.key === 'Enter' && searchTorrents()}
+            onKeyDown={e => e.key === 'Enter' && searchTorrents()}
           />
         </div>
         <button className="button mb-2" onClick={() => searchTorrents()} disabled={searching}>
@@ -415,12 +428,18 @@ function TorrentSearch({ initialQuery }) {
               const quality = result.nbSeeders > 50 ? 'Excellent' : result.nbSeeders > 10 ? 'Good' : 'Fair';
               const qColor = result.nbSeeders > 50 ? '#4caf50' : result.nbSeeders > 10 ? '#2196f3' : '#ff9800';
               const isSelected = selectedTorrent === result;
+              const suspicious = SUSPICIOUS_NAME.test(result.fileName || '');
               return (
                 <div key={i} className="mobile-card"
                   style={{ cursor: 'pointer', border: isSelected ? '1px solid #667eea' : '1px solid #2a2a3e', background: isSelected ? 'rgba(102,126,234,0.1)' : 'rgba(255,255,255,0.02)' }}
                   onClick={() => setSelectedTorrent(isSelected ? null : result)}
                 >
                   <div className="mobile-list-title text-wrap" style={{ marginBottom: '0.75rem' }}>{result.fileName}</div>
+                  {suspicious && (
+                    <div className="inline-alert inline-alert-bad" style={{ padding: '0.5rem 0.75rem' }}>
+                      ⚠ Looks like malware (executable or password-protected archive). Don't download.
+                    </div>
+                  )}
                   <div className="mobile-grid-2" style={{ gap: '0.5rem', fontSize: '0.75rem', marginBottom: '0.75rem' }}>
                     <div style={{ color: '#b0b0c0' }}>📦 {(result.fileSize / 1073741824).toFixed(2)} GB</div>
                     <div style={{ color: qColor }}>⭐ {quality} ({result.nbSeeders})</div>
@@ -428,16 +447,7 @@ function TorrentSearch({ initialQuery }) {
                   {isSelected && (
                     <div style={{ background: 'rgba(102,126,234,0.1)', border: '1px solid #667eea', borderRadius: '8px', padding: '0.75rem', marginTop: '0.75rem' }}>
                       <div style={{ color: '#667eea', fontWeight: '600', marginBottom: '0.75rem' }}>⚙️ Download Options</div>
-                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '1rem', cursor: 'pointer' }}>
-                        <input type="checkbox" checked={advancedOptions.enableEpisodePriority}
-                          onChange={e => setAdvancedOptions({ ...advancedOptions, enableEpisodePriority: e.target.checked })}
-                          style={{ marginTop: '0.25rem' }} />
-                        <div>
-                          <div style={{ color: '#e0e0e0', fontSize: '0.875rem' }}>📺 Prioritize episodes (S01E01 first)</div>
-                          <div style={{ color: '#b0b0c0', fontSize: '0.75rem' }}>Downloads first episodes first for TV shows</div>
-                        </div>
-                      </label>
-                      <p style={{ color: '#4caf50', fontSize: '0.75rem', marginBottom: '1rem' }}>✓ Sequential download automatically enabled</p>
+                      <p style={{ color: '#4caf50', fontSize: '0.75rem', marginBottom: '1rem' }}>✓ Downloads in order (sequential), so playback can start early</p>
                       <div className="mobile-grid-2">
                         <button className="button button-small" onClick={addSearchedTorrent}><span>✓</span><span>Download</span></button>
                         <button className="button button-small button-secondary" onClick={() => setSelectedTorrent(null)}><span>✕</span><span>Cancel</span></button>
@@ -457,7 +467,7 @@ function TorrentSearch({ initialQuery }) {
         <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>Paste a magnet link or torrent URL directly</p>
         <div className="form-group">
           <input className="input" type="text" placeholder="magnet:?xt=urn:btih:..." value={newTorrent}
-            onChange={e => setNewTorrent(e.target.value)} onKeyPress={e => e.key === 'Enter' && addMagnet()} />
+            onChange={e => setNewTorrent(e.target.value)} onKeyDown={e => e.key === 'Enter' && addMagnet()} />
         </div>
         <button className="button" onClick={addMagnet}><span>➕</span><span>Add Download</span></button>
         <p style={{ color: '#4caf50', fontSize: '0.75rem', marginTop: '0.75rem' }}>✓ Sequential download automatically enabled</p>

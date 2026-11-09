@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 
 const SettingsContext = createContext();
@@ -9,73 +9,52 @@ export const useSettings = () => {
   return ctx;
 };
 
-const STORAGE_KEYS = {
-  tmdbApiKey: 'dashboard_tmdb_key',
-  omdbApiKey: 'dashboard_omdb_key',
-  serverUrl: 'dashboard_server_url',
-  setupComplete: 'dashboard_setup_complete',
-  serviceHost: 'dashboard_service_host',
+const OMDB_KEY = 'dashboard_omdb_key';
+
+const readLocal = (key) => {
+  try { return localStorage.getItem(key) || ''; } catch { return ''; }
+};
+const writeLocal = (key, value) => {
+  try { localStorage.setItem(key, value); } catch { /* private mode etc. */ }
 };
 
+/**
+ * TMDB is configured once on the server (all TMDB calls go through /api/tmdb),
+ * so every device works without entering a key. Only the optional OMDb key is
+ * kept per device.
+ */
 export function SettingsProvider({ children }) {
-  const [tmdbApiKey, setTmdbApiKeyState] = useState(() => localStorage.getItem(STORAGE_KEYS.tmdbApiKey) || '');
-  const [omdbApiKey, setOmdbApiKeyState] = useState(() => localStorage.getItem(STORAGE_KEYS.omdbApiKey) || '');
-  const [serverUrl, setServerUrlState] = useState(() => localStorage.getItem(STORAGE_KEYS.serverUrl) || '');
-  const [setupComplete, setSetupCompleteState] = useState(
-    () => localStorage.getItem(STORAGE_KEYS.setupComplete) === 'true'
-  );
-  const [serviceHost, setServiceHostState] = useState(
-    () => localStorage.getItem(STORAGE_KEYS.serviceHost) || '192.168.0.30'
-  );
+  const [omdbApiKey, setOmdbApiKeyState] = useState(() => readLocal(OMDB_KEY));
+  const [tmdbConfigured, setTmdbConfigured] = useState(null); // null = unknown yet
 
-  const setTmdbApiKey = useCallback((key) => {
-    setTmdbApiKeyState(key);
-    localStorage.setItem(STORAGE_KEYS.tmdbApiKey, key);
+  const refreshTmdbStatus = useCallback(async () => {
+    try {
+      const res = await axios.get('/api/shows/config/tmdb');
+      setTmdbConfigured(Boolean(res.data.configured));
+    } catch {
+      setTmdbConfigured(null);
+    }
   }, []);
+
+  useEffect(() => { refreshTmdbStatus(); }, [refreshTmdbStatus]);
 
   const setOmdbApiKey = useCallback((key) => {
     setOmdbApiKeyState(key);
-    localStorage.setItem(STORAGE_KEYS.omdbApiKey, key);
+    writeLocal(OMDB_KEY, key);
   }, []);
 
-  const setServiceHost = useCallback((host) => {
-    setServiceHostState(host);
-    localStorage.setItem(STORAGE_KEYS.serviceHost, host);
-  }, []);
-
-  const setServerUrl = useCallback((url) => {
-    setServerUrlState(url);
-    localStorage.setItem(STORAGE_KEYS.serverUrl, url);
-  }, []);
-
-  const completeSetup = useCallback((url) => {
-    setServerUrl(url);
-    setSetupCompleteState(true);
-    localStorage.setItem(STORAGE_KEYS.setupComplete, 'true');
-  }, [setServerUrl]);
-
-  const saveTmdbToBackend = useCallback(async (key) => {
-    if (!key) return;
-    try {
-      await axios.post('/api/shows/config/tmdb', { apiKey: key });
-    } catch {
-      // Best-effort — not fatal
-    }
+  const saveTmdbKey = useCallback(async (key) => {
+    await axios.post('/api/shows/config/tmdb', { apiKey: key });
+    setTmdbConfigured(true);
   }, []);
 
   return (
     <SettingsContext.Provider value={{
-      tmdbApiKey,
       omdbApiKey,
-      serverUrl,
-      serviceHost,
-      setupComplete,
-      setTmdbApiKey,
       setOmdbApiKey,
-      setServerUrl,
-      setServiceHost,
-      completeSetup,
-      saveTmdbToBackend,
+      tmdbConfigured,
+      refreshTmdbStatus,
+      saveTmdbKey,
     }}>
       {children}
     </SettingsContext.Provider>

@@ -3,13 +3,15 @@ import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '../App';
 import { useSettings } from '../contexts/SettingsContext';
+import { apiError } from '../lib/format';
 import MediaDetailModal from '../components/MediaDetailModal';
 import OngoingShows from './OngoingShows';
 import PastShows from './PastShows';
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342';
 const TMDB_IMG_BG = 'https://image.tmdb.org/t/p/w780';
-const TMDB_BASE = 'https://api.themoviedb.org/3';
+// TMDB requests go through the backend, which holds the API key.
+const TMDB_BASE = '/api/tmdb';
 
 function MediaCard({ item, onClick }) {
   const posterUrl = item.poster_path ? `${TMDB_IMG}${item.poster_path}` : null;
@@ -85,31 +87,32 @@ export default function Media() {
   const [trendingError, setTrendingError] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const searchDebounce = useRef(null);
-  const { tmdbApiKey } = useSettings();
+  const searchSeq = useRef(0);
+  const { tmdbConfigured } = useSettings();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const loadTrending = useCallback(async () => {
-    if (!tmdbApiKey) {
-      setTrendingError('Add your TMDB API key in Settings to browse media.');
+    if (tmdbConfigured === false) {
+      setTrendingError('Add a TMDB API key in Settings to browse media.');
       return;
     }
     setIsLoadingTrending(true);
     setTrendingError(null);
     try {
       const [tvRes, movRes] = await Promise.all([
-        axios.get(`${TMDB_BASE}/trending/tv/week`, { params: { api_key: tmdbApiKey } }),
-        axios.get(`${TMDB_BASE}/trending/movie/week`, { params: { api_key: tmdbApiKey } }),
+        axios.get(`${TMDB_BASE}/trending/tv/week`),
+        axios.get(`${TMDB_BASE}/trending/movie/week`),
       ]);
       setTrendingTv((tvRes.data.results || []).map(i => ({ ...i, media_type: 'tv' })));
       setTrendingMovies((movRes.data.results || []).map(i => ({ ...i, media_type: 'movie' })));
     } catch (e) {
-      setTrendingError(e.response?.data?.status_message || e.message);
+      setTrendingError(apiError(e));
     } finally {
       setIsLoadingTrending(false);
     }
-  }, [tmdbApiKey]);
+  }, [tmdbConfigured]);
 
   useEffect(() => {
     loadTrending();
@@ -123,24 +126,26 @@ export default function Media() {
 
   const runSearch = useCallback(async (query, page = 1) => {
     if (!query.trim()) return;
-    if (!tmdbApiKey) {
-      showToast('Add your TMDB API key in Settings', 'error');
+    if (tmdbConfigured === false) {
+      showToast('Add a TMDB API key in Settings', 'error');
       return;
     }
+    const seq = ++searchSeq.current;
     setIsSearching(true);
     try {
       let url, params;
       if (activeTab === 'movies') {
         url = `${TMDB_BASE}/search/movie`;
-        params = { api_key: tmdbApiKey, query, page };
+        params = { query, page };
       } else if (activeTab === 'tv') {
         url = `${TMDB_BASE}/search/tv`;
-        params = { api_key: tmdbApiKey, query, page };
+        params = { query, page };
       } else {
         url = `${TMDB_BASE}/search/multi`;
-        params = { api_key: tmdbApiKey, query, page };
+        params = { query, page };
       }
       const res = await axios.get(url, { params });
+      if (seq !== searchSeq.current) return; // a newer search superseded this one
       let results = (res.data.results || []).filter(i =>
         activeTab === 'movies' ? true :
         activeTab === 'tv' ? true :
@@ -162,11 +167,11 @@ export default function Media() {
       setTotalPages(res.data.total_pages);
       setTotalResults(res.data.total_results);
     } catch (e) {
-      showToast('Search failed: ' + (e.response?.data?.status_message || e.message), 'error');
+      if (seq === searchSeq.current) showToast('Search failed: ' + apiError(e), 'error');
     } finally {
-      setIsSearching(false);
+      if (seq === searchSeq.current) setIsSearching(false);
     }
-  }, [tmdbApiKey, activeTab, showToast]);
+  }, [tmdbConfigured, activeTab, showToast]);
 
   const handleQueryChange = (q) => {
     setSearchQuery(q);
@@ -330,7 +335,7 @@ export default function Media() {
                 <div className="card">
                   <div style={{ color: '#ff9800', padding: '0.5rem 0', fontSize: '0.875rem' }}>
                     ⚠️ {trendingError}
-                    {!tmdbApiKey && (
+                    {tmdbConfigured === false && (
                       <button className="button button-secondary" style={{ marginTop: '0.75rem', width: '100%' }}
                         onClick={() => navigate('/settings')}>
                         Open Settings

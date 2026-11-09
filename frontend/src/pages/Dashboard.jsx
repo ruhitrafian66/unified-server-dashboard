@@ -1,163 +1,121 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToast } from '../App';
-import { useSettings } from '../contexts/SettingsContext';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import ConfirmModal from '../components/ConfirmModal';
 import QueuePopup from '../components/QueuePopup';
 import SearchLogsPopup from '../components/SearchLogsPopup';
 import CpuChart from '../components/CpuChart';
+import usePolling from '../hooks/usePolling';
+import { formatBytes, formatSpeed, formatDuration, levelColor, apiError } from '../lib/format';
+
+const CPU_RANGES = [
+  { label: '6h', hours: 6 },
+  { label: '12h', hours: 12 },
+  { label: '24h', hours: 24 },
+  { label: '2d', hours: 48 },
+  { label: '4d', hours: 96 },
+];
+
+// Links open the real web UIs on the same host the dashboard was loaded from.
+const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const EXTERNAL_SERVICES = [
+  { name: 'qBittorrent', icon: '⬇️', url: `http://${host}:8080` },
+  { name: 'Plex', icon: '🎞️', url: `http://${host}:32400/web` },
+];
+
+function Tile({ label, value, sub, percent }) {
+  return (
+    <div className="tile">
+      <div className="tile-label">{label}</div>
+      <div className="tile-value">{value}</div>
+      {percent != null && (
+        <div className="meter" role="progressbar" aria-valuenow={Math.round(percent)} aria-valuemin={0} aria-valuemax={100}>
+          <span style={{ width: `${Math.min(100, percent)}%`, background: levelColor(percent) }} />
+        </div>
+      )}
+      {sub && <div className="tile-sub">{sub}</div>}
+    </div>
+  );
+}
+
+function StatusRow({ state, title, sub, right }) {
+  return (
+    <div className="status-row">
+      <span className={`dot dot-${state}`} aria-hidden="true" />
+      <div className="status-row-main">
+        <div className="status-row-title">{title}</div>
+        {sub && <div className="status-row-sub">{sub}</div>}
+      </div>
+      {right}
+    </div>
+  );
+}
+
+const containerState = (c) => {
+  if (!c.running) return 'bad';
+  if (c.healthy === false) return 'warn';
+  return 'ok';
+};
+
+const TORRENT_CONNECTION = {
+  connected: { state: 'ok', label: 'Connected' },
+  firewalled: { state: 'warn', label: 'Firewalled (no incoming peers)' },
+  disconnected: { state: 'bad', label: 'Disconnected' },
+};
 
 function Dashboard() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { serviceHost } = useSettings();
-  const [systemInfo, setSystemInfo] = useState(null);
-  const [services, setServices] = useState([]);
-  const [disks, setDisks] = useState([]);
-  const [ssdStorage, setSsdStorage] = useState(null);
-  const [containers, setContainers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(null);
+  const [overview, setOverview] = useState(null);
+  const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [serverOnline, setServerOnline] = useState(null);
-  const [servicesCollapsed, setServicesCollapsed] = useState(true);
-  const [disksCollapsed, setDisksCollapsed] = useState(true);
-  const [containersCollapsed, setContainersCollapsed] = useState(true);
   const [confirmPower, setConfirmPower] = useState(null);
   const [showQueue, setShowQueue] = useState(false);
   const [showSearchLogs, setShowSearchLogs] = useState(false);
-  const [autoStopConfig, setAutoStopConfig] = useState({
-    enabled: false,
-    delayMinutes: 0,
-    ratioLimit: null,
-    seedTimeLimit: null
-  });
-  const [showAutoStopSettings, setShowAutoStopSettings] = useState(false);
-  const [autoStopStats, setAutoStopStats] = useState(null);
-
-  // CPU history — fetched on demand, not on the main 10s polling loop
-  const CPU_RANGES = [
-    { label: '6h',  hours: 6   },
-    { label: '12h', hours: 12  },
-    { label: '24h', hours: 24  },
-    { label: '2d',  hours: 48  },
-    { label: '4d',  hours: 96  },
-  ];
-  const [cpuRange, setCpuRange]     = useState(CPU_RANGES[0]);
+  const [cpuRange, setCpuRange] = useState(CPU_RANGES[0]);
   const [cpuSamples, setCpuSamples] = useState([]);
   const [cpuLoading, setCpuLoading] = useState(false);
+
+  const fetchOverview = useCallback(async () => {
+    try {
+      const res = await axios.get('/api/system/overview', { timeout: 10000 });
+      setOverview(res.data);
+      setError(null);
+      setLastUpdated(new Date());
+    } catch (err) {
+      setError(apiError(err));
+    }
+  }, []);
 
   const fetchCpuHistory = useCallback(async (hours) => {
     setCpuLoading(true);
     try {
-      const res = await axios.get(`/api/omv/cpu-history?hours=${hours}`);
+      const res = await axios.get(`/api/system/cpu-history?hours=${hours}`);
       setCpuSamples(res.data.samples || []);
-    } catch (e) {
-      console.error('CPU history fetch failed:', e.message);
+    } catch {
+      // Chart just keeps its previous data.
     } finally {
       setCpuLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchData();
-    fetchAutoStopConfig();
-    fetchCpuHistory(cpuRange.hours);
-    const dataInterval = setInterval(fetchData, 10000);
-    // Refresh chart every 60s — matches the server sample cadence
-    const cpuInterval  = setInterval(() => fetchCpuHistory(cpuRange.hours), 60_000);
-    return () => { clearInterval(dataInterval); clearInterval(cpuInterval); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const [systemRes, servicesRes, disksRes, containersRes, storageRes, healthRes] = await Promise.all([
-        axios.get('/api/omv/system'),
-        axios.get('/api/omv/services'),
-        axios.get('/api/omv/disks'),
-        axios.get('/api/docker/containers'),
-        axios.get('/api/omv/storage'),
-        axios.get('/api/health'),
-      ]);
-      setSystemInfo(systemRes.data);
-      setServices(servicesRes.data.services || []);
-      setDisks(disksRes.data.disks || []);
-      setContainers(containersRes.data.containers || []);
-      setSsdStorage(storageRes.data);
-      setServerOnline(healthRes.data.status === 'ok');
-      setLastUpdated(new Date());
-      setFetchError(null);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setFetchError(error.message);
-      setServerOnline(false);
-      setLoading(false);
-    }
-  };
-
-  const fetchAutoStopConfig = async () => {
-    try {
-      const response = await axios.get('/api/qbittorrent/auto-stop/config');
-      setAutoStopConfig(response.data);
-    } catch (error) {
-      console.error('Error fetching auto-stop config:', error);
-    }
-  };
-
-  const updateAutoStopConfig = async (newConfig) => {
-    try {
-      const response = await axios.post('/api/qbittorrent/auto-stop/config', newConfig);
-      setAutoStopConfig(response.data.config);
-      showToast(response.data.message, 'success');
-    } catch (error) {
-      showToast('Error updating auto-stop settings: ' + error.message, 'error');
-    }
-  };
-
-  const processAutoStop = async () => {
-    try {
-      const response = await axios.post('/api/qbittorrent/auto-stop/process');
-      if (response.data.processed > 0) {
-        showToast(`Auto-stopped ${response.data.processed} torrent(s)`, 'success');
-      } else {
-        showToast(response.data.message || 'No torrents to process', 'info');
-      }
-      
-      // Fetch updated stats
-      const statsRes = await axios.get('/api/qbittorrent/auto-stop/stats');
-      setAutoStopStats(statsRes.data);
-    } catch (error) {
-      showToast('Error processing auto-stop: ' + error.message, 'error');
-    }
-  };
-
-  const powerAction = async (action) => {
-    setConfirmPower(action);
-  };
+  usePolling(fetchOverview, 10000);
+  usePolling(() => fetchCpuHistory(cpuRange.hours), 60000);
 
   const executePowerAction = async () => {
     const action = confirmPower;
     setConfirmPower(null);
-    
     try {
-      await axios.post(`/api/omv/power/${action}`);
-      showToast(`Server ${action} initiated`, 'success');
-    } catch (error) {
-      showToast('Error: ' + error.message, 'error');
+      const res = await axios.post(`/api/system/power/${action}`);
+      showToast(res.data.message || `Server ${action} initiated`, 'success', 6000);
+    } catch (err) {
+      showToast('Error: ' + apiError(err), 'error');
     }
   };
 
-  const parsePercentage = (str) => {
-    if (!str) return 0;
-    const match = str.match(/(\d+\.?\d*)/);
-    return match ? parseFloat(match[1]) : 0;
-  };
-
-  if (loading) {
+  if (!overview && !error) {
     return (
       <div className="fade-in">
         <div className="card">
@@ -168,449 +126,223 @@ function Dashboard() {
     );
   }
 
-  const cpuPercent = parsePercentage(systemInfo?.cpu);
-  const memoryPercent = parsePercentage(systemInfo?.memory);
+  const o = overview || {};
+  const online = !error;
+  const storage = o.disks?.storage;
+  const root = o.disks?.root;
+  const qb = o.torrentClient;
+  const qbConn = qb ? TORRENT_CONNECTION[qb.connection] || { state: 'warn', label: qb.connection } : null;
+  const vpn = o.containers?.find((c) => c.name === 'gluetun');
+  const sectionErrors = Object.keys(o.errors || {});
 
   return (
     <div className="fade-in">
-      {/* Health Banner */}
-      <div className={`health-banner ${serverOnline === true ? 'health-online' : serverOnline === false ? 'health-offline' : 'health-unknown'}`}>
-        <span className="health-banner-icon">
-          {serverOnline === true ? '✅' : serverOnline === false ? '❌' : '⚠️'}
-        </span>
+      <div className={`health-banner ${online ? 'health-online' : 'health-offline'}`} role="status">
+        <span className="health-banner-icon">{online ? '✅' : '❌'}</span>
         <span className="health-banner-text">
-          {serverOnline === true ? 'Server online' : serverOnline === false ? 'Server offline' : 'Connecting…'}
+          {online ? 'Server online' : `Can't reach server: ${error}`}
         </span>
         {lastUpdated && (
           <span className="health-banner-updated">
-            Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {online ? 'Updated' : 'Last seen'} {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
-        {fetchError && <span className="health-banner-error" title={fetchError}>⚠️</span>}
       </div>
 
-      {/* Quick Actions - Moved to first position */}
+      {sectionErrors.length > 0 && online && (
+        <div className="inline-alert inline-alert-warn" style={{ margin: '0.75rem 1rem 0' }}>
+          Some data is unavailable: {sectionErrors.join(', ')}.
+        </div>
+      )}
+
+      {/* System */}
+      <div className="card">
+        <h2>📊 System</h2>
+        <div className="tile-grid">
+          <Tile
+            label="CPU"
+            value={o.cpu?.percent != null ? `${o.cpu.percent.toFixed(0)}%` : '—'}
+            percent={o.cpu?.percent}
+            sub={o.load ? `Load ${o.load.map((l) => l.toFixed(2)).join(' · ')}` : null}
+          />
+          <Tile
+            label="Memory"
+            value={o.memory ? `${o.memory.percent.toFixed(0)}%` : '—'}
+            percent={o.memory?.percent}
+            sub={o.memory ? `${formatBytes(o.memory.used)} of ${formatBytes(o.memory.total)}` : null}
+          />
+          <Tile
+            label="Media storage"
+            value={storage ? formatBytes(storage.available, 0) : '—'}
+            percent={storage?.percent}
+            sub={storage ? `free · ${storage.percent.toFixed(0)}% used of ${formatBytes(storage.size, 0)}` : null}
+          />
+          <Tile
+            label={o.temperature != null ? 'Temperature' : 'Uptime'}
+            value={o.temperature != null ? `${o.temperature.toFixed(0)}°C` : formatDuration(o.uptime)}
+            percent={o.temperature != null ? Math.min(100, o.temperature) : null}
+            sub={o.temperature != null ? `Up ${formatDuration(o.uptime)}` : null}
+          />
+        </div>
+        {root && root.percent > 85 && (
+          <div className="inline-alert inline-alert-warn" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
+            System disk (SD card) is {root.percent.toFixed(0)}% full — {formatBytes(root.available)} left.
+          </div>
+        )}
+      </div>
+
+      {/* Downloads & network */}
+      <div className="card">
+        <div className="card-header-row">
+          <h2>🛡️ Downloads &amp; VPN</h2>
+          <button className="link-button" onClick={() => navigate('/downloads')}>Open downloads →</button>
+        </div>
+        <div className="status-list">
+          <StatusRow
+            state={vpn ? containerState(vpn) : 'idle'}
+            title="VPN tunnel (gluetun)"
+            sub={vpn ? vpn.status : 'Container not found'}
+          />
+          <StatusRow
+            state={qbConn ? qbConn.state : 'bad'}
+            title="qBittorrent"
+            sub={qb ? `${qbConn.label} · ${qb.dhtNodes} DHT nodes` : (o.errors?.torrentClient || 'Unavailable')}
+            right={qb && (
+              <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                <div style={{ color: 'var(--success)' }}>↓ {formatSpeed(qb.dlSpeed)}</div>
+                <div style={{ color: 'var(--info)' }}>↑ {formatSpeed(qb.upSpeed)}</div>
+              </div>
+            )}
+          />
+        </div>
+        <div className="mobile-grid-2 mt-1">
+          <button className="button button-secondary" onClick={() => setShowQueue(true)}>
+            <span>📋</span><span>Search queue</span>
+          </button>
+          <button className="button button-secondary" onClick={() => setShowSearchLogs(true)}>
+            <span>🧾</span><span>Search logs</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Quick actions */}
       <div className="card">
         <h2>⚡ Quick Actions</h2>
         <div className="mobile-grid-2">
-          <button className="button" onClick={() => navigate('/media?tab=tracked')}>
-            <span>📺</span>
-            <span>TV Shows</span>
-          </button>
-          <button className="button" onClick={() => navigate('/downloads')}>
-            <span>📥</span>
-            <span>Downloads</span>
-          </button>
           <button className="button" onClick={() => navigate('/downloads?tab=search')}>
-            <span>🔍</span>
-            <span>Search</span>
+            <span>🔍</span><span>Find torrent</span>
           </button>
-          <button className="button button-secondary" onClick={() => navigate('/media')}>
-            <span>🎬</span>
-            <span>Media</span>
+          <button className="button" onClick={() => navigate('/media?tab=tracked')}>
+            <span>📺</span><span>TV shows</span>
           </button>
-        </div>
-        <div className="mobile-grid-2 mt-1">
-          <button 
-            className="button button-secondary" 
-            onClick={() => setShowSearchLogs(true)}
-          >
-            <span>🔍</span>
-            <span>Search Logs</span>
-          </button>
-          <button 
-            className="button button-secondary" 
-            onClick={() => setShowQueue(true)}
-          >
-            <span>📋</span>
-            <span>Queue</span>
-          </button>
-        </div>
-        <div className="mobile-grid-2 mt-1">
-          <button 
-            className="button button-secondary" 
-            onClick={() => setShowAutoStopSettings(true)}
-          >
-            <span>⏹️</span>
-            <span>Auto-Stop</span>
-          </button>
-          <button 
-            className="button button-secondary" 
-            onClick={processAutoStop}
-          >
-            <span>🔄</span>
-            <span>Process Now</span>
-          </button>
+          {EXTERNAL_SERVICES.map((s) => (
+            <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer"
+              className="button button-secondary" style={{ textDecoration: 'none' }}>
+              <span>{s.icon}</span><span>{s.name}</span>
+            </a>
+          ))}
         </div>
       </div>
 
-      {/* System Status - Moved to second position */}
+      {/* CPU history */}
       <div className="card">
-        <h2>📊 System Status</h2>
-        {systemInfo ? (
-          <div className="mobile-grid">
-            {/* CPU Card */}
-            <div className="stat-card">
-              <div className="stat-icon">💻</div>
-              <div className="stat-content">
-                <div className="stat-label">CPU Usage</div>
-                <div className="stat-value">{systemInfo.cpu}</div>
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill" 
-                    style={{ 
-                      width: `${cpuPercent}%`,
-                      background: cpuPercent > 80 
-                        ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
-                        : cpuPercent > 60
-                        ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
-                        : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-                    }} 
-                  />
-                </div>
-              </div>
-            </div>
-            
-            {/* Memory Card */}
-            <div className="stat-card">
-              <div className="stat-icon">🧠</div>
-              <div className="stat-content">
-                <div className="stat-label">Memory Usage</div>
-                <div className="stat-value">{systemInfo.memory}</div>
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill" 
-                    style={{ 
-                      width: `${memoryPercent}%`,
-                      background: memoryPercent > 80 
-                        ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
-                        : memoryPercent > 60
-                        ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
-                        : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-                    }} 
-                  />
-                </div>
-              </div>
-            </div>
-            
-            {/* Storage & Uptime */}
-            <div className="mobile-grid-2">
-              <div className="mobile-card text-center">
-                <div className="stat-icon" style={{ margin: '0 auto 0.5rem' }}>💾</div>
-                <div className="stat-label">SSD Storage</div>
-                <div className="stat-value text-small">
-                  {ssdStorage ? ssdStorage.usePercent : 'N/A'}
-                </div>
-                {ssdStorage && (
-                  <>
-                    <div className="progress-bar" style={{ marginTop: '0.5rem' }}>
-                      <div 
-                        className="progress-fill"
-                        style={{ 
-                          width: ssdStorage.usePercent,
-                          background: parseInt(ssdStorage.usePercent) > 80 
-                            ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
-                            : parseInt(ssdStorage.usePercent) > 60
-                            ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
-                            : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-                        }} 
-                      />
-                    </div>
-                    <div className="text-small" style={{ marginTop: '0.5rem', color: '#b0b0c0' }}>
-                      {ssdStorage.available} free
-                    </div>
-                  </>
-                )}
-              </div>
-              
-              <div className="mobile-card text-center">
-                <div className="stat-icon" style={{ margin: '0 auto 0.5rem' }}>⏱️</div>
-                <div className="stat-label">Uptime</div>
-                <div className="stat-value text-small">{systemInfo.uptime}</div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">⚠️</div>
-            <div className="empty-state-title">System Offline</div>
-            <p className="empty-state-message">Unable to fetch system information</p>
-          </div>
-        )}
-      </div>
-
-      {/* CPU Usage History */}
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <h2 style={{ margin: 0 }}>📈 CPU History</h2>
+        <div className="card-header-row">
+          <h2>📈 CPU History</h2>
           {cpuSamples.length > 0 && (
-            <span style={{ color: '#666680', fontSize: '0.75rem' }}>
-              {cpuSamples.length} samples
-            </span>
+            <span style={{ color: 'var(--text-faint)', fontSize: '0.75rem' }}>{cpuSamples.length} samples</span>
           )}
         </div>
-
-        {/* Range tabs */}
-        <div className="mobile-tabs mb-2">
+        <div className="mobile-tabs mb-2" role="tablist">
           {CPU_RANGES.map((r) => (
             <button
               key={r.label}
+              role="tab"
+              aria-selected={cpuRange.hours === r.hours}
               className={`mobile-tab ${cpuRange.hours === r.hours ? 'active' : ''}`}
-              onClick={() => {
-                setCpuRange(r);
-                fetchCpuHistory(r.hours);
-              }}
+              onClick={() => { setCpuRange(r); fetchCpuHistory(r.hours); }}
             >
               {r.label}
             </button>
           ))}
         </div>
-
-        {/* Canvas chart */}
         <CpuChart samples={cpuSamples} hours={cpuRange.hours} loading={cpuLoading} />
-
-        {/* Legend */}
-        <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.7rem', color: '#666680' }}>
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-faint)', flexWrap: 'wrap' }}>
           <span><span style={{ color: '#4caf50' }}>●</span> Normal (&lt;60%)</span>
           <span><span style={{ color: '#ff9800' }}>●</span> High (60–80%)</span>
           <span><span style={{ color: '#f44336' }}>●</span> Critical (&gt;80%)</span>
         </div>
       </div>
 
-      {/* External Services */}
+      {/* Containers & services */}
       <div className="card">
-        <h2>🔗 External Services</h2>
-        <div className="mobile-grid-2">
-          <a 
-            href={`http://${serviceHost}:9696`}
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="button"
-            style={{ textDecoration: 'none' }}
-          >
-            <span>🔍</span>
-            <span>Prowlarr</span>
-          </a>
-          <a 
-            href={`http://${serviceHost}:8989`}
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="button"
-            style={{ textDecoration: 'none' }}
-          >
-            <span>📺</span>
-            <span>Sonarr</span>
-          </a>
-          <a 
-            href={`http://${serviceHost}:7878`}
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="button"
-            style={{ textDecoration: 'none' }}
-          >
-            <span>🎬</span>
-            <span>Radarr</span>
-          </a>
-          <a 
-            href={`http://${serviceHost}:8080`}
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="button"
-            style={{ textDecoration: 'none' }}
-          >
-            <span>⬇️</span>
-            <span>qBittorrent</span>
-          </a>
+        <h2>🐳 Containers &amp; Services</h2>
+        <div className="status-list">
+          {(o.containers || []).map((c) => (
+            <StatusRow key={c.name} state={containerState(c)} title={c.name} sub={`${c.image} · ${c.status}`} />
+          ))}
+          {(o.services || []).map((s) => (
+            <StatusRow
+              key={s.service}
+              state={s.status === 'active' ? 'ok' : s.status === 'activating' ? 'warn' : 'bad'}
+              title={s.service}
+              sub={`${s.status} (${s.sub})`}
+            />
+          ))}
+          {!o.containers?.length && !o.services?.length && (
+            <p className="hint">No container or service data available.</p>
+          )}
         </div>
       </div>
 
-      {/* Docker Containers */}
+      {/* Storage detail */}
       <div className="card">
-        <div 
-          className="collapsible-header"
-          onClick={() => setContainersCollapsed(!containersCollapsed)}
-        >
-          <h2>🐳 Docker Containers ({containers.length})</h2>
-          <span className={`collapsible-icon ${containersCollapsed ? 'collapsed' : ''}`}>▼</span>
-        </div>
-        {!containersCollapsed && (
-          <div className="slide-up">
-            {containers.length > 0 ? containers.map((container) => (
-              <div key={container.name} className="mobile-list-item">
-                <div className="stat-icon" style={{ width: '40px', height: '40px', fontSize: '1.2rem' }}>
-                  🐳
-                </div>
-                <div className="mobile-list-content">
-                  <div className="mobile-list-title">{container.name}</div>
-                  <div className="mobile-list-subtitle text-truncate">{container.image}</div>
-                </div>
-                <span className={`status-badge ${container.running ? 'status-active' : 'status-inactive'}`}>
-                  {container.running ? 'Running' : container.state}
+        <h2>💾 Storage</h2>
+        <div className="status-list">
+          {[['Media storage', storage], ['System disk (SD card)', root]].filter(([, d]) => d).map(([label, d]) => (
+            <div key={label} className="status-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.35rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
+                <span className="status-row-title">{label}</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums' }}>
+                  {formatBytes(d.used)} / {formatBytes(d.size)}
                 </span>
               </div>
-            )) : (
-              <div className="empty-state">
-                <div className="empty-state-icon">🐳</div>
-                <p className="empty-state-message">No containers found</p>
+              <div className="meter" style={{ marginTop: 0 }}>
+                <span style={{ width: `${d.percent}%`, background: levelColor(d.percent) }} />
               </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Services */}
-      <div className="card">
-        <div 
-          className="collapsible-header"
-          onClick={() => setServicesCollapsed(!servicesCollapsed)}
-        >
-          <h2>🔧 System Services ({services.length})</h2>
-          <span className={`collapsible-icon ${servicesCollapsed ? 'collapsed' : ''}`}>▼</span>
+              <div className="status-row-sub">{d.mountPoint} · {formatBytes(d.available)} free</div>
+            </div>
+          ))}
         </div>
-        {!servicesCollapsed && (
-          <div className="slide-up">
-            {services.length > 0 ? services.map((service) => (
-              <div key={service.service} className="mobile-list-item">
-                <div className="stat-icon" style={{ width: '40px', height: '40px', fontSize: '1.2rem' }}>
-                  🔧
-                </div>
-                <div className="mobile-list-content">
-                  <div className="mobile-list-title">{service.service}</div>
-                </div>
-                <span className={`status-badge ${service.status === 'active' ? 'status-active' : 'status-inactive'}`}>
-                  {service.status}
-                </span>
-              </div>
-            )) : (
-              <div className="empty-state">
-                <div className="empty-state-icon">🔧</div>
-                <p className="empty-state-message">No services data available</p>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Storage Section */}
+      {/* Power */}
       <div className="card">
-        <div 
-          className="collapsible-header"
-          onClick={() => setDisksCollapsed(!disksCollapsed)}
-        >
-          <h2>💾 Storage</h2>
-          <span className={`collapsible-icon ${disksCollapsed ? 'collapsed' : ''}`}>▼</span>
-        </div>
-        {!disksCollapsed && (
-          <div className="slide-up">
-            {ssdStorage && (
-              <div className="mobile-card mb-1" style={{ borderColor: '#667eea', borderWidth: '2px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <div>
-                    <div className="mobile-list-title">📦 SSD Storage</div>
-                    <div className="mobile-list-subtitle">{ssdStorage.device} • {ssdStorage.mountPoint}</div>
-                  </div>
-                  <div className="text-small text-center">
-                    <div style={{ color: '#667eea', fontWeight: '600' }}>{ssdStorage.usePercent}</div>
-                  </div>
-                </div>
-                <div className="text-small mb-1" style={{ color: '#b0b0c0' }}>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Used:</strong> {ssdStorage.used} / {ssdStorage.size}
-                  </div>
-                  <div style={{ color: '#4caf50', fontWeight: '600' }}>
-                    <strong>Available:</strong> {ssdStorage.available}
-                  </div>
-                </div>
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill"
-                    style={{ 
-                      width: ssdStorage.usePercent,
-                      background: parseInt(ssdStorage.usePercent) > 80 
-                        ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
-                        : parseInt(ssdStorage.usePercent) > 60
-                        ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
-                        : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-                    }} 
-                  />
-                </div>
-              </div>
-            )}
-            
-            {disks.length > 0 && (
-              <>
-                <div style={{ fontSize: '0.75rem', color: '#666680', marginTop: '1rem', marginBottom: '0.5rem' }}>
-                  <strong>Other Disks:</strong>
-                </div>
-                {disks.map((disk) => {
-                  const usePercent = parseInt(disk.usePercent);
-                  return (
-                    <div key={disk.device} className="mobile-card mb-1">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <div>
-                          <div className="mobile-list-title">💾 {disk.device}</div>
-                          <div className="mobile-list-subtitle">{disk.mountPoint}</div>
-                        </div>
-                        <div className="text-small text-center">
-                          <div>{disk.usePercent}</div>
-                        </div>
-                      </div>
-                      <div className="text-small mb-1" style={{ color: '#b0b0c0' }}>
-                        {disk.used} / {disk.size} ({disk.available} free)
-                      </div>
-                      <div className="progress-bar">
-                        <div 
-                          className="progress-fill"
-                          style={{ 
-                            width: disk.usePercent,
-                            background: usePercent > 80 
-                              ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)' 
-                              : usePercent > 60
-                              ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
-                              : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-                          }} 
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </>
-            )}
-            
-            {!ssdStorage && disks.length === 0 && (
-              <div className="empty-state">
-                <div className="empty-state-icon">💾</div>
-                <p className="empty-state-message">No storage data available</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Power Control */}
-      <div className="card">
-        <h2>⚡ Power Control</h2>
-        <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
-          Manage server power state
+        <h2>⏻ Power</h2>
+        <p className="hint" style={{ marginBottom: '1rem' }}>
+          Restarts or turns off the whole server, including Plex and downloads.
         </p>
         <div className="mobile-grid-2">
-          <button className="button" onClick={() => powerAction('reboot')}>
-            <span>🔄</span>
-            <span>Reboot</span>
+          <button className="button button-secondary" onClick={() => setConfirmPower('reboot')}>
+            <span>🔄</span><span>Reboot</span>
           </button>
-          <button className="button button-danger" onClick={() => powerAction('shutdown')}>
-            <span>⏻</span>
-            <span>Shutdown</span>
+          <button className="button button-danger" onClick={() => setConfirmPower('shutdown')}>
+            <span>⏻</span><span>Shut down</span>
           </button>
         </div>
+        {o.deploy?.commit && (
+          <p className="hint" style={{ marginTop: '1rem', fontSize: '0.72rem', color: 'var(--text-faint)' }}>
+            Build {o.deploy.commit} · running since {new Date(o.deploy.startedAt).toLocaleString()}
+          </p>
+        )}
       </div>
 
-      {/* Power Action Confirmation Modal */}
       {confirmPower && (
         <ConfirmModal
-          title={`${confirmPower.charAt(0).toUpperCase() + confirmPower.slice(1)} Server`}
-          message={`Are you sure you want to ${confirmPower} the server? This action will affect all services.`}
-          confirmText={confirmPower.charAt(0).toUpperCase() + confirmPower.slice(1)}
+          title={confirmPower === 'reboot' ? 'Reboot server?' : 'Shut down server?'}
+          message={confirmPower === 'reboot'
+            ? 'All services will be unavailable for a minute or two while the server restarts.'
+            : 'The server will power off. You will need physical access to turn it back on.'}
+          confirmText={confirmPower === 'reboot' ? 'Reboot' : 'Shut down'}
           cancelText="Cancel"
           type="danger"
           onConfirm={executePowerAction}
@@ -618,161 +350,8 @@ function Dashboard() {
         />
       )}
 
-      {/* Queue Popup */}
-      <QueuePopup 
-        isOpen={showQueue} 
-        onClose={() => setShowQueue(false)} 
-      />
-
-      {/* Search Logs Popup */}
-      <SearchLogsPopup 
-        isOpen={showSearchLogs} 
-        onClose={() => setShowSearchLogs(false)} 
-      />
-
-      {/* Auto-Stop Settings Popup */}
-      {showAutoStopSettings && (
-        <div className="popup-overlay" onClick={() => setShowAutoStopSettings(false)}>
-          <div className="popup-content" onClick={(e) => e.stopPropagation()}>
-            <div className="popup-header">
-              <h3>⏹️ Auto-Stop Seeding Settings</h3>
-              <button 
-                className="popup-close" 
-                onClick={() => setShowAutoStopSettings(false)}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="popup-body">
-              <p style={{ color: '#b0b0c0', fontSize: '0.875rem', marginBottom: '1rem' }}>
-                Automatically stop seeding torrents when download completes
-              </p>
-              
-              {/* Enable/Disable Toggle */}
-              <div className="form-group">
-                <label className="toggle-label">
-                  <input
-                    type="checkbox"
-                    checked={autoStopConfig.enabled}
-                    onChange={(e) => {
-                      const newConfig = { ...autoStopConfig, enabled: e.target.checked };
-                      setAutoStopConfig(newConfig);
-                      updateAutoStopConfig(newConfig);
-                    }}
-                    className="toggle-input"
-                  />
-                  <span className="toggle-slider"></span>
-                  <span className="toggle-text">
-                    {autoStopConfig.enabled ? 'Enabled' : 'Disabled'}
-                  </span>
-                </label>
-              </div>
-
-              {autoStopConfig.enabled && (
-                <>
-                  {/* Delay Settings */}
-                  <div className="form-group">
-                    <label className="form-label">Stop Delay (minutes)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="1440"
-                      value={autoStopConfig.delayMinutes}
-                      onChange={(e) => {
-                        const newConfig = { ...autoStopConfig, delayMinutes: parseInt(e.target.value) || 0 };
-                        setAutoStopConfig(newConfig);
-                      }}
-                      onBlur={() => updateAutoStopConfig(autoStopConfig)}
-                      className="form-input"
-                      placeholder="0 = immediate"
-                    />
-                    <small style={{ color: '#b0b0c0', fontSize: '0.75rem' }}>
-                      0 = Stop immediately after completion
-                    </small>
-                  </div>
-
-                  {/* Ratio Limit */}
-                  <div className="form-group">
-                    <label className="form-label">Ratio Limit (optional)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      value={autoStopConfig.ratioLimit || ''}
-                      onChange={(e) => {
-                        const value = e.target.value ? parseFloat(e.target.value) : null;
-                        const newConfig = { ...autoStopConfig, ratioLimit: value };
-                        setAutoStopConfig(newConfig);
-                      }}
-                      onBlur={() => updateAutoStopConfig(autoStopConfig)}
-                      className="form-input"
-                      placeholder="e.g., 2.0"
-                    />
-                    <small style={{ color: '#b0b0c0', fontSize: '0.75rem' }}>
-                      Stop when upload/download ratio reaches this value
-                    </small>
-                  </div>
-
-                  {/* Seed Time Limit */}
-                  <div className="form-group">
-                    <label className="form-label">Seed Time Limit (minutes, optional)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={autoStopConfig.seedTimeLimit || ''}
-                      onChange={(e) => {
-                        const value = e.target.value ? parseInt(e.target.value) : null;
-                        const newConfig = { ...autoStopConfig, seedTimeLimit: value };
-                        setAutoStopConfig(newConfig);
-                      }}
-                      onBlur={() => updateAutoStopConfig(autoStopConfig)}
-                      className="form-input"
-                      placeholder="e.g., 60"
-                    />
-                    <small style={{ color: '#b0b0c0', fontSize: '0.75rem' }}>
-                      Stop after seeding for this many minutes
-                    </small>
-                  </div>
-
-                  {/* Statistics */}
-                  {autoStopStats && (
-                    <div className="form-group">
-                      <label className="form-label">Statistics</label>
-                      <div style={{ 
-                        background: 'rgba(255,255,255,0.05)', 
-                        padding: '0.75rem', 
-                        borderRadius: '8px',
-                        fontSize: '0.875rem'
-                      }}>
-                        <div>Processed Torrents: {autoStopStats.processedTorrents}</div>
-                        <div>Last Check: {new Date(autoStopStats.lastCheck).toLocaleTimeString()}</div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-            
-            <div className="popup-footer">
-              <button 
-                className="button button-secondary" 
-                onClick={() => setShowAutoStopSettings(false)}
-              >
-                Close
-              </button>
-              {autoStopConfig.enabled && (
-                <button 
-                  className="button" 
-                  onClick={processAutoStop}
-                >
-                  Process Now
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <QueuePopup isOpen={showQueue} onClose={() => setShowQueue(false)} />
+      <SearchLogsPopup isOpen={showSearchLogs} onClose={() => setShowSearchLogs(false)} />
     </div>
   );
 }

@@ -1,13 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useToast } from '../App';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import QueuePopup from '../components/QueuePopup';
+import ConfirmModal from '../components/ConfirmModal';
+import Toggle from '../components/Toggle';
+import usePolling from '../hooks/usePolling';
+import { apiError } from '../lib/format';
+
+const epCode = (s, e) => `S${String(s).padStart(2, '0')}E${String(e).padStart(2, '0')}`;
 
 function OngoingShows() {
   const [shows, setShows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
+  const checkingRef = useRef(false);
   const [showForm, setShowForm] = useState(false);
   const [newShow, setNewShow] = useState({
     name: '',
@@ -24,16 +31,36 @@ function OngoingShows() {
   const [autoTrackingCollapsed, setAutoTrackingCollapsed] = useState(false);
   const [trackedShowsCollapsed, setTrackedShowsCollapsed] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(null);
   const { showToast } = useToast();
 
   useEffect(() => {
     fetchShows();
     fetchAutoCheckStatus();
-    fetchQueueStatus();
-    
-    const queueInterval = setInterval(fetchQueueStatus, 30000);
-    return () => clearInterval(queueInterval);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // While a check runs, poll faster and refresh the show list when it ends.
+  const pollStatus = useCallback(async () => {
+    try {
+      const [queueRes, checkRes] = await Promise.all([
+        axios.get('/api/shows/queue/status'),
+        axios.get('/api/shows/check/status'),
+      ]);
+      setQueueStatus(queueRes.data);
+      const running = checkRes.data.running;
+      if (checkingRef.current && !running) {
+        const n = checkRes.data.lastSweep?.downloads?.length || 0;
+        showToast(n ? `Check finished: ${n} new episode(s) added` : 'Check finished: nothing new yet', n ? 'success' : 'info');
+        fetchShows();
+      }
+      checkingRef.current = running;
+      setChecking(running);
+    } catch {
+      // Keep the last known state.
+    }
+  }, [showToast]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  usePolling(pollStatus, checking ? 4000 : 20000);
 
   const fetchAutoCheckStatus = async () => {
     try {
@@ -44,14 +71,7 @@ function OngoingShows() {
     }
   };
 
-  const fetchQueueStatus = async () => {
-    try {
-      const response = await axios.get('/api/shows/queue/status');
-      setQueueStatus(response.data);
-    } catch (error) {
-      console.error('Error fetching queue status:', error);
-    }
-  };
+  const fetchQueueStatus = pollStatus;
 
   const fetchShows = async () => {
     try {
@@ -121,26 +141,21 @@ function OngoingShows() {
       fetchShows();
       fetchQueueStatus();
       
-      if (response.data.catchUpEpisodes > 0) {
-        showToast(`Show added! Caught up on ${response.data.catchUpEpisodes} episodes`, 'success');
-      } else {
-        showToast('Show added successfully!', 'success');
-      }
+      showToast(response.data.message || 'Show added', 'success');
+      // The server looks up the next air date in the background.
+      setTimeout(fetchShows, 4000);
     } catch (error) {
-      const errorMsg = error.response?.data?.error || error.message;
-      showToast('Error adding show: ' + errorMsg, 'error');
+      showToast('Error adding show: ' + apiError(error), 'error');
     }
   };
 
   const deleteShow = async (id) => {
-    if (!confirm('Remove this show from tracking?')) return;
-
     try {
       await axios.delete(`/api/shows/${id}`);
       fetchShows();
       showToast('Show removed successfully!', 'success');
     } catch (error) {
-      showToast('Error removing show: ' + error.message, 'error');
+      showToast('Error removing show: ' + apiError(error), 'error');
     }
   };
 
@@ -150,31 +165,20 @@ function OngoingShows() {
       fetchShows();
       showToast('Show updated successfully!', 'success');
     } catch (error) {
-      showToast('Error updating show: ' + error.message, 'error');
+      showToast('Error updating show: ' + apiError(error), 'error');
     }
   };
 
   const checkForNewEpisodes = async () => {
-    setChecking(true);
     try {
       const response = await axios.post('/api/shows/check');
-      
-      if (response.data.success) {
-        const downloads = response.data.downloads || [];
-        if (downloads.length > 0) {
-          showToast(`Found ${downloads.length} new episodes!`, 'success');
-        } else {
-          showToast('No new episodes found', 'info');
-        }
-        fetchShows();
-        fetchQueueStatus();
-      } else {
-        showToast(response.data.message || 'Check failed', 'error');
-      }
+      checkingRef.current = true;
+      setChecking(true);
+      showToast(response.data.message || 'Checking in the background…', 'info');
+      fetchQueueStatus();
     } catch (error) {
-      showToast('Error checking for episodes: ' + error.message, 'error');
+      showToast('Error starting check: ' + apiError(error), 'error');
     }
-    setChecking(false);
   };
 
   const clearSearchQueue = async () => {
@@ -189,44 +193,39 @@ function OngoingShows() {
     }
   };
 
-  const toggleAutoCheck = async () => {
+  const toggleAutoCheck = async (enabled) => {
     try {
-      const response = await axios.post('/api/shows/config/auto-check', {
-        enabled: !autoCheckEnabled
-      });
-      
-      if (response.data.success) {
-        setAutoCheckEnabled(!autoCheckEnabled);
-        showToast(response.data.message, 'success');
-      }
+      const response = await axios.post('/api/shows/config/auto-check', { enabled });
+      setAutoCheckEnabled(enabled);
+      showToast(response.data.message, 'success');
     } catch (error) {
-      showToast('Error toggling auto-check: ' + error.message, 'error');
+      showToast('Error saving auto-check: ' + apiError(error), 'error');
     }
   };
 
   const downloadSeason = async (showId, season) => {
-    const startEp = prompt('Start from episode:', '1');
-    const endEp = prompt('End at episode:', '24');
-    
-    if (!startEp || !endEp) return;
+    const startEp = prompt(`Download season ${season} — start from episode:`, '1');
+    if (!startEp) return;
+    const endEp = prompt('…up to episode (leave as is for all aired):', '99');
+    if (!endEp) return;
 
     setDownloadingSeason(`${showId}-${season}`);
     try {
       const response = await axios.post(`/api/shows/${showId}/season/${season}`, {
-        startEpisode: parseInt(startEp),
-        endEpisode: parseInt(endEp)
+        startEpisode: parseInt(startEp, 10),
+        endEpisode: parseInt(endEp, 10),
       });
-      
       if (response.data.success) {
-        const downloads = response.data.downloads || [];
-        showToast(`Downloaded ${downloads.length} episodes!`, 'success');
+        showToast(`${response.data.message}. Progress is in the search queue.`, 'info', 6000);
+        fetchQueueStatus();
       } else {
         showToast(response.data.message || 'Download failed', 'error');
       }
     } catch (error) {
-      showToast('Error downloading season: ' + error.message, 'error');
+      showToast('Error starting season download: ' + apiError(error), 'error');
+    } finally {
+      setDownloadingSeason(null);
     }
-    setDownloadingSeason(null);
   };
 
   if (loading) {
@@ -403,12 +402,7 @@ function OngoingShows() {
                 {/* Auto Check Toggle */}
                 <div>
                   <div className="stat-label mb-1">Auto Check</div>
-                  <div 
-                    className={`toggle-switch ${autoCheckEnabled ? 'active' : ''}`}
-                    onClick={toggleAutoCheck}
-                  >
-                    <div className="toggle-slider"></div>
-                  </div>
+                  <Toggle checked={autoCheckEnabled} onChange={toggleAutoCheck} label="Automatic episode checks" />
                 </div>
                 
                 {/* Search Queue Info - Clickable */}
@@ -433,6 +427,20 @@ function OngoingShows() {
                 </div>
               </div>
             </div>
+
+            <button className="button" style={{ width: '100%' }} onClick={checkForNewEpisodes} disabled={checking}>
+              {checking
+                ? <><span className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px' }} /><span>Checking…</span></>
+                : <><span>🔄</span><span>Check all shows now</span></>}
+            </button>
+            {queueStatus?.current && (
+              <p className="hint" style={{ marginTop: '0.5rem' }}>
+                Searching: {queueStatus.current.showName}{' '}
+                {queueStatus.current.searchType === 'season'
+                  ? `season ${queueStatus.current.season} pack`
+                  : epCode(queueStatus.current.season, queueStatus.current.episode)}
+              </p>
+            )}
 
             {/* Clear Queue Button - Only when queue has items */}
             {queueStatus && queueStatus.queueLength > 0 && (
@@ -493,6 +501,20 @@ function OngoingShows() {
                           Downloaded {show.downloadedEpisodes.length} episodes
                         </div>
                       )}
+                      {(show.pendingEpisode || show.missedEpisodes?.length > 0) && (
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                          {show.pendingEpisode && (
+                            <span className="chip chip-warn" title={`Last tried ${new Date(show.pendingEpisode.lastTried).toLocaleString()}`}>
+                              ⏳ {epCode(show.pendingEpisode.season, show.pendingEpisode.episode)} aired, waiting for a release
+                            </span>
+                          )}
+                          {show.missedEpisodes?.length > 0 && (
+                            <span className="chip chip-bad" title="Not found within the retry window — search manually">
+                              ⚠ Missed {show.missedEpisodes.map((m) => epCode(m.season, m.episode)).join(', ')}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     
                     {/* Actions */}
@@ -501,6 +523,8 @@ function OngoingShows() {
                         className="button button-small"
                         onClick={() => downloadSeason(show.id, show.currentSeason)}
                         disabled={downloadingSeason === `${show.id}-${show.currentSeason}`}
+                        aria-label={`Download season ${show.currentSeason} of ${show.name}`}
+                        title="Download episodes of the current season"
                       >
                         {downloadingSeason === `${show.id}-${show.currentSeason}` ? '⬇️' : '📥'}
                       </button>
@@ -509,6 +533,8 @@ function OngoingShows() {
                         onClick={() => updateShow(show.id, { 
                           status: show.status === 'active' ? 'paused' : 'active' 
                         })}
+                        aria-label={show.status === 'active' ? `Pause tracking ${show.name}` : `Resume tracking ${show.name}`}
+                        title={show.status === 'active' ? 'Pause tracking' : 'Resume tracking (catches up on missed episodes)'}
                         style={{ 
                           background: show.status === 'active' 
                             ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' 
@@ -519,7 +545,9 @@ function OngoingShows() {
                       </button>
                       <button
                         className="button button-small button-danger"
-                        onClick={() => deleteShow(show.id)}
+                        onClick={() => setConfirmRemove(show)}
+                        aria-label={`Stop tracking ${show.name}`}
+                        title="Stop tracking"
                       >
                         🗑️
                       </button>
@@ -536,10 +564,11 @@ function OngoingShows() {
       <div className="card">
         <h2>ℹ️ How It Works</h2>
         <div style={{ color: '#b0b0c0', fontSize: '0.875rem', lineHeight: '1.5' }}>
-          <p><strong style={{ color: '#667eea' }}>Quality:</strong> 4K WEB-DL → 1080p WEB-DL → Any available</p>
-          <p><strong style={{ color: '#667eea' }}>Timing:</strong> Episodes searched 1 hour after air time</p>
-          <p><strong style={{ color: '#667eea' }}>Storage:</strong> Only downloads with 5GB+ free space</p>
-          <p><strong style={{ color: '#667eea' }}>Selection:</strong> Picks torrents with most seeders</p>
+          <p><strong style={{ color: '#667eea' }}>Quality:</strong> 2160p → 1080p (WEB-DL preferred); lower qualities are never picked automatically</p>
+          <p><strong style={{ color: '#667eea' }}>Timing:</strong> First search on the air date, then retried every 6 hours for 7 days</p>
+          <p><strong style={{ color: '#667eea' }}>Missed:</strong> Episodes not found within 7 days are flagged so you can search manually</p>
+          <p><strong style={{ color: '#667eea' }}>Storage:</strong> Only downloads with 5 GB+ free space</p>
+          <p><strong style={{ color: '#667eea' }}>Selection:</strong> Release must match the show and episode; most seeders wins</p>
         </div>
       </div>
 
@@ -548,6 +577,16 @@ function OngoingShows() {
         isOpen={showQueue} 
         onClose={() => setShowQueue(false)} 
       />
+
+      {confirmRemove && (
+        <ConfirmModal
+          title="Stop tracking?"
+          message={`${confirmRemove.name} will no longer be downloaded automatically. Files already downloaded are kept.`}
+          confirmText="Stop tracking"
+          onConfirm={() => { deleteShow(confirmRemove.id); setConfirmRemove(null); }}
+          onCancel={() => setConfirmRemove(null)}
+        />
+      )}
     </div>
   );
 }
