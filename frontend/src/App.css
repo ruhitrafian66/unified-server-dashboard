@@ -1817,3 +1817,9 @@
 .lib-file span:last-child { color: var(--text-muted); flex-shrink: 0; }
 .lib-raw { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.3rem; }
 .lib-raw code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.72rem; color: var(--text-muted); background: rgba(255,255,255,0.04); padding: 0.5rem 0.6rem; border-radius: 8px; overflow-wrap: anywhere; }
+
+/* History cards (CPU, temperature) */
+.history-stats { font-size: 0.75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.history-stats strong { color: var(--text); }
+.history-legend { display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.7rem; color: var(--text-faint); flex-wrap: wrap; }
+.card-header-row { flex-wrap: wrap; row-gap: 0.25rem; }

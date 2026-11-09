@@ -6,17 +6,9 @@ import LoadingSkeleton from '../components/LoadingSkeleton';
 import ConfirmModal from '../components/ConfirmModal';
 import QueuePopup from '../components/QueuePopup';
 import SearchLogsPopup from '../components/SearchLogsPopup';
-import CpuChart from '../components/CpuChart';
+import HistoryCard from '../components/HistoryCard';
 import usePolling from '../hooks/usePolling';
 import { formatBytes, formatSpeed, formatDuration, levelColor, apiError } from '../lib/format';
-
-const CPU_RANGES = [
-  { label: '6h', hours: 6 },
-  { label: '12h', hours: 12 },
-  { label: '24h', hours: 24 },
-  { label: '2d', hours: 48 },
-  { label: '4d', hours: 96 },
-];
 
 // Links open the real web UIs on the same host the dashboard was loaded from.
 const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
@@ -59,6 +51,22 @@ const containerState = (c) => {
   return 'ok';
 };
 
+// Chart configs live at module level so they don't trigger redraws every render.
+const CPU_CHART = {}; // HistoryChart defaults are the CPU % scale
+const CPU_LEGEND = [['#4caf50', 'Normal (<60%)'], ['#ff9800', 'High (60–80%)'], ['#f44336', 'Critical (>80%)']];
+const pct = (v) => `${Math.round(v)}%`;
+
+// RK3566 SoC: comfortable below 60°C, warm above, throttles around 85°C.
+const TEMP_CHART = {
+  min: 30,
+  max: 90,
+  yTicks: [30, 45, 60, 75, 90],
+  formatY: (v) => `${v}°`,
+  colour: (v) => (v >= 75 ? '#f44336' : v >= 60 ? '#ff9800' : '#4caf50'),
+};
+const TEMP_LEGEND = [['#4caf50', 'Normal (<60°C)'], ['#ff9800', 'Warm (60–75°C)'], ['#f44336', 'Hot (>75°C)']];
+const celsius = (v) => `${v.toFixed(1)}°C`;
+
 const TORRENT_CONNECTION = {
   connected: { state: 'ok', label: 'Connected' },
   firewalled: { state: 'warn', label: 'Firewalled (no incoming peers)' },
@@ -74,9 +82,6 @@ function Dashboard() {
   const [confirmPower, setConfirmPower] = useState(null);
   const [showQueue, setShowQueue] = useState(false);
   const [showSearchLogs, setShowSearchLogs] = useState(false);
-  const [cpuRange, setCpuRange] = useState(CPU_RANGES[0]);
-  const [cpuSamples, setCpuSamples] = useState([]);
-  const [cpuLoading, setCpuLoading] = useState(false);
 
   const fetchOverview = useCallback(async () => {
     try {
@@ -89,20 +94,7 @@ function Dashboard() {
     }
   }, []);
 
-  const fetchCpuHistory = useCallback(async (hours) => {
-    setCpuLoading(true);
-    try {
-      const res = await axios.get(`/api/system/cpu-history?hours=${hours}`);
-      setCpuSamples(res.data.samples || []);
-    } catch {
-      // Chart just keeps its previous data.
-    } finally {
-      setCpuLoading(false);
-    }
-  }, []);
-
   usePolling(fetchOverview, 10000);
-  usePolling(() => fetchCpuHistory(cpuRange.hours), 60000);
 
   const executePowerAction = async () => {
     const action = confirmPower;
@@ -244,34 +236,13 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* CPU history */}
-      <div className="card">
-        <div className="card-header-row">
-          <h2>📈 CPU History</h2>
-          {cpuSamples.length > 0 && (
-            <span style={{ color: 'var(--text-faint)', fontSize: '0.75rem' }}>{cpuSamples.length} samples</span>
-          )}
-        </div>
-        <div className="mobile-tabs mb-2" role="tablist">
-          {CPU_RANGES.map((r) => (
-            <button
-              key={r.label}
-              role="tab"
-              aria-selected={cpuRange.hours === r.hours}
-              className={`mobile-tab ${cpuRange.hours === r.hours ? 'active' : ''}`}
-              onClick={() => { setCpuRange(r); fetchCpuHistory(r.hours); }}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-        <CpuChart samples={cpuSamples} hours={cpuRange.hours} loading={cpuLoading} />
-        <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-faint)', flexWrap: 'wrap' }}>
-          <span><span style={{ color: '#4caf50' }}>●</span> Normal (&lt;60%)</span>
-          <span><span style={{ color: '#ff9800' }}>●</span> High (60–80%)</span>
-          <span><span style={{ color: '#f44336' }}>●</span> Critical (&gt;80%)</span>
-        </div>
-      </div>
+      <HistoryCard title="📈 CPU History" endpoint="/api/system/cpu-history"
+        chart={CPU_CHART} legend={CPU_LEGEND} formatValue={pct} />
+
+      {o.temperature != null && (
+        <HistoryCard title="🌡️ Temperature" endpoint="/api/system/temp-history"
+          chart={TEMP_CHART} legend={TEMP_LEGEND} formatValue={celsius} />
+      )}
 
       {/* Containers & services */}
       <div className="card">

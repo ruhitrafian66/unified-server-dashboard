@@ -1,8 +1,8 @@
 import { useRef, useEffect, useCallback } from 'react';
 
-// Colour stops matching the dashboard's existing progress-bar palette
-const colour = (pct) =>
-  pct > 80 ? '#f44336' : pct > 60 ? '#ff9800' : '#4caf50';
+// Default colour bands (CPU %): green / orange / red.
+const defaultColour = (v) =>
+  v > 80 ? '#f44336' : v > 60 ? '#ff9800' : '#4caf50';
 
 // Format a unix-second timestamp as a short time/date label
 const fmtLabel = (ts, hours) => {
@@ -22,7 +22,16 @@ const tickCount = (hours) => {
   return 8;
 };
 
-export default function CpuChart({ samples, hours, loading }) {
+/**
+ * Time-series line chart on a canvas (no chart library).
+ * `min`/`max` set the y scale, `yTicks` the grid lines, `formatY` their labels,
+ * and `colour(v)` the line colour per value.
+ */
+export default function HistoryChart({
+  samples, hours, loading,
+  min = 0, max = 100, yTicks = [0, 25, 50, 75, 100],
+  formatY = (v) => `${v}%`, colour = defaultColour, ariaLabel,
+}) {
   const canvasRef = useRef(null);
 
   const draw = useCallback(() => {
@@ -53,10 +62,11 @@ export default function CpuChart({ samples, hours, loading }) {
     const fontSize = Math.round(9 * dpr);
     ctx.font = `${fontSize}px system-ui, sans-serif`;
 
-    // --- Y axis grid lines + labels (0, 25, 50, 75, 100) ---
-    const yLevels = [0, 25, 50, 75, 100];
-    yLevels.forEach((pct) => {
-      const y = mt + chartH - (pct / 100) * chartH;
+    const toY = (v) => mt + chartH - ((Math.min(max, Math.max(min, v)) - min) / (max - min)) * chartH;
+
+    // --- Y axis grid lines + labels ---
+    yTicks.forEach((tick) => {
+      const y = toY(tick);
 
       ctx.strokeStyle = 'rgba(255,255,255,0.06)';
       ctx.lineWidth = dpr;
@@ -70,7 +80,7 @@ export default function CpuChart({ samples, hours, loading }) {
       ctx.fillStyle = '#666680';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`${pct}%`, ml - 4 * dpr, y);
+      ctx.fillText(formatY(tick), ml - 4 * dpr, y);
     });
 
     // --- Loading / empty state ---
@@ -115,7 +125,7 @@ export default function CpuChart({ samples, hours, loading }) {
     // Map each sample to canvas coords
     const pts = samples.map((s) => ({
       x: ml + ((s.t - startTs) / spanTs) * chartW,
-      y: mt + chartH - (s.v / 100) * chartH,
+      y: toY(s.v),
       v: s.v,
     }));
 
@@ -151,7 +161,7 @@ export default function CpuChart({ samples, hours, loading }) {
     ctx.fillStyle = colour(last.v);
     ctx.fill();
 
-  }, [samples, hours, loading]);
+  }, [samples, hours, loading, min, max, yTicks, formatY, colour]);
 
   // Re-draw whenever data or range changes
   useEffect(() => { draw(); }, [draw]);
@@ -176,6 +186,8 @@ export default function CpuChart({ samples, hours, loading }) {
   return (
     <canvas
       ref={canvasRef}
+      role="img"
+      aria-label={ariaLabel}
       style={{ width: '100%', height: '180px', display: 'block', borderRadius: '8px' }}
     />
   );

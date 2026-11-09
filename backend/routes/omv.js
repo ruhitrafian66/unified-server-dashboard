@@ -9,7 +9,9 @@ import express from 'express';
 import fs from 'fs/promises';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { DOWNLOAD_PATH } from '../lib/config.js';
+import path from 'path';
+import { DOWNLOAD_PATH, DATA_DIR } from '../lib/config.js';
+import { JsonStore } from '../lib/jsonStore.js';
 import { qbGet, getServerUrl } from './qbAuth.js';
 import { getDeployInfo } from '../lib/deployInfo.js';
 
@@ -17,17 +19,41 @@ const router = express.Router();
 const execFileAsync = promisify(execFile);
 const h = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-// ─── CPU sampler ─────────────────────────────────────────────────────────────
-// Reads /proc/stat every 15s (cheap: one small file read). The "current" value
-// is the delta since the previous read; one point per minute goes to history.
-const CPU_TICK_MS = 15_000;
+// ─── CPU + temperature sampler ───────────────────────────────────────────────
+// Reads /proc/stat and the SoC thermal zone every 15s (two small file reads).
+// "current" CPU is the delta since the previous read; one averaged point per
+// minute goes to each history. Histories are saved to DATA_DIR so restarts and
+// deploys don't wipe them.
+const TICK_MS = 15_000;
 const HISTORY_INTERVAL_S = 60;
-const CPU_MAX_SAMPLES = 96 * 60; // 4 days at 1/min (~200 KB)
+const MAX_SAMPLES = 96 * 60; // 4 days at 1/min
+const MAX_AGE_S = 96 * 3600;
+const SAVE_EVERY_MS = 15 * 60 * 1000;
 
-const cpuHistory = [];
+const history = { cpu: [], temp: [] };
+const buckets = { cpu: [], temp: [] };
 let lastStat = null;
 let currentCpu = null;
-let minuteBucket = [];
+let lastPushT = 0;
+
+const historyStore = new JsonStore(path.join(DATA_DIR, 'metrics-history.json'), { cpu: [], temp: [] }, { mode: 0o644 });
+
+const loadHistory = async () => {
+  try {
+    const saved = await historyStore.read();
+    const cutoff = Math.floor(Date.now() / 1000) - MAX_AGE_S;
+    for (const k of Object.keys(history)) {
+      const kept = (saved[k] || []).filter((p) => p && p.t >= cutoff && Number.isFinite(p.v));
+      history[k].unshift(...kept.filter((p) => !history[k].length || p.t < history[k][0].t));
+    }
+    lastPushT = Math.max(lastPushT, history.cpu.at(-1)?.t ?? 0);
+  } catch (err) {
+    console.warn('Metrics history not loaded:', err.message);
+  }
+};
+
+export const saveMetricsHistory = () =>
+  historyStore.write({ cpu: history.cpu, temp: history.temp }).catch((err) => console.warn('Metrics history not saved:', err.message));
 
 const readProcStat = async () => {
   const raw = await fs.readFile('/proc/stat', 'utf8');
@@ -37,40 +63,46 @@ const readProcStat = async () => {
   return { idle, total };
 };
 
-const cpuTick = async () => {
+const avg1 = (list) => Math.round((list.reduce((a, b) => a + b, 0) / list.length) * 10) / 10;
+
+const tick = async () => {
   try {
     const stat = await readProcStat();
     if (lastStat) {
       const totalDelta = stat.total - lastStat.total;
       const idleDelta = stat.idle - lastStat.idle;
       currentCpu = totalDelta > 0 ? Math.round((1 - idleDelta / totalDelta) * 1000) / 10 : 0;
-      minuteBucket.push(currentCpu);
+      buckets.cpu.push(currentCpu);
     }
     lastStat = stat;
-
-    const now = Math.floor(Date.now() / 1000);
-    const lastT = cpuHistory.at(-1)?.t ?? 0;
-    if (minuteBucket.length && now - lastT >= HISTORY_INTERVAL_S) {
-      const avg = minuteBucket.reduce((a, b) => a + b, 0) / minuteBucket.length;
-      cpuHistory.push({ t: now, v: Math.round(avg * 10) / 10 });
-      if (cpuHistory.length > CPU_MAX_SAMPLES) cpuHistory.shift();
-      minuteBucket = [];
-    }
   } catch (err) {
     console.warn('CPU sample skipped:', err.message);
   }
+  const temp = await readTemperature();
+  if (temp != null) buckets.temp.push(temp);
+
+  const now = Math.floor(Date.now() / 1000);
+  if (buckets.cpu.length && now - lastPushT >= HISTORY_INTERVAL_S) {
+    for (const k of Object.keys(history)) {
+      if (!buckets[k].length) continue;
+      history[k].push({ t: now, v: avg1(buckets[k]) });
+      if (history[k].length > MAX_SAMPLES) history[k].shift();
+      buckets[k] = [];
+    }
+    lastPushT = now;
+  }
 };
 
-cpuTick();
-setTimeout(cpuTick, 1000).unref(); // second read so `current` is available almost at once
-setInterval(cpuTick, CPU_TICK_MS).unref();
-
-router.get('/cpu-history', (req, res) => {
+const sliceHistory = (key) => (req, res) => {
   const hours = Math.min(96, Math.max(1, parseInt(req.query.hours, 10) || 6));
   const cutoff = Math.floor(Date.now() / 1000) - hours * 3600;
-  const start = cpuHistory.findIndex((s) => s.t >= cutoff);
-  res.json({ samples: start === -1 ? [] : cpuHistory.slice(start), interval: HISTORY_INTERVAL_S });
-});
+  const list = history[key];
+  const start = list.findIndex((s) => s.t >= cutoff);
+  res.json({ samples: start === -1 ? [] : list.slice(start), interval: HISTORY_INTERVAL_S });
+};
+
+router.get('/cpu-history', sliceHistory('cpu'));
+router.get('/temp-history', sliceHistory('temp'));
 
 // ─── Readers ────────────────────────────────────────────────────────────────
 const readMemory = async () => {
@@ -174,6 +206,14 @@ const settle = async (promise) => {
     return { ok: false, error: err.message };
   }
 };
+
+// Start sampling once the readers above exist.
+loadHistory().finally(() => {
+  tick();
+  setTimeout(tick, 1000).unref(); // second read so `current` CPU is available almost at once
+  setInterval(tick, TICK_MS).unref();
+  setInterval(saveMetricsHistory, SAVE_EVERY_MS).unref();
+});
 
 // ─── Aggregated overview: one request per dashboard poll ─────────────────────
 router.get('/overview', h(async (req, res) => {

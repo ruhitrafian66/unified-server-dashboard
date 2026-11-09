@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const { default: qbittorrentRoutes } = await import('./routes/qbittorrent.js');
-const { default: systemRoutes } = await import('./routes/omv.js');
+const { default: systemRoutes, saveMetricsHistory } = await import('./routes/omv.js');
 const { default: dockerRoutes } = await import('./routes/docker.js');
 const { default: showsRoutes, stopShowTimers } = await import('./routes/shows.js');
 const { default: tmdbRoutes } = await import('./routes/tmdb.js');
@@ -104,7 +104,7 @@ const server = app.listen(PORT, HOST, () => {
 const shutdown = (signal) => {
   console.log(`${signal} received, shutting down`);
   stopShowTimers();
-  server.close(() => process.exit(0));
+  saveMetricsHistory().finally(() => server.close(() => process.exit(0)));
   setTimeout(() => process.exit(0), 5000).unref();
 };
 process.on('SIGTERM', () => shutdown('SIGTERM'));
