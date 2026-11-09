@@ -83,6 +83,10 @@ export default function Media() {
   const [isSearching, setIsSearching] = useState(false);
   const [trendingMovies, setTrendingMovies] = useState([]);
   const [trendingTv, setTrendingTv] = useState([]);
+  // Movies tab: newly released for home viewing (no theatrical-only titles).
+  const [moviesPage, setMoviesPage] = useState(1);
+  const [moviesTotalPages, setMoviesTotalPages] = useState(1);
+  const [loadingMoreMovies, setLoadingMoreMovies] = useState(false);
   const [isLoadingTrending, setIsLoadingTrending] = useState(false);
   const [trendingError, setTrendingError] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -103,10 +107,12 @@ export default function Media() {
     try {
       const [tvRes, movRes] = await Promise.all([
         axios.get(`${TMDB_BASE}/trending/tv/week`),
-        axios.get(`${TMDB_BASE}/trending/movie/week`),
+        axios.get(`${TMDB_BASE}/movies/streaming`),
       ]);
       setTrendingTv((tvRes.data.results || []).map(i => ({ ...i, media_type: 'tv' })));
       setTrendingMovies((movRes.data.results || []).map(i => ({ ...i, media_type: 'movie' })));
+      setMoviesPage(movRes.data.page || 1);
+      setMoviesTotalPages(movRes.data.total_pages || 1);
     } catch (e) {
       setTrendingError(apiError(e));
     } finally {
@@ -117,6 +123,23 @@ export default function Media() {
   useEffect(() => {
     loadTrending();
   }, [loadTrending]);
+
+  const loadMoreMovies = async () => {
+    setLoadingMoreMovies(true);
+    try {
+      const res = await axios.get(`${TMDB_BASE}/movies/streaming`, { params: { page: moviesPage + 1 } });
+      setTrendingMovies(prev => {
+        const seen = new Set(prev.map(m => m.id));
+        return [...prev, ...(res.data.results || []).filter(m => !seen.has(m.id)).map(i => ({ ...i, media_type: 'movie' }))];
+      });
+      setMoviesPage(res.data.page);
+      setMoviesTotalPages(res.data.total_pages);
+    } catch (e) {
+      showToast('Could not load more: ' + apiError(e), 'error');
+    } finally {
+      setLoadingMoreMovies(false);
+    }
+  };
 
   // Allow deep-linking: /media?tab=tracked
   useEffect(() => {
@@ -274,7 +297,11 @@ export default function Media() {
               </div>
             ) : (
               <div className="media-search-input-row">
-                <span className="media-trending-label">Trending this week</span>
+                <span className="media-trending-label">
+                  {activeTab === 'movies'
+                    ? 'New on streaming'
+                    : 'Trending this week'}
+                </span>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button className="button button-secondary" onClick={loadTrending} disabled={isLoadingTrending}>
                     🔄
@@ -352,6 +379,14 @@ export default function Media() {
                   {trending.map(item => (
                     <MediaCard key={item.id} item={item} onClick={handleItemClick} />
                   ))}
+                </div>
+              )}
+              {!isLoadingTrending && activeTab === 'movies' && trending.length > 0 && moviesPage < moviesTotalPages && (
+                <div style={{ padding: '0 1rem 1rem' }}>
+                  <button className="button button-secondary" style={{ width: '100%' }}
+                    onClick={loadMoreMovies} disabled={loadingMoreMovies}>
+                    {loadingMoreMovies ? 'Loading…' : 'Load more'}
+                  </button>
                 </div>
               )}
               {!isLoadingTrending && trending.length === 0 && !trendingError && (
