@@ -105,7 +105,7 @@ jobs:
         # A rolling release: re-running updates the same release rather than
         # accumulating one per deploy. The built frontend is attached so you
         # can grab a known-good build for manual rollback.
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.DEPLOY_TAG }}
           name: Deploy-ready build
