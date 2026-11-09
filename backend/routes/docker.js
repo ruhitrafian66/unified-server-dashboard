@@ -1,31 +1,30 @@
 import express from 'express';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 
 const router = express.Router();
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
-// Get Docker container status
 router.get('/containers', async (req, res) => {
   try {
-    const { stdout } = await execAsync('docker ps -a --format "{{.Names}}|{{.State}}|{{.Status}}|{{.Image}}"');
-    
-    const containers = stdout.trim().split('\n')
-      .filter(line => line)
-      .map(line => {
-        const [name, state, status, image] = line.split('|');
-        return {
-          name,
-          state,
-          status,
-          image: image.split(':')[0].split('/').pop(), // Get just the image name
-          running: state === 'running'
-        };
-      });
-    
+    const { stdout } = await execFileAsync(
+      'docker',
+      ['ps', '-a', '--format', '{{.Names}}|{{.State}}|{{.Status}}|{{.Image}}'],
+      { timeout: 5000 },
+    );
+    const containers = stdout.trim().split('\n').filter(Boolean).map((line) => {
+      const [name, state, status, image] = line.split('|');
+      return {
+        name,
+        state,
+        status,
+        image: image.split(':')[0].split('/').pop(),
+        running: state === 'running',
+      };
+    });
     res.json({ containers });
   } catch (error) {
-    console.error('Error fetching Docker containers:', error);
+    console.error('Error fetching Docker containers:', error.message);
     res.status(500).json({ error: error.message, containers: [] });
   }
 });

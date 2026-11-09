@@ -1,520 +1,219 @@
 import express from 'express';
-import axios from 'axios';
-import { getServerUrl, authenticate, makeRequest as makeAuthenticatedRequest } from './qbAuth.js';
-
-const getHeaders = async () => {
-  const cookie = await authenticate();
-  return {
-    'Content-Type': 'application/x-www-form-urlencoded',
-    ...(cookie && { Cookie: cookie }),
-  };
-};
+import { qbGet, qbPost, addTorrentUrl } from './qbAuth.js';
 
 const router = express.Router();
 
-// In-memory search logs storage
+// Wraps async handlers so errors reach the central error handler.
+const h = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+// ─── Search logs (in-memory, diagnostic only) ────────────────────────────────
 let searchLogs = [];
 const MAX_LOGS = 100;
 
-// Auto-stop seeding configuration
-let autoStopConfig = {
-  enabled: false,
-  delayMinutes: 0,
-  ratioLimit: null,
-  seedTimeLimit: null
-};
-
-// Track torrents that have been processed for auto-stop (stopped already)
-let processedTorrents = new Set();
-// Track completion timestamps for delayMinutes: hash -> Date.now() when first seen seeding
-const torrentCompletionTimes = new Map();
-
-// Helper function to add search log
-const addSearchLog = (pattern, plugins, category, status, error = null, searchId = null, resultCount = 0) => {
-  const logEntry = {
-    id: Date.now(),
+const addSearchLog = (pattern, plugins, category, status, error = null) => {
+  const entry = {
+    id: Date.now() + Math.random(),
     timestamp: new Date().toISOString(),
     pattern,
     plugins: plugins || 'enabled',
     category: category || 'all',
     status,
-    searchId,
-    resultCount,
+    searchId: null,
+    resultCount: 0,
     error,
-    duration: null
+    duration: null,
   };
-  searchLogs.unshift(logEntry);
-  if (searchLogs.length > MAX_LOGS) searchLogs = searchLogs.slice(0, MAX_LOGS);
-  return logEntry;
+  searchLogs.unshift(entry);
+  if (searchLogs.length > MAX_LOGS) searchLogs.length = MAX_LOGS;
+  return entry;
 };
 
-// Get search logs
-router.get('/search/logs', async (req, res) => {
-  try {
-    const { limit = 50 } = req.query;
-    res.json({ logs: searchLogs.slice(0, parseInt(limit)), total: searchLogs.length, limit: parseInt(limit) });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+const finishLog = (searchId, patch) => {
+  const entry = searchLogs.find((l) => l.searchId === searchId);
+  if (!entry || entry.status === 'completed') return;
+  Object.assign(entry, patch, { duration: Date.now() - new Date(entry.timestamp).getTime() });
+};
+
+router.get('/search/logs', (req, res) => {
+  const limit = Math.min(MAX_LOGS, parseInt(req.query.limit, 10) || 50);
+  res.json({ logs: searchLogs.slice(0, limit), total: searchLogs.length, limit });
 });
 
-// Clear search logs
-router.delete('/search/logs', async (req, res) => {
-  try {
-    const clearedCount = searchLogs.length;
-    searchLogs = [];
-    res.json({ success: true, message: `Cleared ${clearedCount} log entries`, clearedCount });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+router.delete('/search/logs', (req, res) => {
+  const clearedCount = searchLogs.length;
+  searchLogs = [];
+  res.json({ success: true, message: `Cleared ${clearedCount} log entries`, clearedCount });
 });
 
-// Get torrent list
-router.get('/torrents', async (req, res) => {
-  try {
-    const serverUrl = getServerUrl();
-    const cookie = await authenticate();
-    
-    const response = await axios.get(`${serverUrl}/api/v2/torrents/info`, {
-      headers: cookie ? { 'Cookie': cookie } : {},
-      timeout: 5000
+// ─── Torrents ────────────────────────────────────────────────────────────────
+router.get('/torrents', h(async (req, res) => {
+  const response = await qbGet('/api/v2/torrents/info');
+  res.json(response.data);
+}));
+
+router.get('/transfer', h(async (req, res) => {
+  const response = await qbGet('/api/v2/transfer/info');
+  res.json(response.data);
+}));
+
+const addHandler = h(async (req, res) => {
+  const { urls, savepath } = req.body || {};
+  if (typeof urls !== 'string' || !urls.trim()) {
+    return res.status(400).json({ error: 'No torrent URL provided' });
+  }
+  const ok = await addTorrentUrl(urls.trim(), { savepath });
+  if (!ok) {
+    return res.status(400).json({
+      error: 'Torrent rejected',
+      details: 'qBittorrent rejected the link: it is invalid, unavailable, or already added.',
     });
+  }
+  res.json({ success: true });
+});
+
+// Both paths kept for compatibility with older clients.
+router.post('/torrents/add', addHandler);
+router.post('/torrents/add-advanced', addHandler);
+
+// Frontend action → qBittorrent v5 endpoint. Anything else is rejected.
+const TORRENT_ACTIONS = {
+  pause: 'stop',
+  stop: 'stop',
+  resume: 'start',
+  start: 'start',
+  delete: 'delete',
+  recheck: 'recheck',
+  reannounce: 'reannounce',
+};
+
+router.post('/torrents/:action', h(async (req, res) => {
+  const qbAction = TORRENT_ACTIONS[req.params.action];
+  if (!qbAction) return res.status(400).json({ error: `Unknown action '${req.params.action}'` });
+
+  const { hashes, deleteFiles } = req.body || {};
+  if (typeof hashes !== 'string' || !/^(all|[a-fA-F0-9|]+)$/.test(hashes)) {
+    return res.status(400).json({ error: 'Invalid torrent hashes' });
+  }
+
+  const form = { hashes };
+  if (qbAction === 'delete') form.deleteFiles = deleteFiles === false ? 'false' : 'true';
+
+  await qbPost(`/api/v2/torrents/${qbAction}`, form);
+  res.json({ success: true });
+}));
+
+// ─── Search ──────────────────────────────────────────────────────────────────
+router.get('/search/plugins', h(async (req, res) => {
+  const response = await qbGet('/api/v2/search/plugins');
+  res.json(response.data);
+}));
+
+router.post('/search/start', h(async (req, res) => {
+  const { pattern, plugins, category } = req.body || {};
+  if (typeof pattern !== 'string' || !pattern.trim()) {
+    return res.status(400).json({ error: 'Search pattern is required' });
+  }
+  const log = addSearchLog(pattern, plugins, category, 'started');
+  try {
+    const response = await qbPost('/api/v2/search/start', {
+      pattern: pattern.trim(),
+      plugins: plugins || 'enabled',
+      category: category || 'all',
+    });
+    log.searchId = response.data.id;
+    log.status = 'running';
     res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: error.message, serverUrl: getServerUrl() });
+  } catch (err) {
+    log.status = 'failed';
+    log.error = err.message;
+    throw err;
   }
-});
+}));
 
-// Add torrent
-router.post('/torrents/add', async (req, res) => {
+router.get('/search/status/:id', h(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
   try {
-    const serverUrl = getServerUrl();
-    const { urls } = req.body;
-    
-    if (!urls || urls.trim() === '') {
-      return res.status(400).json({ error: 'No torrent URL provided' });
-    }
-    
-    const headers = await getHeaders();
-    
-    console.log('Adding torrent with sequential download:', urls.substring(0, 50) + '...');
-    
-    // Use URLSearchParams which properly handles encoding
-    // This ensures & characters in the magnet URL are treated as part of the value
-    const params = new URLSearchParams();
-    params.set('urls', urls);
-    params.set('sequentialDownload', 'true'); // Always enable sequential download
-    params.set('firstLastPiecePrio', 'true'); // Always prioritize first and last piece
-    
-    const response = await axios.post(`${serverUrl}/api/v2/torrents/add`,
-      params,
-      { 
-        headers,
-        timeout: 10000
-      }
-    );
-    
-    console.log('qBittorrent response:', response.status, response.data);
-    
-    // Check if qBittorrent returned "Fails." which means the torrent was rejected
-    if (response.data === 'Fails.') {
-      return res.status(400).json({ 
-        error: 'Invalid torrent link',
-        details: 'The magnet link or torrent URL is not valid. Please check the link and try again.'
-      });
-    }
-    
-    res.json({ success: true, data: response.data });
-  } catch (error) {
-    console.error('Error adding torrent:', error.response?.status, error.response?.data, error.message);
-    res.status(error.response?.status || 500).json({ 
-      error: error.message,
-      details: error.response?.data,
-      status: error.response?.status
-    });
-  }
-});
-
-// Add torrent with advanced options (must come before /:action route)
-router.post('/torrents/add-advanced', async (req, res) => {
-  console.log('=== ADD-ADVANCED ENDPOINT HIT ===');
-  console.log('Request body:', req.body);
-  
-  try {
-    const serverUrl = getServerUrl();
-    console.log('Server URL:', serverUrl);
-    
-    const { urls, savepath } = req.body;
-    
-    // Validate that we have a URL
-    if (!urls || urls.trim() === '') {
-      console.log('ERROR: No torrent URL provided');
-      return res.status(400).json({ error: 'No torrent URL provided' });
-    }
-    
-    const headers = await getHeaders();
-    
-    // Build body components - don't encode the magnet URL itself
-    const bodyComponents = [`urls=${urls}`];
-    
-    if (savepath && savepath.trim() !== '') {
-      bodyComponents.push(`savepath=${encodeURIComponent(savepath)}`);
-    }
-    
-    // Always enable sequential download for all torrents
-    bodyComponents.push('sequentialDownload=true');
-    bodyComponents.push('firstLastPiecePrio=true'); // Always prioritize first and last piece
-    
-    const body = bodyComponents.join('&');
-    
-    console.log('Adding torrent with sequential download enabled:', body.substring(0, 100) + '...');
-    
-    const response = await axios.post(`${serverUrl}/api/v2/torrents/add`,
-      body,
-      { 
-        headers,
-        timeout: 10000
-      }
-    );
-    
-    console.log('qBittorrent response:', response.status, response.data);
-    
-    // Check if qBittorrent returned "Fails." which means the torrent was rejected
-    if (response.data === 'Fails.') {
-      return res.status(400).json({ 
-        error: 'Invalid torrent link',
-        details: 'The download link is not valid or the torrent is unavailable. Try a different search result.'
-      });
-    }
-    
-    res.json({ success: true, data: response.data });
-  } catch (error) {
-    console.error('Error adding torrent:', error.response?.status, error.response?.data, error.message);
-    res.status(error.response?.status || 500).json({ 
-      error: error.message,
-      details: error.response?.data,
-      status: error.response?.status
-    });
-  }
-});
-
-// Control torrent (pause/resume/delete)
-router.post('/torrents/:action', async (req, res) => {
-  try {
-    const serverUrl = getServerUrl();
-    const { hashes, deleteFiles } = req.body;
-    const { action } = req.params;
-    const headers = await getHeaders();
-    
-    // Map frontend actions to qBittorrent API endpoints
-    let qbAction = action;
-    if (action === 'pause') {
-      qbAction = 'stop';
-    } else if (action === 'resume') {
-      qbAction = 'start';
-    }
-    
-    let params = `hashes=${hashes}`;
-    
-    // For delete action, add deleteFiles parameter
-    if (action === 'delete') {
-      params += `&deleteFiles=${deleteFiles !== false ? 'true' : 'false'}`;
-    }
-    
-    const response = await axios.post(`${serverUrl}/api/v2/torrents/${qbAction}`,
-      params,
-      { 
-        headers,
-        timeout: 5000
-      }
-    );
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get search plugins
-router.get('/search/plugins', async (req, res) => {
-  try {
-    const serverUrl = getServerUrl();
-    const response = await axios.get(`${serverUrl}/api/v2/search/plugins`, {
-      timeout: 5000
-    });
+    const response = await qbGet('/api/v2/search/status', { id });
     res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    // 404: the job finished or expired — report "no active search".
+    if (err.response?.status === 404) return res.json([]);
+    throw err;
   }
-});
+}));
 
-// Start search
-router.post('/search/start', async (req, res) => {
+router.get('/search/results/:id', h(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const params = { id };
+  if (req.query.limit) params.limit = parseInt(req.query.limit, 10);
+  if (req.query.offset) params.offset = parseInt(req.query.offset, 10);
   try {
-    const serverUrl = getServerUrl();
-    const { pattern, plugins, category } = req.body;
-    
-    // Log the search start
-    const logEntry = addSearchLog(pattern, plugins, category, 'started');
-    
-    const response = await makeAuthenticatedRequest(
-      'POST',
-      `${serverUrl}/api/v2/search/start`,
-      `pattern=${encodeURIComponent(pattern)}&plugins=${plugins || 'enabled'}&category=${category || 'all'}`
-    );
-    
-    // Update log with search ID
-    logEntry.searchId = response.data.id;
-    logEntry.status = 'running';
-    
+    const response = await qbGet('/api/v2/search/results', params);
+    if (response.data.status === 'Stopped') {
+      finishLog(id, { status: 'completed', resultCount: response.data.total ?? response.data.results?.length ?? 0 });
+    }
     res.json(response.data);
-  } catch (error) {
-    console.error('Search start error:', error.response?.status, error.message);
-    
-    // Log the search failure
-    addSearchLog(pattern, plugins, category, 'failed', error.message);
-    
-    res.status(error.response?.status || 500).json({ error: error.message });
+  } catch (err) {
+    finishLog(id, { status: 'failed', error: err.message });
+    throw err;
   }
-});
+}));
 
-// Get search status
-router.get('/search/status/:id', async (req, res) => {
+router.post('/search/stop', h(async (req, res) => {
+  const id = parseInt(req.body?.id, 10);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: 'Search id is required' });
   try {
-    const serverUrl = getServerUrl();
-    const { id } = req.params;
-    
-    const response = await makeAuthenticatedRequest('GET', `${serverUrl}/api/v2/search/status?id=${id}`);
-    res.json(response.data);
-  } catch (error) {
-    console.error('Search status error:', error.response?.status, error.message);
-    
-    // If 404, the search job doesn't exist or expired
-    if (error.response?.status === 404) {
-      // Return empty array to indicate no active search
-      res.json([]);
-    } else {
-      res.status(error.response?.status || 500).json({ 
-        error: error.message,
-        searchId: req.params.id
-      });
-    }
+    await qbPost('/api/v2/search/stop', { id });
+  } catch (err) {
+    if (err.response?.status !== 404) throw err;
   }
-});
+  res.json({ success: true });
+}));
 
-// Get search results
-router.get('/search/results/:id', async (req, res) => {
-  try {
-    const serverUrl = getServerUrl();
-    const { id } = req.params;
-    const { limit, offset } = req.query;
-    
-    let url = `${serverUrl}/api/v2/search/results?id=${id}`;
-    if (limit) url += `&limit=${limit}`;
-    if (offset) url += `&offset=${offset}`;
-    
-    const response = await makeAuthenticatedRequest('GET', url);
-    
-    // Update log entry with result count if this is the final results fetch
-    const logEntry = searchLogs.find(log => log.searchId === parseInt(id));
-    if (logEntry && response.data.results) {
-      logEntry.resultCount = response.data.results.length;
-      logEntry.status = 'completed';
-      logEntry.duration = Date.now() - new Date(logEntry.timestamp).getTime();
-    }
-    
-    res.json(response.data);
-  } catch (error) {
-    // Update log entry with error
-    const logEntry = searchLogs.find(log => log.searchId === parseInt(req.params.id));
-    if (logEntry) {
-      logEntry.status = 'failed';
-      logEntry.error = error.message;
-      logEntry.duration = Date.now() - new Date(logEntry.timestamp).getTime();
-    }
-    
-    res.status(500).json({ error: error.message });
-  }
-});
+// ─── Auto-stop seeding ───────────────────────────────────────────────────────
+// Backed by qBittorrent's own share limits, so it works whether or not the
+// dashboard is open or running, and survives restarts of either service.
+const MAX_RATIO_ACT_STOP = 0;
 
-// Stop search
-router.post('/search/stop', async (req, res) => {
-  try {
-    const serverUrl = getServerUrl();
-    const { id } = req.body;
-    
-    await makeAuthenticatedRequest(
-      'POST',
-      `${serverUrl}/api/v2/search/stop`,
-      `id=${id}`
-    );
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Search stop error:', error.response?.status, error.message);
-    res.status(error.response?.status || 500).json({ error: error.message });
-  }
-});
+const readShareLimits = async () => {
+  const { data: p } = await qbGet('/api/v2/app/preferences');
+  return {
+    enabled: Boolean(p.max_ratio_enabled || p.max_seeding_time_enabled),
+    ratioLimit: p.max_ratio_enabled ? p.max_ratio : null,
+    seedTimeLimit: p.max_seeding_time_enabled ? p.max_seeding_time : null,
+    action: p.max_ratio_act === MAX_RATIO_ACT_STOP ? 'stop' : 'other',
+    source: 'qbittorrent',
+  };
+};
 
-// Auto-stop seeding configuration endpoints
-router.get('/auto-stop/config', async (req, res) => {
-  try {
-    res.json(autoStopConfig);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+router.get('/auto-stop/config', h(async (req, res) => {
+  res.json(await readShareLimits());
+}));
 
-router.post('/auto-stop/config', async (req, res) => {
-  try {
-    const { enabled, delayMinutes, ratioLimit, seedTimeLimit } = req.body;
-    
-    autoStopConfig = {
-      enabled: Boolean(enabled),
-      delayMinutes: Math.max(0, parseInt(delayMinutes) || 0),
-      ratioLimit: ratioLimit ? parseFloat(ratioLimit) : null,
-      seedTimeLimit: seedTimeLimit ? parseInt(seedTimeLimit) : null
-    };
-    
-    console.log('Auto-stop config updated:', autoStopConfig);
-    
-    res.json({ 
-      success: true, 
-      config: autoStopConfig,
-      message: enabled ? 'Auto-stop seeding enabled' : 'Auto-stop seeding disabled'
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+router.post('/auto-stop/config', h(async (req, res) => {
+  const { enabled } = req.body || {};
+  const ratio = parseFloat(req.body?.ratioLimit);
+  const minutes = parseInt(req.body?.seedTimeLimit, 10);
 
-// Check and process completed torrents for auto-stop
-router.post('/auto-stop/process', async (req, res) => {
-  try {
-    if (!autoStopConfig.enabled) {
-      return res.json({ 
-        success: true, 
-        message: 'Auto-stop is disabled',
-        processed: 0 
-      });
-    }
+  const ratioOn = Boolean(enabled) && Number.isFinite(ratio) && ratio >= 0;
+  // Enabled with no ratio and no time = stop as soon as the download completes.
+  const timeOn = Boolean(enabled) && (Number.isFinite(minutes) ? minutes >= 0 : !ratioOn);
 
-    const serverUrl = getServerUrl();
-    
-    // Get all torrents
-    const response = await makeAuthenticatedRequest('GET', `${serverUrl}/api/v2/torrents/info`);
-    const torrents = response.data;
-    
-    let processedCount = 0;
-    const results = [];
-    
-    for (const torrent of torrents) {
-      // Skip if already processed
-      if (processedTorrents.has(torrent.hash)) {
-        continue;
-      }
-      
-      // Check if torrent is completed and seeding
-      const isCompleted = torrent.progress >= 1;
-      const isSeeding = ['uploading', 'stalledUP', 'queuedUP'].includes(torrent.state);
-      
-      if (!isCompleted || !isSeeding) {
-        // Clean up completion time tracking if torrent is no longer seeding
-        if (!isSeeding) torrentCompletionTimes.delete(torrent.hash);
-        continue;
-      }
+  const prefs = {
+    max_ratio_enabled: ratioOn,
+    max_seeding_time_enabled: timeOn,
+    max_ratio_act: MAX_RATIO_ACT_STOP,
+  };
+  if (ratioOn) prefs.max_ratio = ratio;
+  if (timeOn) prefs.max_seeding_time = Number.isFinite(minutes) ? minutes : 0;
 
-      // Record when we first saw this torrent seeding (for delayMinutes)
-      if (!torrentCompletionTimes.has(torrent.hash)) {
-        torrentCompletionTimes.set(torrent.hash, Date.now());
-      }
-      
-      let shouldStop = false;
-      let reason = '';
-      
-      // Check ratio limit
-      if (autoStopConfig.ratioLimit && torrent.ratio >= autoStopConfig.ratioLimit) {
-        shouldStop = true;
-        reason = `Ratio limit reached (${torrent.ratio.toFixed(2)})`;
-      }
-      
-      // Check seed time limit
-      if (autoStopConfig.seedTimeLimit && torrent.seeding_time >= (autoStopConfig.seedTimeLimit * 60)) {
-        shouldStop = true;
-        reason = `Seed time limit reached (${Math.floor(torrent.seeding_time / 60)}m)`;
-      }
-      
-      // Check delay minutes — stop if enough time has passed since completion
-      if (!shouldStop) {
-        if (autoStopConfig.delayMinutes === 0) {
-          shouldStop = true;
-          reason = 'Immediate stop after completion';
-        } else {
-          const completedAt = torrentCompletionTimes.get(torrent.hash) || Date.now();
-          const elapsedMinutes = (Date.now() - completedAt) / 60000;
-          if (elapsedMinutes >= autoStopConfig.delayMinutes) {
-            shouldStop = true;
-            reason = `Delay elapsed (${autoStopConfig.delayMinutes}m after completion)`;
-          }
-        }
-      }
-      
-      if (shouldStop) {
-        try {
-          // Stop the torrent
-          await makeAuthenticatedRequest(
-            'POST',
-            `${serverUrl}/api/v2/torrents/stop`,
-            `hashes=${torrent.hash}`
-          );
-          
-          processedTorrents.add(torrent.hash);
-          torrentCompletionTimes.delete(torrent.hash);
-          processedCount++;
-          
-          results.push({
-            name: torrent.name,
-            hash: torrent.hash,
-            reason,
-            success: true
-          });
-          
-          console.log(`Auto-stopped torrent: ${torrent.name} (${reason})`);
-        } catch (error) {
-          results.push({
-            name: torrent.name,
-            hash: torrent.hash,
-            reason,
-            success: false,
-            error: error.message
-          });
-          
-          console.error(`Failed to auto-stop torrent ${torrent.name}:`, error.message);
-        }
-      }
-    }
-    
-    res.json({
-      success: true,
-      processed: processedCount,
-      results,
-      config: autoStopConfig
-    });
-  } catch (error) {
-    console.error('Auto-stop process error:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get auto-stop statistics
-router.get('/auto-stop/stats', async (req, res) => {
-  try {
-    res.json({
-      config: autoStopConfig,
-      processedTorrents: processedTorrents.size,
-      lastCheck: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  await qbPost('/api/v2/app/setPreferences', { json: JSON.stringify(prefs) });
+  const config = await readShareLimits();
+  res.json({
+    success: true,
+    config,
+    message: config.enabled ? 'Seeding limits saved in qBittorrent' : 'Seeding limits disabled',
+  });
+}));
 
 export default router;
