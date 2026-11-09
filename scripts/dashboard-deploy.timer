@@ -2,13 +2,11 @@
 Description=Unified Server Dashboard - poll for a new deploy-ready build
 
 [Timer]
-# Check for a new green build shortly after boot ...
 OnBootSec=2min
-# ... then poll at a fixed interval. 2 minutes is a reasonable balance between
-# deploy latency and load; adjust to taste.
-OnUnitActiveSec=2min
-# Don't stack queued runs if a deploy is slow.
-Persistent=true
+# Re-check every 2 minutes after the previous run finished. A no-change check
+# is a single `git ls-remote` and prints nothing.
+OnUnitInactiveSec=2min
+RandomizedDelaySec=15s
 Unit=dashboard-deploy.service
 
 [Install]

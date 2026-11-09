@@ -1,19 +1,26 @@
 [Unit]
 Description=Unified Server Dashboard
-After=network.target docker.service
-Wants=docker.service
+After=network-online.target docker.service
+Wants=network-online.target docker.service
 
 [Service]
-# Run as root so the backend can read /proc, the Docker socket, and run
-# systemctl/system commands used by the dashboard. Adjust if desired.
 Type=simple
+# Root is needed for the Docker socket, `systemctl reboot/poweroff` and /proc.
 User=root
 WorkingDirectory=/opt/server-dashboard/backend
-Environment="NODE_ENV=production"
+Environment=NODE_ENV=production
 # backend/.env is loaded by the app via dotenv; PORT defaults to 3001.
 ExecStart=/usr/bin/node server.js
 Restart=always
-RestartSec=10
+RestartSec=5
+# Give in-flight requests a moment on stop/restart.
+TimeoutStopSec=10
+# Guard rails: cap memory on a 2 GB board and keep the process away from
+# system files it never needs to write.
+MemoryMax=400M
+ProtectSystem=full
+PrivateTmp=yes
+NoNewPrivileges=yes
 
 [Install]
 WantedBy=multi-user.target

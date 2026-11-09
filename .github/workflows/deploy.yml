@@ -62,8 +62,22 @@ jobs:
           test -f frontend/dist/index.html || { echo "frontend/dist/index.html missing"; exit 1; }
           echo "Frontend build artifacts OK"
 
-      - name: Smoke-test backend syntax
-        run: node --check backend/server.js
+      - name: Smoke-test backend (boot in production mode and probe it)
+        run: |
+          export DATA_DIR="$RUNNER_TEMP/data" PORT=3999 NODE_ENV=production QBITTORRENT_URL=http://127.0.0.1:9
+          node backend/server.js > "$RUNNER_TEMP/server.log" 2>&1 &
+          for i in $(seq 1 20); do curl -fsS localhost:3999/api/health >/dev/null 2>&1 && break; sleep 0.5; done
+          set -x
+          curl -fsS localhost:3999/api/health | grep -q '"status":"ok"'
+          curl -fsS localhost:3999/ | grep -q '<div id="root">'
+          curl -fsS localhost:3999/api/shows | grep -q '"shows"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:3999/api/shows/check)" = 403
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3999/api/does-not-exist)" = 404
+          kill %1
+        # Print the server log if anything above failed.
+      - name: Backend log
+        if: failure()
+        run: cat "$RUNNER_TEMP/server.log" || true
 
       - name: Upload build artifact (consumed by the release job)
         uses: actions/upload-artifact@v4
@@ -97,9 +111,16 @@ jobs:
       - name: Advance the deploy-ready tag to this commit
         # Force a moving tag so the server's poll sees a new marker when this
         # commit is a green build. This is the only signal the server needs.
+        # GitHub occasionally answers 500 on ref updates; one such failure once
+        # left the server 2 commits behind for days. Retry with back-off.
         run: |
           git tag -f "${DEPLOY_TAG}"
-          git push --force origin "${DEPLOY_TAG}"
+          for attempt in 1 2 3 4 5; do
+            git push --force origin "refs/tags/${DEPLOY_TAG}" && exit 0
+            echo "Tag push failed (attempt $attempt); retrying in $((attempt * 10))s..."
+            sleep $((attempt * 10))
+          done
+          exit 1
 
       - name: Publish / update GitHub Release for the deploy-ready tag
         # A rolling release: re-running updates the same release rather than

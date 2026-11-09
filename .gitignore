@@ -5,6 +5,12 @@ node_modules/
 # Build output
 dist/
 build/
+frontend/dist-next/
+frontend/dist.prev/
+
+# Deploy state written on the server
+.deploy-sha
+.deploy-failed-sha
 # NOTE: frontend/dist is generated during CI/CD and on the server — never commit it.
 
 # Runtime data (user data written by the backend — never commit it)

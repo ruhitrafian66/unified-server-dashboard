@@ -39,7 +39,9 @@ fi
 # (see backend/routes/shows.js DATA_DIR). Keep that location so existing data is
 # preserved across deploys. Plex/archival runtime dirs live under backend/data.
 DATA_DIR="${DATA_DIR:-${REPO_DIR}/data}"
-mkdir -p "${DATA_DIR}" "${REPO_DIR}/backend/data" || true
+mkdir -p "${DATA_DIR}"
+# config.json can hold API keys/tokens: keep it readable by root only.
+[ -f "${DATA_DIR}/config.json" ] && chmod 600 "${DATA_DIR}/config.json"
 log "Data dir: ${DATA_DIR}"
 
 # ─── 3. .env from example (never overwrite an existing .env) ─────────────────

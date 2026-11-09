@@ -1,17 +1,15 @@
 [Unit]
 Description=Unified Server Dashboard - pull-based deploy
-After=network-online.target docker.service
+After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-# Runs the deploy script in-place on the server. Because this is a oneshot
-# unit (not long-running), it exits after each poll and is re-armed by the
-# associated timer.
 ExecStart=/bin/bash /opt/server-dashboard/scripts/deploy.sh
-# Deployment is idempotent + quick, so retry on transient failure.
-Restart=on-failure
-RestartSec=30
-
-[Install]
-WantedBy=multi-user.target
+# No Restart=: the timer re-runs this every few minutes, and a failed commit is
+# remembered by deploy.sh so it isn't retried in a loop.
+TimeoutStartSec=20min
+# Builds are heavy on a small ARM board; don't starve Plex or downloads.
+Nice=10
+IOSchedulingClass=idle
+Environment=NODE_OPTIONS=--max-old-space-size=512
