@@ -62,53 +62,65 @@ Then just **push to `master`** — the server picks up green builds automaticall
 (or trigger **Actions -> CI/CD -> Run workflow** manually). See **DEPLOYMENT.md**
 for the manual equivalent of each step and for rollback guidance.
 
-**Systemd service file** (`/etc/systemd/system/dashboard.service`):
+The backend unit lives in [`scripts/dashboard.service`](scripts/dashboard.service).
 
-```ini
-[Unit]
-Description=Unified Server Dashboard
-After=network.target docker.service
-Wants=docker.service
+## How it fits together on the server
 
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/server-dashboard/backend
-Environment="NODE_ENV=production"
-ExecStart=/usr/bin/node server.js
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
 ```
+LAN device ──HTTP:3001──▶ dashboard (Node, systemd, /opt/server-dashboard)
+                             ├─▶ qBittorrent WebUI  localhost:8080 ─┐ (docker-proxy)
+                             ├─▶ docker CLI / systemctl / /proc     │
+                             └─▶ TMDB (HTTPS)                       ▼
+                                              gluetun container (WireGuard, kill-switch)
+                                                └─ qbittorrent shares its network namespace (tun0)
+                             plex container: host network, :32400
+```
+
+The media stack itself (gluetun, qbittorrent, plex) is managed separately from
+`/opt/media-stack/docker-compose.yml`; [`docker-compose.yml`](docker-compose.yml)
+in this repo is a reference copy with secrets moved to `.env.docker`.
 
 ## API Endpoints
 
-### qBittorrent
-- `GET /api/qbittorrent/torrents` — List all torrents
-- `POST /api/qbittorrent/torrents/add` — Add torrent by URL
-- `POST /api/qbittorrent/torrents/add-advanced` — Add with options
-- `POST /api/qbittorrent/torrents/:action` — Control (pause/resume/delete)
-- `GET /api/qbittorrent/search/plugins` — List search plugins
-- `POST /api/qbittorrent/search/start` — Start search
-- `GET /api/qbittorrent/search/results/:id` — Get results
+All write requests (`POST`/`PUT`/`DELETE`) must send `X-Requested-With: dashboard`
+(CSRF protection; the bundled UI does this automatically).
 
-### System Monitoring
-- `GET /api/omv/cpu-history?hours=<N>` — CPU usage history (default 6h, max 96h)
+### System — `/api/system` (alias `/api/omv`)
+- `GET /overview` — CPU, memory, load, temperature, disks, services, containers, torrent client, build info (one call; partial failures listed in `errors`)
+- `GET /cpu-history?hours=<1-96>` — per-minute CPU history
+- `POST /power/reboot` · `POST /power/shutdown`
 
-### Docker
-- `GET /api/docker/containers` — List containers and status
+### qBittorrent — `/api/qbittorrent`
+- `GET /torrents` · `GET /transfer`
+- `POST /torrents/add` — `{ urls, savepath? }` (sequential + first/last piece always on)
+- `POST /torrents/:action` — `pause|resume|delete|recheck|reannounce`, `{ hashes, deleteFiles? }`
+- `GET /search/plugins` · `POST /search/start` · `GET /search/status/:id` · `GET /search/results/:id` · `POST /search/stop` · `GET|DELETE /search/logs`
+- `GET|POST /auto-stop/config` — seeding limits, stored in qBittorrent's own preferences
+
+### TV automation — `/api/shows`
+- `GET /` · `POST /` (`{ tmdbId }`) · `PUT /:id` · `DELETE /:id`
+- `POST /check` (background) · `GET /check/status`
+- `POST /download-season` · `POST /:id/season/:season` · `GET /download-progress/:sessionId`
+- `GET /queue/status` · `POST /queue/clear`
+- `GET|POST /config/tmdb` · `GET|POST /config/auto-check`
+
+### TMDB proxy — `/api/tmdb/*`
+Read-only allow-listed TMDB paths (trending, search, details); the server adds its API key.
+
+### Health
+- `GET /api/health` — status, running commit, uptime
 
 ## Architecture
 
-- **Frontend**: React + Vite, PWA with Service Worker, Canvas-based charts
-- **Backend**: Node.js + Express, lightweight circular buffer CPU sampling (60s interval, ~115KB RAM)
-- **No external dependencies**: CPU chart uses pure Canvas, no charting library
+- **Frontend**: React + Vite PWA. Polling pauses while the app is in the background.
+- **Backend**: Node.js + Express. Reads `/proc`, `/sys` and `statfs` directly (no `top`/`df` subprocesses).
+- **Data**: `DATA_DIR/shows.json` and `DATA_DIR/config.json`, written atomically and serialised (no lost updates, no wipe on a corrupt file).
+- **TV automation**: timer at each episode's air time + a 6-hourly sweep (also catches anything missed while the server was down). Aired-but-not-found episodes are retried for 7 days, then flagged as missed instead of silently skipped. Malware-looking release names are rejected.
 
 ## Security
 
-- Backend runs on local network only (not exposed to internet)
+- Backend runs on local network only (not exposed to internet); there is no login, so anyone on the LAN can use it
+- Cross-site requests are blocked (custom-header CSRF check, no CORS unless `ALLOWED_ORIGINS` is set)
 - Use firewall rules to restrict access to trusted IPs
 - `.env` file contains sensitive credentials — never commit to version control
 - All API communication is HTTP (use reverse proxy with HTTPS if exposing externally)

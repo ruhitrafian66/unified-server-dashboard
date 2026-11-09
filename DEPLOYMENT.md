@@ -32,10 +32,17 @@ inbound firewall rules, no secrets on GitHub needed for server access.
 2. **Only if CI is green** does the `release` job run. It force-advances a rolling
    `deploy-ready` tag to that commit and publishes/updates a GitHub **Release** (with the
    built `frontend/dist` attached for manual rollback).
-3. **On the server**, a `systemd timer` runs `scripts/deploy.sh` every 2 minutes. That script
-   does an outbound `git fetch origin deploy-ready`; if the tag moved since the last deploy, it
-   resets to that commit, runs `npm ci` + `npm run build`, restarts the `dashboard` service,
-   and records the new SHA. If the tag hasn't moved, it exits without touching anything.
+3. **On the server**, a systemd timer runs `scripts/deploy.sh` every ~2 minutes. It asks GitHub
+   (`git ls-remote`, no download) which commit the `deploy-ready` tag points at. If that commit
+   differs from `.deploy-sha` it:
+   - force-fetches the tag (a plain `git fetch` will not move an existing tag),
+   - stashes any hand edits in the checkout (`git stash list` shows them) and resets to the commit,
+   - runs `npm ci` only if a lockfile/package.json changed,
+   - builds the frontend into `frontend/dist-next` and swaps it in atomically,
+   - restarts `dashboard` and waits until `/api/health` reports the new commit.
+
+   If the build or health check fails it **rolls back** to the previous commit and build, and
+   writes the bad commit to `.deploy-failed-sha` so it isn't retried until the tag moves again.
 
 Because only `git fetch` (outbound HTTPS to GitHub) is used, the server needs **no** inbound
 ports and **no** SSH access from GitHub.
@@ -145,38 +152,34 @@ Two ways to force a deploy without waiting for the timer:
 
 ## Rollback
 
-Because the server checkout is a Git repo, roll back to the previous build on the server:
+Automatic: a deploy that fails to build or doesn't pass the health check is rolled back
+by `deploy.sh` itself (see `journalctl -u dashboard-deploy`).
+
+Manual, to a specific known-good commit:
 
 ```bash
+sudo systemctl stop dashboard-deploy.timer        # stop auto-deploys while you work
 cd /opt/server-dashboard
-git fetch --prune origin master
-git reset --hard origin/master~1
+git fetch origin && git reset --hard <good-sha>
 npm ci && npm run build
+printf '%s' "$(git rev-parse HEAD)" > .deploy-sha
 sudo systemctl restart dashboard
-```
-
-To **prevent** the timer from re-deploying the bad tag, either (a) revert on GitHub so the
-`deploy-ready` tag moves back to an older green commit and push again, or (b) temporarily
-stop the timer:
-
-```bash
-sudo systemctl stop dashboard-deploy.timer
-# ... fix on GitHub, push a green build ...
+# ...push a fix to master, then:
 sudo systemctl start dashboard-deploy.timer
 ```
 
-For an exact known-good build, you can also grab the attached `frontend/dist` from the
-latest GitHub Release and serve it manually.
-
----
+Force a redeploy of the current tag: `sudo FORCE_DEPLOY=1 bash /opt/server-dashboard/scripts/deploy.sh`.
 
 ## Notes & tips
 
 - **No inbound ports / no SSH from GitHub** — the server only ever makes outbound `git fetch`.
 - **`package-lock.json` is committed** so `npm ci` gives reproducible builds.
 - **`frontend/dist` is built on the server**, so the built files are never committed.
-- **Latency:** the timer default polls every 2 minutes; lower it if you want faster deploys
-  (add `OnUnitActiveSec=1min` in the timer).
+- **Latency:** the timer polls every 2 minutes after the previous run finished
+  (`OnUnitInactiveSec` in the timer); a no-change poll is one `git ls-remote` and logs nothing.
+- **Never hand-edit files in `/opt/server-dashboard`.** Commit the change instead; a deploy will
+  stash local edits (recoverable with `git stash list` / `git stash pop`).
+- The CI `release` job retries the tag push, because GitHub occasionally returns 500 on ref updates.
 - The `ci` job still gates changes; add **branch protection** on `master` requiring CI to
   pass so only green code reaches the `deploy-ready` tag.
 
