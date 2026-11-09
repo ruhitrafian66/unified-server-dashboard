@@ -1,11 +1,12 @@
 import { useState, createContext, useContext, useCallback, useRef, useMemo } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
-import MyDownloads from './pages/MyDownloads';
+import Storage from './pages/Storage';
 import Media from './pages/Media';
 import Settings from './pages/Settings';
 
 import Toast from './components/Toast';
+import DownloadsBar from './components/DownloadsBar';
 import { SettingsProvider } from './contexts/SettingsContext';
 import './App.css';
 
@@ -20,14 +21,30 @@ export const useToast = () => {
 const NAV_ITEMS = [
   { to: '/', icon: '🏠', label: 'Home', end: true },
   { to: '/media', icon: '🎬', label: 'Media' },
-  { to: '/downloads', icon: '📥', label: 'Downloads' },
+  { to: '/storage', icon: '💾', label: 'Storage' },
   { to: '/settings', icon: '⚙️', label: 'Settings' },
 ];
 
-function NavBar() {
-  const location = useLocation();
-  if (location.pathname === '/settings') return null;
+/** Old /downloads links: search → Media › Torrents, list → Storage. */
+function LegacyDownloads() {
+  const [params] = useSearchParams();
+  const q = params.get('q');
+  if (q) return <Navigate to={`/media?tab=torrents&q=${encodeURIComponent(q)}`} replace />;
+  if (params.get('tab') === 'search') return <Navigate to="/media?tab=torrents" replace />;
+  return <Navigate to="/storage" replace />;
+}
 
+function AppHeader() {
+  const location = useLocation();
+  return (
+    <header className="app-header">
+      {location.pathname !== '/settings' && <NavBar />}
+      <DownloadsBar />
+    </header>
+  );
+}
+
+function NavBar() {
   return (
     <nav className="navbar" aria-label="Main">
       <h1>Server Dashboard</h1>
@@ -64,16 +81,17 @@ function App() {
       <SettingsProvider>
         <BrowserRouter>
           <div className="app">
-            <NavBar />
+            <AppHeader />
             <main className="main-content">
               <Routes>
                 <Route path="/" element={<Dashboard />} />
-                <Route path="/downloads" element={<MyDownloads />} />
+                <Route path="/storage" element={<Storage />} />
+                <Route path="/downloads" element={<LegacyDownloads />} />
                 <Route path="/media" element={<Media />} />
                 <Route path="/settings" element={<Settings />} />
                 {/* Legacy redirects — keep old URLs working */}
                 <Route path="/shows" element={<Navigate to="/media?tab=tracked" replace />} />
-                <Route path="/add-torrent" element={<Navigate to="/downloads" replace />} />
+                <Route path="/add-torrent" element={<Navigate to="/media?tab=torrents" replace />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </main>

@@ -9,6 +9,8 @@ import { JsonStore } from './jsonStore.js';
 
 export const DATA_DIR = process.env.DATA_DIR || '/opt/server-dashboard/data';
 export const DOWNLOAD_PATH = process.env.DOWNLOAD_PATH || '/mnt/storage';
+// Folder qBittorrent downloads into and Plex reads from (host path).
+export const LIBRARY_PATH = process.env.LIBRARY_PATH || '/mnt/storage/Server';
 
 const configStore = new JsonStore(path.join(DATA_DIR, 'config.json'), {});
 

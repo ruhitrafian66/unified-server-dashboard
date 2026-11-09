@@ -4,7 +4,9 @@ A Progressive Web App (PWA) dashboard for managing media server infrastructure: 
 
 ## Features
 
-- **qBittorrent Management**: Search, add, pause/resume/delete torrents with real-time status
+- **Storage**: media library built from the download folder (files and folders shown as clean movie/TV entries), duplicate and partial detection, junk cleanup, delete
+- **Downloads bar**: sticky progress bar while torrents download, auto-scrolling between several
+- **qBittorrent**: torrent search (Media › Torrents), add, stop/start/remove
 - **Plex Integration**: Monitor media library status and server uptime
 - **System Monitoring**: Real-time CPU usage history with 6h/12h/24h/2d/4d range views
 - **Docker Status**: View container health and resource usage
@@ -103,6 +105,12 @@ All write requests (`POST`/`PUT`/`DELETE`) must send `X-Requested-With: dashboar
 - `POST /download-season` · `POST /:id/season/:season` · `GET /download-progress/:sessionId`
 - `GET /queue/status` · `POST /queue/clear`
 - `GET|POST /config/tmdb` · `GET|POST /config/auto-check`
+
+### Media library — `/api/library`
+- `GET /` — scan of `LIBRARY_PATH` (default `/mnt/storage/Server`): one item per movie/show/folder with parsed title, year, seasons, quality, size, poster, matching torrent, duplicate/partial flags, plus reclaimable junk (`?refresh=1` bypasses the 30 s cache)
+- `GET /items/:id` — full detail (episodes per season, extras, main file)
+- `DELETE /items/:id` — delete a media item (and its torrent); non-media folders are refused
+- `POST /cleanup` — remove junk (macOS/Windows metadata, empty folders, orphaned `.parts`)
 
 ### TMDB proxy — `/api/tmdb/*`
 Read-only allow-listed TMDB paths (trending, search, details); the server adds its API key.

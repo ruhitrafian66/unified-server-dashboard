@@ -11,6 +11,7 @@ const { default: systemRoutes } = await import('./routes/omv.js');
 const { default: dockerRoutes } = await import('./routes/docker.js');
 const { default: showsRoutes, stopShowTimers } = await import('./routes/shows.js');
 const { default: tmdbRoutes } = await import('./routes/tmdb.js');
+const { default: libraryRoutes } = await import('./routes/library.js');
 const { getDeployInfo } = await import('./lib/deployInfo.js');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -47,6 +48,7 @@ app.use('/api/system', systemRoutes);
 app.use('/api/docker', dockerRoutes);
 app.use('/api/shows', showsRoutes);
 app.use('/api/tmdb', tmdbRoutes);
+app.use('/api/library', libraryRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({

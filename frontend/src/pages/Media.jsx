@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '../App';
 import { useSettings } from '../contexts/SettingsContext';
 import { apiError } from '../lib/format';
+import TorrentSearch from '../components/TorrentSearch';
 import MediaDetailModal from '../components/MediaDetailModal';
 import OngoingShows from './OngoingShows';
 import PastShows from './PastShows';
@@ -72,7 +73,8 @@ function MediaListItem({ item, onClick }) {
 }
 
 export default function Media() {
-  const [activeTab, setActiveTab] = useState('movies'); // 'movies' | 'tv' | 'tracked'
+  const [activeTab, setActiveTab] = useState('movies'); // 'movies' | 'tv' | 'tracked' | 'torrents'
+  const [torrentQuery, setTorrentQuery] = useState('');
   const [trackedSubTab, setTrackedSubTab] = useState('ongoing'); // 'ongoing' | 'past'
   const [searching, setSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -144,7 +146,8 @@ export default function Media() {
   // Allow deep-linking: /media?tab=tracked
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'tracked') setActiveTab('tracked');
+    if (tab === 'tracked' || tab === 'torrents') setActiveTab(tab);
+    if (tab === 'torrents') setTorrentQuery(searchParams.get('q') || '');
   }, [searchParams]);
 
   const runSearch = useCallback(async (query, page = 1) => {
@@ -220,14 +223,17 @@ export default function Media() {
   const handleItemClick = (item) => setSelectedItem(item);
 
   const handleFindSources = (query) => {
-    // Navigate to Downloads > Search tab with query pre-filled
-    navigate(`/downloads?q=${encodeURIComponent(query)}`);
+    // Open the Torrents tab with the query pre-filled (and searched).
+    setTorrentQuery(query);
+    setActiveTab('torrents');
+    window.scrollTo({ top: 0 });
   };
 
   const tabs = [
     { id: 'movies', label: '🎬 Movies' },
     { id: 'tv', label: '📺 TV' },
     { id: 'tracked', label: '📡 Tracked' },
+    { id: 'torrents', label: '🔍 Torrents' },
   ];
 
   return (
@@ -277,8 +283,15 @@ export default function Media() {
         </div>
       )}
 
+      {/* ── Torrent search ─────────────────────────────────────────────────── */}
+      {activeTab === 'torrents' && (
+        <div className="fade-in">
+          <TorrentSearch key={torrentQuery} initialQuery={torrentQuery} />
+        </div>
+      )}
+
       {/* ── Movies / TV tabs ────────────────────────────────────────────────── */}
-      {activeTab !== 'tracked' && (
+      {(activeTab === 'movies' || activeTab === 'tv') && (
         <>
           {/* Search bar */}
           <div className="media-search-bar">

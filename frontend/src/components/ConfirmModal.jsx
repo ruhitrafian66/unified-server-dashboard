@@ -8,7 +8,7 @@ function ConfirmModal({ title, message, children, onConfirm, onCancel, confirmTe
   }, [onCancel]);
 
   return (
-    <div className="modal-overlay fade-in" onClick={onCancel}>
+    <div className="modal-overlay confirm-overlay fade-in" onClick={onCancel}>
       <div className="modal slide-up" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title"
         onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">

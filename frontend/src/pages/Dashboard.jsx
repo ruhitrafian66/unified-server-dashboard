@@ -195,7 +195,7 @@ function Dashboard() {
       <div className="card">
         <div className="card-header-row">
           <h2>🛡️ Downloads &amp; VPN</h2>
-          <button className="link-button" onClick={() => navigate('/downloads')}>Open downloads →</button>
+          <button className="link-button" onClick={() => navigate('/storage')}>Storage →</button>
         </div>
         <div className="status-list">
           <StatusRow
@@ -229,7 +229,7 @@ function Dashboard() {
       <div className="card">
         <h2>⚡ Quick Actions</h2>
         <div className="mobile-grid-2">
-          <button className="button" onClick={() => navigate('/downloads?tab=search')}>
+          <button className="button" onClick={() => navigate('/media?tab=torrents')}>
             <span>🔍</span><span>Find torrent</span>
           </button>
           <button className="button" onClick={() => navigate('/media?tab=tracked')}>
