@@ -150,8 +150,101 @@ const readDisk = async (mountPoint) => {
     size,
     used,
     available,
+    // Blocks only root may use (ext4 keeps ~5%): headroom for system services
+    // even when downloads (running as a normal user) fill the disk.
+    reserved: (s.bfree - s.bavail) * s.bsize,
     percent: size ? Math.round((used / (used + available)) * 1000) / 10 : 0,
   };
+};
+
+// ─── Volumes: which physical disk each mount point lives on ─────────────────
+// Mount points that share a filesystem (e.g. "/" and a bind-mounted
+// /mnt/storage on the same SSD partition) are reported as ONE volume, labelled
+// from sysfs ("USB SSD", "SD card", "NVMe SSD", …) instead of assumptions.
+const VOLUME_ROLES = [
+  ['/', 'System'],
+  [DOWNLOAD_PATH, 'Media'],
+  ['/boot', 'Boot'],
+];
+
+const readSys = (p) => fs.readFile(p, 'utf8').then((v) => v.trim()).catch(() => null);
+
+/** Mount point → { majmin, source, fstype } from /proc/self/mountinfo. */
+const readMountInfo = async () => {
+  const map = new Map();
+  const raw = await fs.readFile('/proc/self/mountinfo', 'utf8').catch(() => '');
+  for (const line of raw.split('\n')) {
+    const [pre, post] = line.split(' - ');
+    if (!post) continue;
+    const f = pre.split(' ');
+    const [fstype, source] = post.split(' ');
+    // Octal escapes (e.g. \040 for space) in mount points.
+    const mountPoint = f[4].replace(/\\([0-7]{3})/g, (_, o) => String.fromCharCode(parseInt(o, 8)));
+    map.set(mountPoint, { majmin: f[2], source, fstype });
+  }
+  return map;
+};
+
+/** Describe the block device behind "major:minor": kind, model, disk name. */
+const describeDevice = async (majmin) => {
+  let real;
+  try {
+    real = await fs.realpath(`/sys/dev/block/${majmin}`);
+  } catch {
+    return { kind: 'Disk', model: null, disk: null };
+  }
+  const name = path.basename(real);
+  const isPartition = (await readSys(`${real}/partition`)) != null;
+  const diskPath = isPartition ? path.dirname(real) : real;
+  const disk = path.basename(diskPath);
+  const usb = diskPath.includes('/usb');
+  const rotational = (await readSys(`${diskPath}/queue/rotational`)) === '1';
+  // SD cards only expose a cryptic product code (e.g. "USD"), so no model for them.
+  const model = await readSys(`${diskPath}/device/model`);
+
+  let kind;
+  if (disk.startsWith('mmcblk')) {
+    kind = (await readSys(`${diskPath}/device/type`)) === 'MMC' ? 'eMMC' : 'SD card';
+  } else if (disk.startsWith('nvme')) {
+    kind = 'NVMe SSD';
+  } else if (disk.startsWith('sd')) {
+    kind = `${usb ? 'USB ' : ''}${rotational ? 'HDD' : 'SSD'}`;
+  } else {
+    kind = 'Disk';
+  }
+  return { kind, model, disk, partition: name };
+};
+
+const readVolumes = async () => {
+  const mountInfo = await readMountInfo();
+  const byDev = new Map();
+  for (const [mountPoint, role] of VOLUME_ROLES) {
+    let st;
+    try {
+      st = await fs.stat(mountPoint);
+    } catch {
+      continue;
+    }
+    // Only real mount points (or "/"), not plain folders on the root fs.
+    if (mountPoint !== '/' && !mountInfo.has(mountPoint)) continue;
+    const key = String(st.dev);
+    if (!byDev.has(key)) {
+      const info = mountInfo.get(mountPoint) || {};
+      byDev.set(key, {
+        id: key,
+        device: info.source || null,
+        fstype: info.fstype || null,
+        ...(await describeDevice(info.majmin)),
+        mounts: [],
+        roles: [],
+        ...(await readDisk(mountPoint)),
+      });
+    }
+    const v = byDev.get(key);
+    v.mounts.push(mountPoint);
+    v.roles.push(role);
+  }
+  return [...byDev.values()].map(({ mountPoint, ...v }) => v);
 };
 
 const MONITORED_SERVICES = (process.env.MONITORED_SERVICES || 'smbd,ssh,dashboard-deploy.timer')
@@ -217,7 +310,7 @@ loadHistory().finally(() => {
 
 // ─── Aggregated overview: one request per dashboard poll ─────────────────────
 router.get('/overview', h(async (req, res) => {
-  const [memory, uptime, load, temperature, rootDisk, storage, services, containers, torrentClient] =
+  const [memory, uptime, load, temperature, rootDisk, storage, volumes, services, containers, torrentClient] =
     await Promise.all([
       settle(readMemory()),
       settle(readUptime()),
@@ -225,6 +318,7 @@ router.get('/overview', h(async (req, res) => {
       settle(readTemperature()),
       settle(readDisk('/')),
       settle(readDisk(DOWNLOAD_PATH)),
+      settle(readVolumes()),
       settle(readServices()),
       settle(readContainers()),
       settle(readTorrentClient()),
@@ -232,7 +326,7 @@ router.get('/overview', h(async (req, res) => {
 
   const val = (r) => (r.ok ? r.value : null);
   const errors = Object.fromEntries(
-    Object.entries({ memory, uptime, load, rootDisk, storage, services, containers, torrentClient })
+    Object.entries({ memory, uptime, load, rootDisk, storage, volumes, services, containers, torrentClient })
       .filter(([, r]) => !r.ok)
       .map(([k, r]) => [k, r.error]),
   );
@@ -244,7 +338,7 @@ router.get('/overview', h(async (req, res) => {
     uptime: val(uptime),
     load: val(load),
     temperature: val(temperature),
-    disks: { root: val(rootDisk), storage: val(storage) },
+    disks: { root: val(rootDisk), storage: val(storage), volumes: val(volumes) ?? [] },
     services: val(services) ?? [],
     containers: val(containers) ?? [],
     torrentClient: val(torrentClient),

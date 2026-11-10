@@ -122,6 +122,18 @@ function Dashboard() {
   const online = !error;
   const storage = o.disks?.storage;
   const root = o.disks?.root;
+  // Physical volumes as detected by the server (device type from sysfs).
+  // Older servers don't send them: fall back to the two statfs readings.
+  const volumes = o.disks?.volumes?.length
+    ? o.disks.volumes
+    : [
+      storage && { id: 'storage', kind: 'Media storage', roles: ['Media'], mounts: [storage.mountPoint], ...storage },
+      root && { id: 'root', kind: 'System disk', roles: ['System'], mounts: [root.mountPoint], ...root },
+    ].filter(Boolean);
+  const systemVol = volumes.find((v) => v.roles.includes('System'));
+  const mediaVol = volumes.find((v) => v.roles.includes('Media')) || systemVol;
+  const sharedDisk = Boolean(systemVol && mediaVol && systemVol.id === mediaVol.id);
+  const fullVolumes = volumes.filter((v) => v.percent > 85 && (v.roles.includes('System') || v.roles.includes('Media')));
   const qb = o.torrentClient;
   const qbConn = qb ? TORRENT_CONNECTION[qb.connection] || { state: 'warn', label: qb.connection } : null;
   const vpn = o.containers?.find((c) => c.name === 'gluetun');
@@ -164,10 +176,10 @@ function Dashboard() {
             sub={o.memory ? `${formatBytes(o.memory.used)} of ${formatBytes(o.memory.total)}` : null}
           />
           <Tile
-            label="Media storage"
-            value={storage ? formatBytes(storage.available, 0) : '—'}
-            percent={storage?.percent}
-            sub={storage ? `free · ${storage.percent.toFixed(0)}% used of ${formatBytes(storage.size, 0)}` : null}
+            label={sharedDisk ? `Storage · ${mediaVol.kind}` : 'Media storage'}
+            value={mediaVol ? formatBytes(mediaVol.available, 0) : '—'}
+            percent={mediaVol?.percent}
+            sub={mediaVol ? `free · ${mediaVol.percent.toFixed(0)}% used of ${formatBytes(mediaVol.size, 0)}` : null}
           />
           <Tile
             label={o.temperature != null ? 'Temperature' : 'Uptime'}
@@ -176,11 +188,14 @@ function Dashboard() {
             sub={o.temperature != null ? `Up ${formatDuration(o.uptime)}` : null}
           />
         </div>
-        {root && root.percent > 85 && (
-          <div className="inline-alert inline-alert-warn" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
-            System disk (SD card) is {root.percent.toFixed(0)}% full — {formatBytes(root.available)} left.
+        {fullVolumes.map((v) => (
+          <div key={v.id} className="inline-alert inline-alert-warn" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
+            {v.roles.includes('System') && v.roles.includes('Media')
+              ? <>The {v.kind} holding both the system and your media is {v.percent.toFixed(0)}% full — {formatBytes(v.available)} left.
+                {' '}Downloads stop when it fills{v.reserved > 0 ? `; system services keep a ${formatBytes(v.reserved, 0)} reserve` : ''}.</>
+              : <>{v.roles.includes('System') ? 'System disk' : 'Media storage'} ({v.kind}) is {v.percent.toFixed(0)}% full — {formatBytes(v.available)} left.</>}
           </div>
-        )}
+        ))}
       </div>
 
       {/* Downloads & network */}
@@ -269,10 +284,12 @@ function Dashboard() {
       <div className="card">
         <h2>💾 Storage</h2>
         <div className="status-list">
-          {[['Media storage', storage], ['System disk (SD card)', root]].filter(([, d]) => d).map(([label, d]) => (
-            <div key={label} className="status-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.35rem' }}>
+          {volumes.map((d) => (
+            <div key={d.id} className="status-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.35rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
-                <span className="status-row-title">{label}</span>
+                <span className="status-row-title">
+                  {d.kind} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>· {d.roles.join(' + ')}</span>
+                </span>
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontVariantNumeric: 'tabular-nums' }}>
                   {formatBytes(d.used)} / {formatBytes(d.size)}
                 </span>
@@ -280,7 +297,10 @@ function Dashboard() {
               <div className="meter" style={{ marginTop: 0 }}>
                 <span style={{ width: `${d.percent}%`, background: levelColor(d.percent) }} />
               </div>
-              <div className="status-row-sub">{d.mountPoint} · {formatBytes(d.available)} free</div>
+              <div className="status-row-sub">
+                {[d.model, d.device].filter(Boolean).join(' · ')}{d.model || d.device ? ' · ' : ''}
+                {d.mounts.join(', ')} · {formatBytes(d.available)} free
+              </div>
             </div>
           ))}
         </div>

@@ -14,6 +14,9 @@ const fmtLabel = (ts, hours) => {
     + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
+// A gap longer than this between samples (1/min) means no data: break the line.
+const GAP_S = 5 * 60;
+
 // How many x-axis tick marks look good for each range
 const tickCount = (hours) => {
   if (hours <= 6)  return 6;
@@ -127,7 +130,16 @@ export default function HistoryChart({
       x: ml + ((s.t - startTs) / spanTs) * chartW,
       y: toY(s.v),
       v: s.v,
+      t: s.t,
     }));
+
+    // Split into runs at gaps (server down / restarting) so the chart never
+    // draws a line through time with no data.
+    const runs = [];
+    pts.forEach((p, i) => {
+      if (i === 0 || p.t - pts[i - 1].t > GAP_S) runs.push([]);
+      runs[runs.length - 1].push(p);
+    });
 
     // Filled area under the line — use a vertical gradient
     const grad = ctx.createLinearGradient(0, mt, 0, mt + chartH);
@@ -135,23 +147,36 @@ export default function HistoryChart({
     grad.addColorStop(0.6, 'rgba(102,126,234,0.08)');
     grad.addColorStop(1,   'rgba(102,126,234,0.00)');
 
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, mt + chartH);
-    pts.forEach((p) => ctx.lineTo(p.x, p.y));
-    ctx.lineTo(pts[pts.length - 1].x, mt + chartH);
-    ctx.closePath();
     ctx.fillStyle = grad;
-    ctx.fill();
+    for (const run of runs) {
+      if (run.length < 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(run[0].x, mt + chartH);
+      run.forEach((p) => ctx.lineTo(p.x, p.y));
+      ctx.lineTo(run[run.length - 1].x, mt + chartH);
+      ctx.closePath();
+      ctx.fill();
+    }
 
     // Coloured line — segment-by-segment so colour reflects the value
     ctx.lineWidth = 1.5 * dpr;
     ctx.lineJoin = 'round';
-    for (let i = 1; i < pts.length; i++) {
-      ctx.strokeStyle = colour(pts[i].v);
-      ctx.beginPath();
-      ctx.moveTo(pts[i - 1].x, pts[i - 1].y);
-      ctx.lineTo(pts[i].x,     pts[i].y);
-      ctx.stroke();
+    for (const run of runs) {
+      if (run.length === 1) {
+        // Isolated sample between two gaps: show it as a small dot.
+        ctx.fillStyle = colour(run[0].v);
+        ctx.beginPath();
+        ctx.arc(run[0].x, run[0].y, 1.5 * dpr, 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
+      for (let i = 1; i < run.length; i++) {
+        ctx.strokeStyle = colour(run[i].v);
+        ctx.beginPath();
+        ctx.moveTo(run[i - 1].x, run[i - 1].y);
+        ctx.lineTo(run[i].x, run[i].y);
+        ctx.stroke();
+      }
     }
 
     // Current value dot
