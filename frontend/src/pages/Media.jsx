@@ -94,7 +94,7 @@ export default function Media() {
   const [selectedItem, setSelectedItem] = useState(null);
   const searchDebounce = useRef(null);
   const searchSeq = useRef(0);
-  const { tmdbConfigured } = useSettings();
+  const { tmdbConfigured, tvAutomation } = useSettings();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -143,12 +143,12 @@ export default function Media() {
     }
   };
 
-  // Allow deep-linking: /media?tab=tracked
+  // Allow deep-linking: /media?tab=torrents (and ?tab=tracked while TV automation is on)
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'tracked' || tab === 'torrents') setActiveTab(tab);
+    if (tab === 'torrents' || (tab === 'tracked' && tvAutomation)) setActiveTab(tab);
     if (tab === 'torrents') setTorrentQuery(searchParams.get('q') || '');
-  }, [searchParams]);
+  }, [searchParams, tvAutomation]);
 
   const runSearch = useCallback(async (query, page = 1) => {
     if (!query.trim()) return;
@@ -232,7 +232,7 @@ export default function Media() {
   const tabs = [
     { id: 'movies', label: '🎬 Movies' },
     { id: 'tv', label: '📺 TV' },
-    { id: 'tracked', label: '📡 Tracked' },
+    ...(tvAutomation ? [{ id: 'tracked', label: '📡 Tracked' }] : []),
     { id: 'torrents', label: '🔍 Torrents' },
   ];
 
@@ -252,7 +252,7 @@ export default function Media() {
       </div>
 
       {/* ── Tracked tab ─────────────────────────────────────────────────────── */}
-      {activeTab === 'tracked' && (
+      {activeTab === 'tracked' && tvAutomation && (
         <div className="fade-in">
           <div className="mobile-tabs" style={{ background: '#12122a' }}>
             <button

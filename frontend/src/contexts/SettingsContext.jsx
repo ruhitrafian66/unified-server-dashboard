@@ -26,11 +26,15 @@ const writeLocal = (key, value) => {
 export function SettingsProvider({ children }) {
   const [omdbApiKey, setOmdbApiKeyState] = useState(() => readLocal(OMDB_KEY));
   const [tmdbConfigured, setTmdbConfigured] = useState(null); // null = unknown yet
+  // TV automation is parked on the server (TV_AUTOMATION=on turns it back on);
+  // while it is off the UI hides the Tracked tab and the automation settings.
+  const [tvAutomation, setTvAutomation] = useState(false);
 
   const refreshTmdbStatus = useCallback(async () => {
     try {
       const res = await axios.get('/api/shows/config/tmdb');
       setTmdbConfigured(Boolean(res.data.configured));
+      setTvAutomation(res.data.tvAutomation === true);
     } catch {
       setTmdbConfigured(null);
     }
@@ -53,6 +57,7 @@ export function SettingsProvider({ children }) {
       omdbApiKey,
       setOmdbApiKey,
       tmdbConfigured,
+      tvAutomation,
       refreshTmdbStatus,
       saveTmdbKey,
     }}>

@@ -11,6 +11,9 @@ export const DATA_DIR = process.env.DATA_DIR || '/opt/server-dashboard/data';
 export const DOWNLOAD_PATH = process.env.DOWNLOAD_PATH || '/mnt/storage';
 // Folder qBittorrent downloads into and Plex reads from (host path).
 export const LIBRARY_PATH = process.env.LIBRARY_PATH || '/mnt/storage/Server';
+// TV automation (show tracking, episode sweeps, season jobs) is parked: off
+// unless TV_AUTOMATION=on. See "Parked: TV automation" in CLAUDE.md.
+export const TV_AUTOMATION_ENABLED = process.env.TV_AUTOMATION === 'on';
 
 const configStore = new JsonStore(path.join(DATA_DIR, 'config.json'), {});
 

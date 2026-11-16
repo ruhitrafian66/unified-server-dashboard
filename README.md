@@ -1,6 +1,6 @@
 # Unified Server Dashboard
 
-A Progressive Web App (PWA) dashboard for managing media server infrastructure: qBittorrent torrents, Plex media library, TV-show automation, system resources, and Docker status — all in one unified interface.
+A Progressive Web App (PWA) dashboard for managing media server infrastructure: qBittorrent torrents, Plex media library, system resources, and Docker status (plus TV-show automation, currently switched off) — all in one unified interface.
 
 ## Features
 
@@ -99,7 +99,10 @@ All write requests (`POST`/`PUT`/`DELETE`) must send `X-Requested-With: dashboar
 - `GET /search/plugins` · `POST /search/start` · `GET /search/status/:id` · `GET /search/results/:id` · `POST /search/stop` · `GET|DELETE /search/logs`
 - `GET|POST /auto-stop/config` — seeding limits, stored in qBittorrent's own preferences
 
-### TV automation — `/api/shows`
+### TV automation — `/api/shows` (parked, off by default)
+Off unless `TV_AUTOMATION=on` is set in `backend/.env`. While off, no episode checks run,
+the UI hides the Tracked tab and its settings, and every route below answers `503` except
+`GET|POST /config/tmdb` (whose `GET` also reports `tvAutomation: true|false`).
 - `GET /` · `POST /` (`{ tmdbId }`) · `PUT /:id` · `DELETE /:id`
 - `POST /check` (background) · `GET /check/status`
 - `POST /download-season` · `POST /:id/season/:season` · `GET /download-progress/:sessionId`
@@ -123,7 +126,7 @@ Read-only allow-listed TMDB paths (trending, search, details); the server adds i
 - **Frontend**: React + Vite PWA. Polling pauses while the app is in the background.
 - **Backend**: Node.js + Express. Reads `/proc`, `/sys` and `statfs` directly (no `top`/`df` subprocesses).
 - **Data**: `DATA_DIR/shows.json` and `DATA_DIR/config.json`, written atomically and serialised (no lost updates, no wipe on a corrupt file).
-- **TV automation**: timer at each episode's air time + a 6-hourly sweep (also catches anything missed while the server was down). Aired-but-not-found episodes are retried for 7 days, then flagged as missed instead of silently skipped. Malware-looking release names are rejected.
+- **TV automation** (parked, see the API section): timer at each episode's air time + a 6-hourly sweep (also catches anything missed while the server was down). Aired-but-not-found episodes are retried for 7 days, then flagged as missed instead of silently skipped. Malware-looking release names are rejected.
 
 ## Security
 

@@ -13,17 +13,30 @@
  * Checks run (a) on a timer at each next episode's air time, (b) on a periodic
  * sweep — which also catches anything missed while the server was down — and
  * (c) on demand. All of it runs in the background; HTTP requests never wait.
+ *
+ * PARKED: all of this is off unless TV_AUTOMATION=on (lib/config.js). While
+ * off, no sweep or timer runs and every route here answers 503, except the
+ * TMDB key endpoints (/config/tmdb), which the rest of the app relies on.
  */
 import express from 'express';
 import fs from 'fs/promises';
 import path from 'path';
-import { DATA_DIR, DOWNLOAD_PATH, getTmdbApiKey, isAutoCheckEnabled, updateConfig, loadConfig } from '../lib/config.js';
+import {
+  DATA_DIR, DOWNLOAD_PATH, TV_AUTOMATION_ENABLED, getTmdbApiKey, isAutoCheckEnabled, updateConfig, loadConfig,
+} from '../lib/config.js';
 import { JsonStore } from '../lib/jsonStore.js';
 import * as tmdb from '../lib/tmdb.js';
 import { qbGet, qbPost, addTorrentUrl } from './qbAuth.js';
 
 const router = express.Router();
 const h = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+// ─── Parked switch ───────────────────────────────────────────────────────────
+// The TMDB key endpoints stay open: Media browsing and Settings use them.
+router.use((req, res, next) => {
+  if (TV_AUTOMATION_ENABLED || req.path === '/config/tmdb') return next();
+  res.status(503).json({ error: 'TV automation is disabled on this server', disabled: true });
+});
 
 // ─── Tunables ────────────────────────────────────────────────────────────────
 const AIR_DELAY_MS = 60 * 60 * 1000;          // first search 1h after the air date (UTC midnight)
@@ -403,7 +416,12 @@ const sweep = async (reason = 'sweep', { force = false } = {}) => {
 };
 
 const startAutomation = async () => {
+  // Always load config.json: the TMDB proxy and library posters read the key from it.
   await loadConfig();
+  if (!TV_AUTOMATION_ENABLED) {
+    console.log('TV automation is disabled (set TV_AUTOMATION=on to enable)');
+    return;
+  }
   setTimeout(() => sweep('startup').catch((err) => console.error('Startup sweep failed:', err.message)), 60_000).unref();
   setInterval(() => sweep('periodic').catch((err) => console.error('Periodic sweep failed:', err.message)), SWEEP_INTERVAL_MS).unref();
 };
@@ -661,6 +679,8 @@ router.get('/config/tmdb', (req, res) => {
   res.json({
     configured: Boolean(getTmdbApiKey()),
     hasKey: Boolean(process.env.TMDB_API_KEY),
+    // The UI hides the Tracked tab and automation settings unless this is true.
+    tvAutomation: TV_AUTOMATION_ENABLED,
   });
 });
 

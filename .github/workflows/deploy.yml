@@ -70,7 +70,9 @@ jobs:
           set -x
           curl -fsS localhost:3999/api/health | grep -q '"status":"ok"'
           curl -fsS localhost:3999/ | grep -q '<div id="root">'
-          curl -fsS localhost:3999/api/shows | grep -q '"shows"'
+          # TV automation is parked: the flag reads false and its routes answer 503.
+          curl -fsS localhost:3999/api/shows/config/tmdb | grep -q '"tvAutomation":false'
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3999/api/shows)" = 503
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:3999/api/shows/check)" = 403
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3999/api/does-not-exist)" = 404
           kill %1

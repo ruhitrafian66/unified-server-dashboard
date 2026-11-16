@@ -8,6 +8,7 @@ import QueuePopup from '../components/QueuePopup';
 import SearchLogsPopup from '../components/SearchLogsPopup';
 import HistoryCard from '../components/HistoryCard';
 import usePolling from '../hooks/usePolling';
+import { useSettings } from '../contexts/SettingsContext';
 import { formatBytes, formatSpeed, formatDuration, levelColor, apiError } from '../lib/format';
 
 // Links open the real web UIs on the same host the dashboard was loaded from.
@@ -76,6 +77,7 @@ const TORRENT_CONNECTION = {
 function Dashboard() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { tvAutomation } = useSettings();
   const [overview, setOverview] = useState(null);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -222,10 +224,13 @@ function Dashboard() {
             )}
           />
         </div>
-        <div className="mobile-grid-2 mt-1">
-          <button className="button button-secondary" onClick={() => setShowQueue(true)}>
-            <span>📋</span><span>Search queue</span>
-          </button>
+        <div className={`${tvAutomation ? 'mobile-grid-2' : 'mobile-grid'} mt-1`}>
+          {/* The search queue belongs to TV automation, which is parked. */}
+          {tvAutomation && (
+            <button className="button button-secondary" onClick={() => setShowQueue(true)}>
+              <span>📋</span><span>Search queue</span>
+            </button>
+          )}
           <button className="button button-secondary" onClick={() => setShowSearchLogs(true)}>
             <span>🧾</span><span>Search logs</span>
           </button>
@@ -239,9 +244,11 @@ function Dashboard() {
           <button className="button" onClick={() => navigate('/media?tab=torrents')}>
             <span>🔍</span><span>Find torrent</span>
           </button>
-          <button className="button" onClick={() => navigate('/media?tab=tracked')}>
-            <span>📺</span><span>TV shows</span>
-          </button>
+          {tvAutomation && (
+            <button className="button" onClick={() => navigate('/media?tab=tracked')}>
+              <span>📺</span><span>TV shows</span>
+            </button>
+          )}
           {EXTERNAL_SERVICES.map((s) => (
             <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer"
               className="button button-secondary" style={{ textDecoration: 'none' }}>

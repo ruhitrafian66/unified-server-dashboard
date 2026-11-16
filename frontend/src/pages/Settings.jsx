@@ -36,7 +36,7 @@ function ToggleRow({ title, description, checked, onChange, disabled }) {
 export default function Settings() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { omdbApiKey, setOmdbApiKey, tmdbConfigured, saveTmdbKey } = useSettings();
+  const { omdbApiKey, setOmdbApiKey, tmdbConfigured, tvAutomation, saveTmdbKey } = useSettings();
 
   const [tmdbInput, setTmdbInput] = useState('');
   const [tmdbVisible, setTmdbVisible] = useState(false);
@@ -67,9 +67,14 @@ export default function Settings() {
         setLimitsLoaded(true);
       })
       .catch((err) => setLimitsError(apiError(err)));
-    axios.get('/api/shows/config/auto-check').then((res) => setAutoCheck(res.data)).catch(() => {});
     axios.get('/api/health').then((res) => setHealth(res.data)).catch(() => {});
   }, []);
+
+  // TV automation is parked on the server; its settings only load when it is on.
+  useEffect(() => {
+    if (!tvAutomation) return;
+    axios.get('/api/shows/config/auto-check').then((res) => setAutoCheck(res.data)).catch(() => {});
+  }, [tvAutomation]);
 
   const saveTmdb = async () => {
     const key = tmdbInput.trim();
@@ -132,24 +137,28 @@ export default function Settings() {
         <h2 style={{ fontSize: '1.1rem' }}>⚙️ Settings</h2>
       </div>
 
-      {/* TV automation */}
-      <SectionHeader title="TV Show Automation" />
-      <SettingsCard>
-        <ToggleRow
-          title="Check for new episodes automatically"
-          description={autoCheck
-            ? `Searches at each episode's air time, retries every ${autoCheck.sweepIntervalHours ?? 6}h for up to ${autoCheck.retryWindowDays ?? 7} days.`
-            : 'Loading…'}
-          checked={Boolean(autoCheck?.enabled)}
-          onChange={toggleAutoCheck}
-          disabled={!autoCheck || isSavingAutoCheck}
-        />
-        {autoCheck?.lastSweep && (
-          <p className="hint" style={{ marginTop: '0.75rem' }}>
-            Last run {new Date(autoCheck.lastSweep.at).toLocaleString()} · {autoCheck.lastSweep.downloads?.length || 0} downloaded
-          </p>
-        )}
-      </SettingsCard>
+      {/* TV automation (hidden while it is parked on the server) */}
+      {tvAutomation && (
+        <>
+          <SectionHeader title="TV Show Automation" />
+          <SettingsCard>
+            <ToggleRow
+              title="Check for new episodes automatically"
+              description={autoCheck
+                ? `Searches at each episode's air time, retries every ${autoCheck.sweepIntervalHours ?? 6}h for up to ${autoCheck.retryWindowDays ?? 7} days.`
+                : 'Loading…'}
+              checked={Boolean(autoCheck?.enabled)}
+              onChange={toggleAutoCheck}
+              disabled={!autoCheck || isSavingAutoCheck}
+            />
+            {autoCheck?.lastSweep && (
+              <p className="hint" style={{ marginTop: '0.75rem' }}>
+                Last run {new Date(autoCheck.lastSweep.at).toLocaleString()} · {autoCheck.lastSweep.downloads?.length || 0} downloaded
+              </p>
+            )}
+          </SettingsCard>
+        </>
+      )}
 
       {/* Seeding limits */}
       <SectionHeader title="Seeding Limits" />
@@ -190,7 +199,7 @@ export default function Settings() {
       <SettingsCard>
         <p className="hint" style={{ marginBottom: '0.75rem' }}>
           {tmdbConfigured === true && <span style={{ color: 'var(--success)' }}>✓ Configured on the server — works on every device. </span>}
-          {tmdbConfigured === false && <span style={{ color: 'var(--warning)' }}>Not configured — Media and TV tracking need it. </span>}
+          {tmdbConfigured === false && <span style={{ color: 'var(--warning)' }}>Not configured — Media browsing and library posters need it. </span>}
           Enter a new key to replace it. Get one free at themoviedb.org → Settings → API.
         </p>
         <div className="settings-field">
